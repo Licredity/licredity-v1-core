@@ -1,0 +1,12 @@
+# Dotenv file
+.env
+
+# Dependencies
+dependencies/
+
+# Compiler files
+cache/
+out/
+
+# Broadcast logs
+broadcast/
