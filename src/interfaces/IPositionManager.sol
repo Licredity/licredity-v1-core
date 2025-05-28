@@ -12,61 +12,64 @@ interface IPositionManager {
     /// @return result The result returned from the unlock callback
     function unlock(bytes calldata data) external returns (bytes memory result);
 
-    /// @notice Function to mint a new position
-    /// @return positionId The ID of the newly minted position
-    function mintPosition() external returns (uint256 positionId);
+    /// @notice Function to open a new position
+    /// @param originator The originator of the position
+    /// @return positionId The ID of the newly opened position
+    function openPosition(address originator) external returns (uint256 positionId);
 
-    /// @notice Function to burn an existing position
-    /// @param positionId The ID of the position to burn
-    function burnPosition(uint256 positionId) external;
+    /// @notice Function to close an existing position
+    /// @param positionId The ID of the position to close
+    function closePosition(uint256 positionId) external;
 
-    /// @notice Function to deposit fungible assets into a position
-    /// @param positionId The ID of the position to deposit into
-    /// @param fungible The fungible asset to deposit
-    /// @param amount The amount of the fungible asset to deposit
-    /// @dev This function is payable to allow for ETH deposits if the fungible asset is ETH
-    function depositFungible(uint256 positionId, Fungible fungible, uint256 amount) external payable;
+    /// @notice Function to stage a fungible for settlement
+    /// @param fungible The fungible to stage
+    function stageFungible(Fungible fungible) external;
 
-    /// @notice Function to deposit non-fungible assets into a position
-    /// @param positionId The ID of the position to deposit into
-    /// @param nonFungible The non-fungible asset to deposit
-    /// @param tokenId The ID of the non-fungible token to deposit
-    function depositNonFungible(uint256 positionId, NonFungible nonFungible, uint256 tokenId) external;
+    /// @notice Function to settle the staged fungible to a position
+    /// @param positionId The ID of the position to settle to
+    /// @return amount The amount of fungible settled
+    function settleFungible(uint256 positionId) external returns (uint256 amount);
 
-    /// @notice Function to withdraw fungible assets from a position
-    /// @param positionId The ID of the position to withdraw from
-    /// @param fungible The fungible asset to withdraw
-    /// @param amount The amount of the fungible asset to withdraw
-    /// @param recipient The address to receive the withdrawn fungible asset
-    function withdrawFungible(uint256 positionId, Fungible fungible, uint256 amount, address recipient) external;
+    /// @notice Function to take some fungible from a position
+    /// @param positionId The ID of the position to take from
+    /// @param fungible The fungible to take
+    /// @param amount The amount of fungible to take
+    /// @param recipient The recipient of the fungible taken
+    function takeFungible(uint256 positionId, Fungible fungible, uint256 amount, address recipient) external;
 
-    /// @notice Function to withdraw non-fungible assets from a position
-    /// @param positionId The ID of the position to withdraw from
-    /// @param nonFungible The non-fungible asset to withdraw
-    /// @param tokenId The ID of the non-fungible token to withdraw
-    /// @param recipient The address to receive the withdrawn non-fungible asset
-    function withdrawNonFungible(uint256 positionId, NonFungible nonFungible, uint256 tokenId, address recipient)
+    /// @notice Function to stage a non-fungible token for settlement
+    /// @param nonFungible The non-fungible to stage
+    /// @param tokenId The ID of the token to stage
+    function stageNonFungible(NonFungible nonFungible, uint256 tokenId) external;
+
+    /// @notice Function to settle the staged non-fungible token to a position
+    /// @param positionId The ID of the position to settle to
+    function settleNonFungible(uint256 positionId) external;
+
+    /// @notice Function to take a non-fungible token from a position
+    /// @param positionId The ID of the position to take from
+    /// @param nonFungible The non-fungible to take
+    /// @param tokenId The ID of the token to take
+    /// @param recipient The recipient of the non-fungible token taken
+    function takeNonFungible(uint256 positionId, NonFungible nonFungible, uint256 tokenId, address recipient)
         external;
 
-    /// @notice Function to mint debt for a position
-    /// @param positionId The ID of the position to mint debt for
-    /// @param share The share of the debt to mint
-    /// @param originator The address that originated the minted debt
-    /// @param recipient The address to receive the minted debt
-    /// @return amount The amount of debt minted
-    function mintDebt(uint256 positionId, uint256 share, address originator, address recipient)
-        external
-        returns (uint256 amount);
+    /// @notice Function to add debt to a position
+    /// @param positionId The ID of the position to add to
+    /// @param share The share of debt to add
+    /// @param recipient The recipient of the debt added
+    /// @return amount The amount of debt added
+    function addDebt(uint256 positionId, uint256 share, address recipient) external returns (uint256 amount);
 
-    /// @notice Function to burn debt for a position
-    /// @param positionId The ID of the position to burn debt for
-    /// @param share The share of the debt to burn
-    /// @return amount The amount of debt burned
-    function burnDebt(uint256 positionId, uint256 share) external returns (uint256 amount);
+    /// @notice Function to remove debt from a position
+    /// @param positionId The ID of the position to remove from
+    /// @param share The share of debt to remove
+    /// @return amount The amount of debt removed
+    function removeDebt(uint256 positionId, uint256 share) external returns (uint256 amount);
 
     /// @notice Function to seize an unhealthy position
     /// @param positionId The ID of the position to seize
-    /// @param recipient The address to receive the seized position
+    /// @param recipient The recipient of the seized position
     /// @return deficit The amount of deficit accrued in the seized position
     function seizePosition(uint256 positionId, address recipient) external returns (uint256 deficit);
 }

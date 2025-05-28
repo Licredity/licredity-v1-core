@@ -14,47 +14,54 @@ contract PositionManager is IPositionManager {
     }
 
     /// @inheritdoc IPositionManager
-    function mintPosition() external returns (uint256 positionId) {
+    function openPosition(address originator) external returns (uint256 positionId) {
         // TODO: implement
     }
 
     /// @inheritdoc IPositionManager
-    function burnPosition(uint256 positionId) external {
+    function closePosition(uint256 positionId) external {
         // TODO: implement
     }
 
     /// @inheritdoc IPositionManager
-    function depositFungible(uint256 positionId, Fungible fungible, uint256 amount) external payable {
+    function stageFungible(Fungible fungible) external {
         // TODO: implement
     }
 
     /// @inheritdoc IPositionManager
-    function depositNonFungible(uint256 positionId, NonFungible nonFungible, uint256 tokenId) external {
+    function settleFungible(uint256 positionId) external returns (uint256 amount) {
         // TODO: implement
     }
 
     /// @inheritdoc IPositionManager
-    function withdrawFungible(uint256 positionId, Fungible fungible, uint256 amount, address recipient) external {
+    function takeFungible(uint256 positionId, Fungible fungible, uint256 amount, address recipient) external {
         // TODO: implement
     }
 
     /// @inheritdoc IPositionManager
-    function withdrawNonFungible(uint256 positionId, NonFungible nonFungible, uint256 tokenId, address recipient)
+    function stageNonFungible(NonFungible nonFungible, uint256 tokenId) external {
+        // TODO: implement
+    }
+
+    /// @inheritdoc IPositionManager
+    function settleNonFungible(uint256 positionId) external {
+        // TODO: implement
+    }
+
+    /// @inheritdoc IPositionManager
+    function takeNonFungible(uint256 positionId, NonFungible nonFungible, uint256 tokenId, address recipient)
         external
     {
         // TODO: implement
     }
 
     /// @inheritdoc IPositionManager
-    function mintDebt(uint256 positionId, uint256 share, address originator, address recipient)
-        external
-        returns (uint256 amount)
-    {
+    function addDebt(uint256 positionId, uint256 share, address recipient) external returns (uint256 amount) {
         // TODO: implement
     }
 
     /// @inheritdoc IPositionManager
-    function burnDebt(uint256 positionId, uint256 share) external returns (uint256 amount) {
+    function removeDebt(uint256 positionId, uint256 share) external returns (uint256 amount) {
         // TODO: implement
     }
 
