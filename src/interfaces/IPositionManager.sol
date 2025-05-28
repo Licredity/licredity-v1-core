@@ -13,22 +13,25 @@ interface IPositionManager {
     function unlock(bytes calldata data) external returns (bytes memory result);
 
     /// @notice Function to open a new position
-    /// @param originator The originator of the position
     /// @return positionId The ID of the newly opened position
-    function openPosition(address originator) external returns (uint256 positionId);
+    function openPosition() external returns (uint256 positionId);
 
     /// @notice Function to close an existing position
     /// @param positionId The ID of the position to close
     function closePosition(uint256 positionId) external;
 
-    /// @notice Function to stage a fungible for settlement
+    /// @notice Function to stage a fungible for settlement or exchange
     /// @param fungible The fungible to stage
     function stageFungible(Fungible fungible) external;
+
+    /// @notice Function to exchange staged debt fungible for base fungible
+    /// @param recipient The recipient of the exchanged base fungible
+    function exchangeFungible(address recipient) external;
 
     /// @notice Function to settle the staged fungible to a position
     /// @param positionId The ID of the position to settle to
     /// @return amount The amount of fungible settled
-    function settleFungible(uint256 positionId) external returns (uint256 amount);
+    function settleFungible(uint256 positionId) external payable returns (uint256 amount);
 
     /// @notice Function to take some fungible from a position
     /// @param positionId The ID of the position to take from
@@ -37,22 +40,19 @@ interface IPositionManager {
     /// @param recipient The recipient of the fungible taken
     function takeFungible(uint256 positionId, Fungible fungible, uint256 amount, address recipient) external;
 
-    /// @notice Function to stage a non-fungible token for settlement
+    /// @notice Function to stage a non-fungible for settlement
     /// @param nonFungible The non-fungible to stage
-    /// @param tokenId The ID of the token to stage
-    function stageNonFungible(NonFungible nonFungible, uint256 tokenId) external;
+    function stageNonFungible(NonFungible nonFungible) external;
 
-    /// @notice Function to settle the staged non-fungible token to a position
+    /// @notice Function to settle the staged non-fungible to a position
     /// @param positionId The ID of the position to settle to
     function settleNonFungible(uint256 positionId) external;
 
-    /// @notice Function to take a non-fungible token from a position
+    /// @notice Function to take a non-fungible from a position
     /// @param positionId The ID of the position to take from
     /// @param nonFungible The non-fungible to take
-    /// @param tokenId The ID of the token to take
-    /// @param recipient The recipient of the non-fungible token taken
-    function takeNonFungible(uint256 positionId, NonFungible nonFungible, uint256 tokenId, address recipient)
-        external;
+    /// @param recipient The recipient of the non-fungible taken
+    function takeNonFungible(uint256 positionId, NonFungible nonFungible, address recipient) external;
 
     /// @notice Function to add debt to a position
     /// @param positionId The ID of the position to add to
