@@ -7,7 +7,7 @@ import {NonFungible} from "./types/NonFungible.sol";
 
 /// @title Positions
 /// @notice Implementation of the IPositions interface
-contract Positions is IPositions {
+abstract contract Positions is IPositions {
     /// @inheritdoc IPositions
     function open() external returns (uint256 positionId) {
         // TODO: initialize a new position with id == ++positionCount, owner == msg.sender
