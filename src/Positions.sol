@@ -1,33 +1,22 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.30;
 
-import {IPositionManager} from "./interfaces/IPositionManager.sol";
+import {IPositions} from "./interfaces/IPositions.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 
-/// @title PositionManager
-/// @notice Implementation of the IPositionManager interface
-contract PositionManager is IPositionManager {
-    /// @inheritdoc IPositionManager
-    function unlock(bytes calldata data) external returns (bytes memory result) {
-        // TODO: require locked
-        // TODO: unlock
-
-        // TODO: invoke unlock callback and assign result
-
-        // TODO: ensure every modified position is healthy
-        // TODO: lock
-    }
-
-    /// @inheritdoc IPositionManager
-    function openPosition() external returns (uint256 positionId) {
+/// @title Positions
+/// @notice Implementation of the IPositions interface
+contract Positions is IPositions {
+    /// @inheritdoc IPositions
+    function open() external returns (uint256 positionId) {
         // TODO: initialize a new position with id == ++positionCount, owner == msg.sender
 
         // TODO: emit OpenPosition event
     }
 
-    /// @inheritdoc IPositionManager
-    function closePosition(uint256 positionId) external {
+    /// @inheritdoc IPositions
+    function close(uint256 positionId) external {
         // TODO: require position owner is msg.sender
         // TODO: require empty position
 
@@ -36,13 +25,13 @@ contract PositionManager is IPositionManager {
         // TODO: emit ClosePosition event
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function stageFungible(Fungible fungible) external {
         // TODO: transiently store fungible
         // TODO: if fungible is not native, transiently store balance
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function exchangeFungible(address recipient) external {
         // TODO: require staged fungible is debt fungible
         // TODO: calculate amount of debt fungible received
@@ -54,7 +43,7 @@ contract PositionManager is IPositionManager {
         // TODO: emit ExchangeFungible event
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function settleFungible(uint256 positionId) external payable returns (uint256 amount) {
         // TODO: require position exists
 
@@ -64,7 +53,7 @@ contract PositionManager is IPositionManager {
         // TODO: emit SettleFungible event
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function takeFungible(uint256 positionId, Fungible fungible, uint256 amount, address recipient) external {
         // TODO: require position owner == msg.sender
         // TODO: require position fungible balance >= amount
@@ -76,14 +65,14 @@ contract PositionManager is IPositionManager {
         // TODO: emit TakeFungible event
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function stageNonFungible(NonFungible nonFungible) external {
         // TODO: require nonFungible's owner is not this contract
 
         // TODO: transiently store fungible
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function settleNonFungible(uint256 positionId) external {
         // TODO: require position exists
         // TODO: require staged nonFungible's owner is this contract
@@ -93,7 +82,7 @@ contract PositionManager is IPositionManager {
         // TODO: emit SettleNonFungible event
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function takeNonFungible(uint256 positionId, NonFungible nonFungible, address recipient) external {
         // TODO: require position owner == msg.sender
         // TODO: require position nonFungible contains nonFungible
@@ -105,7 +94,7 @@ contract PositionManager is IPositionManager {
         // TODO: emit TakeNonFungible event
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function addDebt(uint256 positionId, uint256 share, address recipient) external returns (uint256 amount) {
         // TODO: require position owner == msg.sender
 
@@ -119,7 +108,7 @@ contract PositionManager is IPositionManager {
         // TODO: emit AddDebt event
     }
 
-    /// @inheritdoc IPositionManager
+    /// @inheritdoc IPositions
     function removeDebt(uint256 positionId, uint256 share) external returns (uint256 amount) {
         // TODO: require position exists
         // TODO: require share <= position debt share
@@ -133,8 +122,8 @@ contract PositionManager is IPositionManager {
         // TODO: emit RemoveDebt event
     }
 
-    /// @inheritdoc IPositionManager
-    function seizePosition(uint256 positionId, address recipient) external returns (uint256 deficit) {
+    /// @inheritdoc IPositions
+    function seize(uint256 positionId, address recipient) external returns (uint256 deficit) {
         // TODO: require position is unhealthy
 
         // TODO: calculate deficit

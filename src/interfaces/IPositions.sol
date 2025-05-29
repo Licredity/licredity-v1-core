@@ -4,21 +4,16 @@ pragma solidity >=0.8.0;
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
 
-/// @title IPositionManager
-/// @notice Interface for the position manager contract
-interface IPositionManager {
-    /// @notice Function to unlock the position manager
-    /// @param data The data to be passed to the unlock callback
-    /// @return result The result returned from the unlock callback
-    function unlock(bytes calldata data) external returns (bytes memory result);
-
+/// @title IPositions
+/// @notice Interface for the positions contract
+interface IPositions {
     /// @notice Function to open a new position
     /// @return positionId The ID of the newly opened position
-    function openPosition() external returns (uint256 positionId);
+    function open() external returns (uint256 positionId);
 
     /// @notice Function to close an existing position
     /// @param positionId The ID of the position to close
-    function closePosition(uint256 positionId) external;
+    function close(uint256 positionId) external;
 
     /// @notice Function to stage a fungible for settlement or exchange
     /// @param fungible The fungible to stage
@@ -71,5 +66,5 @@ interface IPositionManager {
     /// @param positionId The ID of the position to seize
     /// @param recipient The recipient of the seized position
     /// @return deficit The amount of deficit accrued in the seized position
-    function seizePosition(uint256 positionId, address recipient) external returns (uint256 deficit);
+    function seize(uint256 positionId, address recipient) external returns (uint256 deficit);
 }
