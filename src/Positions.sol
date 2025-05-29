@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.30;
+pragma solidity =0.8.30;
 
 import {IPositions} from "./interfaces/IPositions.sol";
 import {Fungible} from "./types/Fungible.sol";
