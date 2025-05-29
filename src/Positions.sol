@@ -6,7 +6,7 @@ import {Fungible} from "./types/Fungible.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 
 /// @title Positions
-/// @notice Implementation of the IPositions interface
+/// @notice Abstract implementation of the IPositions interface
 abstract contract Positions is IPositions {
     /// @inheritdoc IPositions
     function open() external returns (uint256 positionId) {
