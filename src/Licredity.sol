@@ -5,12 +5,16 @@ import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {NonFungible} from "./types/NonFungible.sol";
+import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {DebtToken} from "./DebtToken.sol";
 
 /// @title Licredity
 /// @notice Implementation of the ILicredity interface
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
+    uint256 internal positionCount;
+    mapping(uint256 => Position) internal positions;
+
     constructor(address poolManager, string memory name, string memory symbol, uint8 decimals)
         BaseHooks(poolManager)
         DebtToken(name, symbol, decimals)
@@ -29,12 +33,21 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     /// @inheritdoc ILicredity
     function open() external returns (uint256 positionId) {
-        // TODO: implement
+        positionId = ++positionCount;
+        positions[positionId].setOwner(msg.sender);
+
+        emit OpenPosition(positionId, msg.sender);
     }
 
     /// @inheritdoc ILicredity
     function close(uint256 positionId) external {
-        // TODO: implement
+        Position storage position = positions[positionId];
+        require(position.owner == msg.sender, NotOwner());
+        require(position.isEmpty(), NotEmpty());
+
+        delete positions[positionId];
+
+        emit ClosePosition(positionId);
     }
 
     /// @inheritdoc ILicredity
