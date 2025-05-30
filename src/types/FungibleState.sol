@@ -3,7 +3,12 @@ pragma solidity >=0.8.0;
 
 type FungibleState is bytes32;
 
+using {equals as ==} for FungibleState global;
 using FungibleStateLibrary for FungibleState global;
+
+function equals(FungibleState x, FungibleState y) pure returns (bool) {
+    return FungibleState.unwrap(x) == FungibleState.unwrap(y);
+}
 
 function toFungibleState(uint64 index, uint192 _balance) pure returns (FungibleState state) {
     assembly ("memory-safe") {
@@ -14,6 +19,9 @@ function toFungibleState(uint64 index, uint192 _balance) pure returns (FungibleS
 /// @title FungibleStateLibrary
 /// @notice Library for managing fungible states
 library FungibleStateLibrary {
+    /// @notice A constant representing the empty fungible state
+    FungibleState public constant EMPTY = FungibleState.wrap(0);
+
     /// @notice Get the index part of the fungible state
     /// @param self The fungible state to get the index part of
     /// @return _index The index part of the fungible state
@@ -36,14 +44,6 @@ library FungibleStateLibrary {
     /// @param self The fungible state to check
     /// @return bool True if the fungible state is empty, false otherwise
     function isEmpty(FungibleState self) internal pure returns (bool) {
-        return FungibleState.unwrap(self) == 0;
-    }
-
-    /// @notice Add an amount to the balance of the fungible state
-    /// @param self The fungible state to add the amount to
-    /// @param amount The amount to add
-    /// @return FungibleState The updated fungible state
-    function add(FungibleState self, uint192 amount) internal pure returns (FungibleState) {
-        return toFungibleState(self.index(), self.balance() + amount);
+        return self == EMPTY;
     }
 }

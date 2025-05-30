@@ -3,7 +3,7 @@ pragma solidity =0.8.30;
 
 import {SafeCast} from "../libraries/SafeCast.sol";
 import {Fungible} from "./Fungible.sol";
-import {FungibleState, toFungibleState} from "./FungibleState.sol";
+import {FungibleState, FungibleStateLibrary, toFungibleState} from "./FungibleState.sol";
 import {NonFungible} from "./NonFungible.sol";
 
 struct Position {
@@ -39,7 +39,37 @@ library PositionLibrary {
             self.fungibles.push(fungible);
             self.fungibleStates[fungible] = toFungibleState(self.fungibles.length.toUint64(), amount.toUint192());
         } else {
-            self.fungibleStates[fungible] = state.add(amount.toUint192());
+            self.fungibleStates[fungible] = toFungibleState(state.index(), state.balance() + amount.toUint192()); // overflow desired
+        }
+    }
+
+    /// @notice Remove fungible from a position
+    /// @param self The position to remove fungible from
+    /// @param fungible The fungible to remove
+    /// @param amount The amount of fungible to remove
+    function removeFungible(Position storage self, Fungible fungible, uint256 amount) internal {
+        FungibleState state = self.fungibleStates[fungible];
+        uint64 index = state.index();
+        uint192 newBalance = state.balance() - amount.toUint192(); // underflow desired
+
+        if (newBalance != 0) {
+            self.fungibleStates[fungible] = toFungibleState(index, newBalance);
+        } else {
+            uint256 lastIndex = self.fungibles.length;
+
+            // underflow or index out of bounds not possible
+            unchecked {
+                if (index != lastIndex) {
+                    Fungible lastFungible = self.fungibles[lastIndex - 1];
+
+                    self.fungibles[index - 1] = lastFungible;
+                    self.fungibleStates[lastFungible] =
+                        toFungibleState(index, self.fungibleStates[lastFungible].balance());
+                }
+            }
+
+            self.fungibles.pop();
+            self.fungibleStates[fungible] = FungibleStateLibrary.EMPTY;
         }
     }
 
