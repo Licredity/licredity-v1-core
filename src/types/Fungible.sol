@@ -18,6 +18,14 @@ library FungibleLibrary {
     /// @notice A constant representing the native fungible
     Fungible public constant NATIVE = Fungible.wrap(address(0));
 
+    /// @notice Transfer fungible to recipient
+    /// @param self The fungible to transfer
+    /// @param amount The amount of fungible to transfer
+    /// @param recipient The address to transfer the fungible to
+    function transfer(Fungible self, uint256 amount, address recipient) internal {
+        // TODO: implement
+    }
+
     /// @notice Get the balance of a fungible for an address
     /// @param self The fungible to check the balance of
     /// @param owner The address to check the balance for
