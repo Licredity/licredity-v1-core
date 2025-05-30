@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 
 /// @title DebtToken
-/// @notice Abstract implementation of debt token
+/// @notice Abstract implementation of the IERC20 interface for debt tokens
 abstract contract DebtToken is IERC20 {
     struct OwnerData {
         uint256 balance;

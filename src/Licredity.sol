@@ -8,6 +8,8 @@ import {NonFungible} from "./types/NonFungible.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {DebtToken} from "./DebtToken.sol";
 
+/// @title Licredity
+/// @notice Implementation of the ILicredity interface
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     constructor(address poolManager, string memory name, string memory symbol, uint8 decimals)
         BaseHooks(poolManager)
