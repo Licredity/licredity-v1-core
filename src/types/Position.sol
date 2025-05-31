@@ -57,17 +57,12 @@ library PositionLibrary {
         } else {
             uint256 lastIndex = self.fungibles.length;
 
-            // underflow or index out of bounds not possible
-            unchecked {
-                if (index != lastIndex) {
-                    Fungible lastFungible = self.fungibles[lastIndex - 1];
+            if (index != lastIndex) {
+                Fungible lastFungible = self.fungibles[lastIndex - 1];
 
-                    self.fungibles[index - 1] = lastFungible;
-                    self.fungibleStates[lastFungible] =
-                        toFungibleState(index, self.fungibleStates[lastFungible].balance());
-                }
+                self.fungibles[index - 1] = lastFungible;
+                self.fungibleStates[lastFungible] = toFungibleState(index, self.fungibleStates[lastFungible].balance());
             }
-
             self.fungibles.pop();
             self.fungibleStates[fungible] = FungibleStateLibrary.EMPTY;
         }
@@ -89,13 +84,10 @@ library PositionLibrary {
 
         for (uint256 i = 0; i < count; ++i) {
             if (self.nonFungibles[i] == nonFungible) {
-                // underflow or index out of bounds not possible
-                unchecked {
-                    if (i != count - 1) {
-                        self.nonFungibles[i] = self.nonFungibles[count - 1];
-                    }
-                    self.nonFungibles.pop();
+                if (i != count - 1) {
+                    self.nonFungibles[i] = self.nonFungibles[count - 1];
                 }
+                self.nonFungibles.pop();
 
                 return true;
             }
