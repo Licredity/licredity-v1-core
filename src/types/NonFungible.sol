@@ -27,7 +27,7 @@ library NonFungibleLibrary {
             tokenId := and(self, sub(shl(96, 1), 1))
         }
 
-        IERC721(tokenAddress).transferFrom(address(this), recipient, tokenId);
+        IERC721(tokenAddress).safeTransferFrom(address(this), recipient, tokenId);
     }
 
     /// @notice Get the owner of a non-fungible
