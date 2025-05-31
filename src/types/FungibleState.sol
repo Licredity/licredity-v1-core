@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
+/// @dev A 'uint64' index and a 'uint192' balance, packed into a single 'bytes32' value
 type FungibleState is bytes32;
 
 using {equals as ==} for FungibleState global;

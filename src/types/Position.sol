@@ -73,6 +73,37 @@ library PositionLibrary {
         }
     }
 
+    /// @notice Add non-fungible to a position
+    /// @param self The position to add non-fungible to
+    /// @param nonFungible The non-fungible to add
+    function addNonFungible(Position storage self, NonFungible nonFungible) internal {
+        self.nonFungibles.push(nonFungible);
+    }
+
+    /// @notice Remove non-fungible from a position
+    /// @param self The position to remove non-fungible from
+    /// @param nonFungible The non-fungible to remove
+    /// @return bool True if the non-fungible was removed, false if it was not found
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool) {
+        uint256 count = self.nonFungibles.length;
+
+        for (uint256 i = 0; i < count; ++i) {
+            if (self.nonFungibles[i] == nonFungible) {
+                // underflow or index out of bounds not possible
+                unchecked {
+                    if (i != count - 1) {
+                        self.nonFungibles[i] = self.nonFungibles[count - 1];
+                    }
+                    self.nonFungibles.pop();
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// @notice Checks if the position is empty
     /// @param self The position to check
     /// @return bool True if the position is empty, false otherwise
