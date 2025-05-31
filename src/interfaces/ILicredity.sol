@@ -10,12 +10,17 @@ interface ILicredity {
     /// @notice Error thrown when an unexpected non-zero value is received
     error NonZeroNativeValue();
     /// @notice Error thrown when a position does not exist
-    /// @param positionId The ID of the position that does not exist
-    error PositionDoesNotExist(uint256 positionId);
+    error PositionDoesNotExist();
     /// @notice Error thrown when the caller is not owner of the position
     error NotPositionOwner();
     /// @notice Error thrown when a position is not empty
     error PositionNotEmpty();
+    /// @notice Error thrown when a non-fungible is already owned
+    error NonFungibleAlreadyOwned();
+    /// @notice Error thrown when a non-fungible is not owned
+    error NonFungibleNotOwned();
+    /// @notice Error thrown when a non-fungible is not in the position
+    error NonFungibleNotInPosition();
 
     /// @notice Event emitted when a new position is opened
     /// @param positionId The ID of the newly opened position
@@ -32,6 +37,11 @@ interface ILicredity {
     /// @param amount The amount of fungible that is deposited
     event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
 
+    /// @notice Event emitted when a non-fungible is deposited to a position
+    /// @param positionId The ID of the position to which the non-fungible is deposited
+    /// @param nonFungible The non-fungible that is deposited
+    event DepositNonFungible(uint256 indexed positionId, NonFungible indexed nonFungible);
+
     /// @notice Event emitted when a fungible is withdrawn from a position
     /// @param positionId The ID of the position from which the fungible is withdrawn
     /// @param fungible The fungible that is withdrawn
@@ -40,6 +50,12 @@ interface ILicredity {
     event WithdrawFungible(
         uint256 indexed positionId, Fungible indexed fungible, uint256 amount, address indexed recipient
     );
+
+    /// @notice Event emitted when a non-fungible is withdrawn from a position
+    /// @param positionId The ID of the position from which the non-fungible is withdrawn
+    /// @param nonFungible The non-fungible that is withdrawn
+    /// @param recipient The recipient of the non-fungible withdrawn
+    event WithdrawNonFungible(uint256 indexed positionId, NonFungible indexed nonFungible, address indexed recipient);
 
     /// @notice Function to unlock the Licredity contract
     /// @param data The data to be passed to the unlock callback

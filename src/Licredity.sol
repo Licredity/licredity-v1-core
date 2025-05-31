@@ -14,6 +14,7 @@ import {DebtToken} from "./DebtToken.sol";
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     Fungible transient stagedFungible;
     uint256 transient stagedFungibleBalance;
+    NonFungible transient stagedNonFungible;
 
     uint256 internal positionCount;
     mapping(uint256 => Position) internal positions;
@@ -69,7 +70,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
         Position storage position = positions[positionId];
-        require(position.owner != address(0), PositionDoesNotExist(positionId));
+        require(position.owner != address(0), PositionDoesNotExist());
         Fungible fungible = stagedFungible;
 
         uint256 amount;
@@ -100,17 +101,33 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     /// @inheritdoc ILicredity
     function stageNonFungible(NonFungible nonFungible) external {
-        // TODO: implement
+        require(nonFungible.owner() != address(this), NonFungibleAlreadyOwned());
+
+        stagedNonFungible = nonFungible;
     }
 
     /// @inheritdoc ILicredity
     function depositNonFungible(uint256 positionId) external {
-        // TODO: implement
+        Position storage position = positions[positionId];
+        require(position.owner != address(0), PositionDoesNotExist());
+        NonFungible nonFungible = stagedNonFungible;
+        require(nonFungible.owner() == address(this), NonFungibleNotOwned());
+
+        position.addNonFungible(nonFungible);
+
+        emit DepositNonFungible(positionId, nonFungible);
     }
 
     /// @inheritdoc ILicredity
     function withdrawNonFungible(uint256 positionId, NonFungible nonFungible, address recipient) external {
-        // TODO: implement
+        Position storage position = positions[positionId];
+        require(position.owner == msg.sender, NotPositionOwner());
+
+        // TODO: add position to health check list
+        require(position.removeNonFungible(nonFungible), NonFungibleNotInPosition());
+        nonFungible.transfer(recipient);
+
+        emit WithdrawNonFungible(positionId, nonFungible, recipient);
     }
 
     /// @inheritdoc ILicredity
