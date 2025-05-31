@@ -3,7 +3,7 @@ pragma solidity =0.8.30;
 
 import {SafeCast} from "../libraries/SafeCast.sol";
 import {Fungible} from "./Fungible.sol";
-import {FungibleState, FungibleStateLibrary, toFungibleState} from "./FungibleState.sol";
+import {FungibleState, toFungibleState} from "./FungibleState.sol";
 import {NonFungible} from "./NonFungible.sol";
 
 struct Position {
