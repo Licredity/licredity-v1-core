@@ -81,8 +81,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
             amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
         }
 
+        stagedFungible = Fungible.wrap(address(0));
         position.addFungible(fungible, amount);
-        _clearStagedFungible();
 
         emit DepositFungible(positionId, fungible, amount);
     }
@@ -113,6 +113,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         NonFungible nonFungible = stagedNonFungible;
         require(nonFungible.owner() == address(this), NonFungibleNotOwned());
 
+        stagedNonFungible = NonFungible.wrap(bytes32(0));
         position.addNonFungible(nonFungible);
 
         emit DepositNonFungible(positionId, nonFungible);
@@ -148,9 +149,5 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
-    }
-
-    function _clearStagedFungible() internal {
-        stagedFungible = Fungible.wrap(address(0));
     }
 }

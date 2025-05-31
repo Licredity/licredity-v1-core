@@ -35,7 +35,7 @@ library PositionLibrary {
     function addFungible(Position storage self, Fungible fungible, uint256 amount) internal {
         FungibleState state = self.fungibleStates[fungible];
 
-        if (state.isEmpty()) {
+        if (state.index() == 0) {
             self.fungibles.push(fungible);
             self.fungibleStates[fungible] = toFungibleState(self.fungibles.length.toUint64(), amount.toUint192());
         } else {
@@ -64,7 +64,7 @@ library PositionLibrary {
                 self.fungibleStates[lastFungible] = toFungibleState(index, self.fungibleStates[lastFungible].balance());
             }
             self.fungibles.pop();
-            self.fungibleStates[fungible] = FungibleStateLibrary.EMPTY;
+            self.fungibleStates[fungible] = FungibleState.wrap(0);
         }
     }
 
