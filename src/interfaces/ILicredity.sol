@@ -68,7 +68,8 @@ interface ILicredity {
     /// @param positionId The ID of the position from which debt is removed
     /// @param share The share of debt removed
     /// @param amount The amount of debt token given back
-    event RemoveDebt(uint256 indexed positionId, uint256 share, uint256 amount);
+    /// @param useBalance Whether to use the balance of the debt token in the position
+    event RemoveDebt(uint256 indexed positionId, uint256 share, uint256 amount, bool useBalance);
 
     /// @notice Function to unlock the Licredity contract
     /// @param data The data to be passed to the unlock callback
@@ -126,8 +127,9 @@ interface ILicredity {
     /// @notice Function to remove debt from a position
     /// @param positionId The ID of the position to remove from
     /// @param share The share of debt to remove
+    /// @param useBalance Whether to use the balance of the debt token in the position
     /// @return amount The amount of debt token given back
-    function removeDebt(uint256 positionId, uint256 share) external returns (uint256 amount);
+    function removeDebt(uint256 positionId, uint256 share, bool useBalance) external returns (uint256 amount);
 
     /// @notice Function to seize an unhealthy position
     /// @param positionId The ID of the position to seize
