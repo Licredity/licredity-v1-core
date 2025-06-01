@@ -3,6 +3,7 @@ pragma solidity =0.8.30;
 
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
+import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 import {Position} from "./types/Position.sol";
@@ -12,10 +13,14 @@ import {DebtToken} from "./DebtToken.sol";
 /// @title Licredity
 /// @notice Implementation of the ILicredity interface
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
+    using Math for uint256;
+
     Fungible transient stagedFungible;
     uint256 transient stagedFungibleBalance;
     NonFungible transient stagedNonFungible;
 
+    uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
+    uint256 internal totalDebtAmount = 1; // establishes the initial conversion rate and inflation attack difficulty
     uint256 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
@@ -133,12 +138,39 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     /// @inheritdoc ILicredity
     function addDebt(uint256 positionId, uint256 share, address recipient) external returns (uint256 amount) {
-        // TODO: implement
+        Position storage position = positions[positionId];
+        require(position.owner == msg.sender, NotPositionOwner());
+
+        // TODO: add position to health check list
+        amount = share.fullMulDiv(totalDebtAmount, totalDebtShare);
+        totalDebtShare += share;
+        totalDebtAmount += amount;
+
+        position.addDebtShare(share);
+        if (recipient == address(this)) {
+            position.addFungible(Fungible.wrap(address(this)), amount);
+        }
+
+        _mint(recipient, amount);
+
+        emit AddDebt(positionId, share, amount, recipient);
     }
 
     /// @inheritdoc ILicredity
     function removeDebt(uint256 positionId, uint256 share) external returns (uint256 amount) {
-        // TODO: implement
+        Position storage position = positions[positionId];
+        require(position.owner != address(0), PositionDoesNotExist());
+
+        amount = share.fullMulDivUp(totalDebtAmount, totalDebtShare);
+        totalDebtShare -= share;
+        totalDebtAmount -= amount;
+
+        position.removeDebtShare(share);
+        position.removeFungible(Fungible.wrap(address(this)), amount);
+
+        _burn(address(this), amount);
+
+        emit RemoveDebt(positionId, share, amount);
     }
 
     /// @inheritdoc ILicredity

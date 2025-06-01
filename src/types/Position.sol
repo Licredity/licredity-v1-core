@@ -96,6 +96,20 @@ library PositionLibrary {
         return false;
     }
 
+    /// @notice Adds debt share to a position
+    /// @param self The position to add debt share to
+    /// @param share The share of debt to add
+    function addDebtShare(Position storage self, uint256 share) internal {
+        self.debtShare += share;
+    }
+
+    /// @notice Removes debt share from a position
+    /// @param self The position to remove debt share from
+    /// @param share The share of debt to remove
+    function removeDebtShare(Position storage self, uint256 share) internal {
+        self.debtShare -= share;
+    }
+
     /// @notice Checks if the position is empty
     /// @param self The position to check
     /// @return bool True if the position is empty, false otherwise
