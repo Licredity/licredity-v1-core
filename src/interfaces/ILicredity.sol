@@ -38,7 +38,7 @@ interface ILicredity {
     /// @param amount The amount of fungible that is withdrawn
     /// @param recipient The recipient of the fungible withdrawn
     event WithdrawFungible(
-        uint256 indexed positionId, Fungible indexed fungible, uint256 amount, address indexed recipient
+        uint256 indexed positionId, Fungible indexed fungible, address indexed recipient, uint256 amount
     );
 
     /// @notice Function to unlock the Licredity contract
