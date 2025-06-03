@@ -30,18 +30,20 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     uint256 transient stagedFungibleBalance;
     NonFungible transient stagedNonFungible;
 
+    address internal immutable baseToken;
     uint256 internal debtAmountIn;
     uint256 internal baseAmountOut;
-    uint256 internal requiredDebt;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtAmount = 1; // establishes the initial conversion rate and inflation attack difficulty
     uint256 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
-    constructor(address poolManager, string memory name, string memory symbol, uint8 decimals)
+    constructor(address _baseToken, address poolManager, string memory name, string memory symbol, uint8 decimals)
         BaseHooks(poolManager)
         DebtToken(name, symbol, decimals)
-    {}
+    {
+        baseToken = _baseToken;
+    }
 
     /// @inheritdoc ILicredity
     function unlock(bytes calldata data) external returns (bytes memory result) {
@@ -303,8 +305,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
                 poolManager.sync(Currency.wrap(address(this)));
                 _mint(address(poolManager), debtAmount);
                 poolManager.settle();
-                // TODO: define baseToken
-                // poolManager.take(Currency.wrap(baseToken), address(this), baseAmount);
+                poolManager.take(Currency.wrap(baseToken), address(this), baseAmount);
 
                 debtAmountIn += debtAmount;
                 baseAmountOut += baseAmount;
