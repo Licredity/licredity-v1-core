@@ -3,9 +3,12 @@ pragma solidity =0.8.30;
 
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {FixedPoint96} from "@uniswap-v4-core/libraries/FixedPoint96.sol";
 import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
+import {TickMath} from "@uniswap-v4-core/libraries/TickMath.sol";
 import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta, toBeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
+import {Currency} from "@uniswap-v4-core/types/Currency.sol";
 import {PoolIdLibrary} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
@@ -27,6 +30,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     uint256 transient stagedFungibleBalance;
     NonFungible transient stagedNonFungible;
 
+    uint256 internal debtAmountIn;
+    uint256 internal baseAmountOut;
+    uint256 internal requiredDebt;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtAmount = 1; // establishes the initial conversion rate and inflation attack difficulty
     uint256 internal positionCount;
@@ -279,15 +285,30 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     function _afterSwap(
         address sender,
-        PoolKey calldata,
+        PoolKey calldata poolKey,
         IPoolManager.SwapParams calldata,
-        BalanceDelta,
+        BalanceDelta balanceDelta,
         bytes calldata
     ) internal override returns (bytes4, int128) {
         if (sender != address(this)) {
-            // TODO: get after swap price
-            // TODO: if more than 1, do reverse swap
-            // TODO: update bridgeBase and bridgeQuote variables
+            (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
+
+            if (sqrtPriceX96 <= FixedPoint96.Q96) {
+                IPoolManager.SwapParams memory params =
+                    IPoolManager.SwapParams(false, -balanceDelta.amount1(), TickMath.MAX_SQRT_PRICE - 1);
+                balanceDelta = poolManager.swap(poolKey, params, "");
+                uint256 baseAmount = uint128(balanceDelta.amount0());
+                uint256 debtAmount = uint128(-balanceDelta.amount1());
+
+                poolManager.sync(Currency.wrap(address(this)));
+                _mint(address(poolManager), debtAmount);
+                poolManager.settle();
+                // TODO: define baseToken
+                // poolManager.take(Currency.wrap(baseToken), address(this), baseAmount);
+
+                debtAmountIn += debtAmount;
+                baseAmountOut += baseAmount;
+            }
         }
 
         return (this.afterSwap.selector, 0);
