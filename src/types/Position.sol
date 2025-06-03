@@ -78,8 +78,8 @@ library PositionLibrary {
     /// @notice Remove non-fungible from a position
     /// @param self The position to remove non-fungible from
     /// @param nonFungible The non-fungible to remove
-    /// @return bool True if the non-fungible was removed, false if it was not found
-    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool) {
+    /// @return isRemoved True if the non-fungible was removed, false if it was not found
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool isRemoved) {
         uint256 count = self.nonFungibles.length;
 
         for (uint256 i = 0; i < count; ++i) {
@@ -89,11 +89,9 @@ library PositionLibrary {
                 }
                 self.nonFungibles.pop();
 
-                return true;
+                isRemoved = true;
             }
         }
-
-        return false;
     }
 
     /// @notice Adds debt share to a position
@@ -115,5 +113,17 @@ library PositionLibrary {
     /// @return bool True if the position is empty, false otherwise
     function isEmpty(Position storage self) internal view returns (bool) {
         return self.debtShare == 0 && self.fungibles.length == 0 && self.nonFungibles.length == 0;
+    }
+
+    /// @notice Gets the value and margin requirement of a position
+    /// @param self The position to get value and margin requirement for
+    /// @return value The value of the position
+    /// @return marginRequirement The margin requirement of the position
+    function getValueAndMarginRequirement(Position storage self)
+        internal
+        view
+        returns (uint256 value, uint256 marginRequirement)
+    {
+        // TODO: implement
     }
 }

@@ -179,12 +179,33 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @inheritdoc ILicredity
-    function seize(uint256 positionId, address recipient) external returns (uint256 deficit) {
-        // TODO: implement
+    function seize(uint256 positionId, address recipient) external returns (uint256 deficit, uint256 topUp) {
+        Position storage position = positions[positionId];
+        require(position.owner != address(0), PositionDoesNotExist());
+        uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
+        (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
+        require(value < debt + marginRequirement, PositionIsHealthy());
+
+        if (value < debt) {
+            deficit = debt - value;
+            topUp = _getTopUpAmount(deficit);
+
+            _mint(address(this), topUp);
+            totalDebtAmount += topUp;
+            position.addFungible(Fungible.wrap(address(this)), topUp);
+        }
+        position.setOwner(recipient);
+
+        emit SeizePosition(positionId, recipient, deficit, topUp);
     }
 
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    /// @notice Calculates top-up amount based on deficit amount in seize()
+    function _getTopUpAmount(uint256 deficit) internal view returns (uint256) {
+        return deficit * 2;
     }
 }
