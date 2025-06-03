@@ -143,11 +143,13 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
         // TODO: add position to health check list
         // TODO: disburse interest, which also updates totalDebtAmount
-        amount = share.fullMulDiv(totalDebtAmount, totalDebtShare);
+        uint256 _totalDebtShare = totalDebtShare;
+        uint256 _totalDebtAmount = totalDebtAmount;
+        amount = share.fullMulDiv(_totalDebtAmount, _totalDebtShare);
         _mint(recipient, amount);
 
-        totalDebtShare += share;
-        totalDebtAmount += amount;
+        totalDebtShare = _totalDebtShare + share;
+        totalDebtAmount = _totalDebtAmount + amount;
         position.addDebtShare(share);
         if (recipient == address(this)) {
             position.addFungible(Fungible.wrap(address(this)), amount);
@@ -161,7 +163,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         Position storage position = positions[positionId];
 
         // TODO: disburse interest, which also updates totalDebtAmount
-        amount = share.fullMulDivUp(totalDebtAmount, totalDebtShare);
+        uint256 _totalDebtShare = totalDebtShare;
+        uint256 _totalDebtAmount = totalDebtAmount;
+        amount = share.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
         if (useBalance) {
             require(position.owner == msg.sender, NotPositionOwner());
             _burn(address(this), amount);
@@ -170,8 +174,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
             _burn(msg.sender, amount);
         }
 
-        totalDebtShare -= share;
-        totalDebtAmount -= amount;
+        totalDebtShare = _totalDebtShare - share;
+        totalDebtAmount = _totalDebtAmount - amount;
         position.removeDebtShare(share);
         position.removeFungible(Fungible.wrap(address(this)), amount);
 
@@ -185,7 +189,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
         // TODO: add position to health check list
         // TODO: disburse interest, which also updates totalDebtAmount
-        uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
+        uint256 _debtShare = position.debtShare;
+        uint256 _totalDebtShare = totalDebtShare;
+        uint256 _totalDebtAmount = totalDebtAmount;
+
+        uint256 debt = _debtShare.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
         (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
         require(value < debt + marginRequirement, PositionIsHealthy());
 
@@ -194,12 +202,18 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
             uint256 topUp = _getTopUpAmount(deficit);
 
             _mint(address(this), topUp);
-            totalDebtAmount += topUp;
+            totalDebtAmount = _totalDebtAmount + topUp;
             position.addFungible(Fungible.wrap(address(this)), topUp);
+
+            // assets are quoted in debt tokens, which has margin requirement of 0%
+            value += topUp;
+            debt += _debtShare.fullMulDivUp(_totalDebtAmount + topUp, _totalDebtShare);
         }
 
         position.setOwner(recipient);
-        // TODO: calculate shortfall
+        if (value < debt + marginRequirement) {
+            shortfall = debt + marginRequirement - value;
+        }
 
         emit SeizePosition(positionId, recipient, shortfall);
     }
