@@ -76,9 +76,8 @@ interface ILicredity {
     /// @notice Event emitted when a position is seized
     /// @param positionId The ID of the seized position
     /// @param recipient The recipient of the seized position
-    /// @param deficit The amount of deficit accrued in the seized position
-    /// @param topUp The amount of top-up injected into the seized position
-    event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 deficit, uint256 topUp);
+    /// @param shortfall The amount needed to make the position healthy
+    event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 shortfall);
 
     /// @notice Function to unlock the Licredity contract
     /// @param data The data to be passed to the unlock callback
@@ -143,7 +142,6 @@ interface ILicredity {
     /// @notice Function to seize an unhealthy position
     /// @param positionId The ID of the position to seize
     /// @param recipient The recipient of the seized position
-    /// @return deficit The amount of deficit accrued in the seized position
-    /// @return topUp The amount of top-up injected into the seized position
-    function seize(uint256 positionId, address recipient) external returns (uint256 deficit, uint256 topUp);
+    /// @return shortfall The amount needed to make the position healthy
+    function seize(uint256 positionId, address recipient) external returns (uint256 shortfall);
 }

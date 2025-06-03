@@ -179,26 +179,29 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @inheritdoc ILicredity
-    function seize(uint256 positionId, address recipient) external returns (uint256 deficit, uint256 topUp) {
+    function seize(uint256 positionId, address recipient) external returns (uint256 shortfall) {
         Position storage position = positions[positionId];
         require(position.owner != address(0), PositionDoesNotExist());
 
+        // TODO: add position to health check list
         // TODO: disburse interest, which also updates totalDebtAmount
         uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
         (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
         require(value < debt + marginRequirement, PositionIsHealthy());
 
         if (value < debt) {
-            deficit = debt - value;
-            topUp = _getTopUpAmount(deficit);
+            uint256 deficit = debt - value;
+            uint256 topUp = _getTopUpAmount(deficit);
 
             _mint(address(this), topUp);
             totalDebtAmount += topUp;
             position.addFungible(Fungible.wrap(address(this)), topUp);
         }
-        position.setOwner(recipient);
 
-        emit SeizePosition(positionId, recipient, deficit, topUp);
+        position.setOwner(recipient);
+        // TODO: calculate shortfall
+
+        emit SeizePosition(positionId, recipient, shortfall);
     }
 
     /// @inheritdoc IERC721TokenReceiver
@@ -207,7 +210,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @notice Calculates top-up amount based on deficit amount in seize()
-    function _getTopUpAmount(uint256 deficit) internal view returns (uint256) {
-        return deficit * 2;
+    function _getTopUpAmount(uint256 deficit) internal view returns (uint256 topUp) {
+        topUp = deficit * 2;
     }
 }
