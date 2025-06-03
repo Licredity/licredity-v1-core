@@ -12,6 +12,9 @@ import {DebtToken} from "./DebtToken.sol";
 /// @title Licredity
 /// @notice Implementation of the ILicredity interface
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
+    Fungible transient stagedFungible;
+    uint256 transient stagedFungibleBalance;
+
     uint256 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
@@ -42,8 +45,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @inheritdoc ILicredity
     function close(uint256 positionId) external {
         Position storage position = positions[positionId];
-        require(position.owner == msg.sender, NotOwner());
-        require(position.isEmpty(), NotEmpty());
+        require(position.owner == msg.sender, NotPositionOwner());
+        require(position.isEmpty(), PositionNotEmpty());
 
         delete positions[positionId];
 
@@ -52,7 +55,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     /// @inheritdoc ILicredity
     function stageFungible(Fungible fungible) external {
-        // TODO: implement
+        stagedFungible = fungible;
+        if (!fungible.isNative()) {
+            stagedFungibleBalance = fungible.balanceOf(address(this));
+        }
     }
 
     /// @inheritdoc ILicredity
@@ -62,7 +68,22 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
-        // TODO: implement
+        Position storage position = positions[positionId];
+        require(position.owner != address(0), PositionDoesNotExist(positionId));
+        Fungible fungible = stagedFungible;
+
+        uint256 amount;
+        if (fungible.isNative()) {
+            amount = msg.value;
+        } else {
+            require(msg.value == 0, NonZeroNativeValue());
+            amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+        }
+
+        position.addFungible(fungible, amount);
+        _clearStagedFungible();
+
+        emit DepositFungible(positionId, fungible, amount);
     }
 
     /// @inheritdoc ILicredity
@@ -103,5 +124,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    function _clearStagedFungible() internal {
+        stagedFungible = Fungible.wrap(address(0));
     }
 }
