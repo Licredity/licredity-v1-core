@@ -2,6 +2,12 @@
 pragma solidity =0.8.30;
 
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
+import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
+import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
+import {BeforeSwapDelta, toBeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
+import {PoolIdLibrary} from "@uniswap-v4-core/types/PoolId.sol";
+import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
@@ -14,6 +20,8 @@ import {DebtToken} from "./DebtToken.sol";
 /// @notice Implementation of the ILicredity interface
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     using Math for uint256;
+    using PoolIdLibrary for PoolKey;
+    using StateLibrary for IPoolManager;
 
     Fungible transient stagedFungible;
     uint256 transient stagedFungibleBalance;
@@ -221,6 +229,68 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    /// @inheritdoc BaseHooks
+    function _beforeAddLiquidity(
+        address,
+        PoolKey calldata poolKey,
+        IPoolManager.ModifyLiquidityParams calldata params,
+        bytes calldata
+    ) internal override returns (bytes4) {
+        (, int24 tick,,) = poolManager.getSlot0(poolKey.toId());
+
+        if (tick >= params.tickLower && tick <= params.tickUpper) {
+            // TODO: disburse interest
+        }
+
+        return this.beforeAddLiquidity.selector;
+    }
+
+    /// @inheritdoc BaseHooks
+    function _beforeRemoveLiquidity(
+        address,
+        PoolKey calldata poolKey,
+        IPoolManager.ModifyLiquidityParams calldata params,
+        bytes calldata
+    ) internal override returns (bytes4) {
+        (, int24 tick,,) = poolManager.getSlot0(poolKey.toId());
+
+        if (tick >= params.tickLower && tick <= params.tickUpper) {
+            // TODO: disburse interest
+        }
+
+        return this.beforeRemoveLiquidity.selector;
+    }
+
+    /// @inheritdoc BaseHooks
+    function _beforeSwap(address sender, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
+        internal
+        override
+        returns (bytes4, BeforeSwapDelta, uint24)
+    {
+        if (sender != address(this)) {
+            // TODO: disburse interest
+            // TODO: ping oracle
+        }
+
+        return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
+    }
+
+    function _afterSwap(
+        address sender,
+        PoolKey calldata,
+        IPoolManager.SwapParams calldata,
+        BalanceDelta,
+        bytes calldata
+    ) internal override returns (bytes4, int128) {
+        if (sender != address(this)) {
+            // TODO: get after swap price
+            // TODO: if more than 1, do reverse swap
+            // TODO: update bridgeBase and bridgeQuote variables
+        }
+
+        return (this.afterSwap.selector, 0);
     }
 
     /// @notice Calculates top-up amount based on deficit amount in seize()
