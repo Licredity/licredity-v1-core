@@ -7,6 +7,20 @@ import {NonFungible} from "../types/NonFungible.sol";
 /// @title ILicredity
 /// @notice Interface for the Licredity contract
 interface ILicredity {
+    /// @notice Thrown when the caller is not owner of the position
+    error NotOwner();
+    /// @notice Thrown when a position is not empty
+    error NotEmpty();
+
+    /// @notice Event emitted when a new position is opened
+    /// @param positionId The ID of the newly opened position
+    /// @param owner The owner of the position
+    event OpenPosition(uint256 indexed positionId, address indexed owner);
+
+    /// @notice Event emitted when a position is closed
+    /// @param positionId The ID of the closed position
+    event ClosePosition(uint256 indexed positionId);
+
     /// @notice Function to unlock the Licredity contract
     /// @param data The data to be passed to the unlock callback
     /// @return result The result returned from the unlock callback
