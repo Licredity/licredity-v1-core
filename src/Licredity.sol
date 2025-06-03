@@ -9,7 +9,7 @@ import {TickMath} from "@uniswap-v4-core/libraries/TickMath.sol";
 import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta, toBeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
 import {Currency} from "@uniswap-v4-core/types/Currency.sol";
-import {PoolIdLibrary} from "@uniswap-v4-core/types/PoolId.sol";
+import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {Math} from "./libraries/Math.sol";
@@ -23,7 +23,6 @@ import {DebtToken} from "./DebtToken.sol";
 /// @notice Implementation of the ILicredity interface
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     using Math for uint256;
-    using PoolIdLibrary for PoolKey;
     using StateLibrary for IPoolManager;
 
     Fungible transient stagedFungible;
@@ -31,6 +30,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     NonFungible transient stagedNonFungible;
 
     address internal immutable baseToken;
+    PoolId internal immutable poolId;
+    PoolKey internal poolKey;
     uint256 internal debtAmountIn;
     uint256 internal baseAmountOut;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
@@ -43,6 +44,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         DebtToken(name, symbol, decimals)
     {
         baseToken = _baseToken;
+        // TODO: set poolKey and poolId
     }
 
     /// @inheritdoc ILicredity
@@ -240,13 +242,20 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @inheritdoc BaseHooks
+    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal override returns (bytes4) {
+        require(sender == address(this), NotMultiPoolHooks());
+
+        return this.beforeInitialize.selector;
+    }
+
+    /// @inheritdoc BaseHooks
     function _beforeAddLiquidity(
         address,
-        PoolKey calldata poolKey,
+        PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata
     ) internal override returns (bytes4) {
-        (, int24 tick,,) = poolManager.getSlot0(poolKey.toId());
+        (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
             // TODO: disburse interest
@@ -258,11 +267,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @inheritdoc BaseHooks
     function _beforeRemoveLiquidity(
         address,
-        PoolKey calldata poolKey,
+        PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata
     ) internal override returns (bytes4) {
-        (, int24 tick,,) = poolManager.getSlot0(poolKey.toId());
+        (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
             // TODO: disburse interest
@@ -287,13 +296,13 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     function _afterSwap(
         address sender,
-        PoolKey calldata poolKey,
+        PoolKey calldata,
         IPoolManager.SwapParams calldata,
         BalanceDelta balanceDelta,
         bytes calldata
     ) internal override returns (bytes4, int128) {
         if (sender != address(this)) {
-            (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
+            (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
 
             if (sqrtPriceX96 <= FixedPoint96.Q96) {
                 IPoolManager.SwapParams memory params =

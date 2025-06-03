@@ -7,6 +7,8 @@ import {NonFungible} from "../types/NonFungible.sol";
 /// @title ILicredity
 /// @notice Interface for the Licredity contract
 interface ILicredity {
+    /// @notice Error thrown when trying attach hooks to more than one pool
+    error NotMultiPoolHooks();
     /// @notice Error thrown when an unexpected non-zero value is received
     error NonZeroNativeValue();
     /// @notice Error thrown when a position does not exist
