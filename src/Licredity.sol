@@ -182,6 +182,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     function seize(uint256 positionId, address recipient) external returns (uint256 deficit, uint256 topUp) {
         Position storage position = positions[positionId];
         require(position.owner != address(0), PositionDoesNotExist());
+
+        // TODO: disburse interest, which also updates totalDebtAmount
         uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
         (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
         require(value < debt + marginRequirement, PositionIsHealthy());
