@@ -153,7 +153,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
             position.addFungible(Fungible.wrap(address(this)), amount);
         }
 
-        emit AddDebt(positionId, share, recipient, amount);
+        emit AddDebt(positionId, recipient, share, amount);
     }
 
     /// @inheritdoc ILicredity
