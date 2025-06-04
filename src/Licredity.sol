@@ -242,7 +242,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @inheritdoc BaseHooks
-    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal override returns (bytes4) {
+    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal view override returns (bytes4) {
         require(sender == address(this), NotMultiPoolHooks());
 
         return this.beforeInitialize.selector;
@@ -325,7 +325,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @notice Calculates top-up amount based on deficit amount in seize()
-    function _getTopUpAmount(uint256 deficit) internal view returns (uint256 topUp) {
+    function _getTopUpAmount(uint256 deficit) internal pure returns (uint256 topUp) {
         topUp = deficit * 2;
     }
 }
