@@ -62,6 +62,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
             uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
             (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
 
+            // TODO: also value cannot be greater than X times margin requirement
             require(value >= debt + marginRequirement, PositionIsUnhealthy());
         }
 
@@ -223,6 +224,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
         uint256 debt = _debtShare.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
         (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
+        // TODO: or value is less than or equal to X times margin requirement
         require(value < debt + marginRequirement, PositionIsHealthy());
 
         if (value < debt) {
