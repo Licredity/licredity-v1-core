@@ -10,15 +10,15 @@ import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 /// @title BaseHooks
 /// @notice Abstract implementation of the IHooks interface
 abstract contract BaseHooks is IHooks {
-    /// @notice Thrown when the caller is not the pool manager.
+    /// @notice Thrown when the caller is not the pool manager
     error NotPoolManager();
-    /// @notice Thrown when the hook is not implemented.
+    /// @notice Thrown when the hook is not implemented
     error HookNotImplemented();
 
-    /// @notice The pool manager contract.
+    /// @notice The pool manager contract
     IPoolManager public immutable poolManager;
 
-    /// @notice Modifier for functions that can only be called by the pool manager.
+    /// @notice Modifier for functions that can only be called by the pool manager
     modifier onlyPoolManager() {
         _onlyPoolManager();
         _;

@@ -8,7 +8,7 @@ library Locker {
     // bytes32(uint256(keccak256("RegisteredItems")) - 1)
     bytes32 internal constant REGISTERED_ITEMS_SLOT = 0x200b7f4f488b59c5fce2ca35008c3bf548ce04262fab17c5838c90724a17a1fa;
 
-    /// @notice Unlocks the locker, clearing registered items.
+    /// @notice Unlocks the locker, clearing registered items
     function unlock() internal {
         assembly ("memory-safe") {
             if iszero(iszero(tload(UNLOCKED_SLOT))) {
