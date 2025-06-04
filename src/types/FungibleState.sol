@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
+/// @dev A 'uint64' index and a 'uint192' balance, packed into a single 'bytes32' value
 type FungibleState is bytes32;
 
-using {equals as ==} for FungibleState global;
 using FungibleStateLibrary for FungibleState global;
-
-function equals(FungibleState x, FungibleState y) pure returns (bool) {
-    return FungibleState.unwrap(x) == FungibleState.unwrap(y);
-}
 
 function toFungibleState(uint64 index, uint192 _balance) pure returns (FungibleState state) {
     assembly ("memory-safe") {
@@ -19,9 +15,6 @@ function toFungibleState(uint64 index, uint192 _balance) pure returns (FungibleS
 /// @title FungibleStateLibrary
 /// @notice Library for managing fungible states
 library FungibleStateLibrary {
-    /// @notice A constant representing the empty fungible state
-    FungibleState public constant EMPTY = FungibleState.wrap(0);
-
     /// @notice Get the index part of the fungible state
     /// @param self The fungible state to get the index part of
     /// @return _index The index part of the fungible state
@@ -38,12 +31,5 @@ library FungibleStateLibrary {
         assembly ("memory-safe") {
             _balance := and(self, sub(shl(192, 1), 1))
         }
-    }
-
-    /// @notice Check if the fungible state is empty
-    /// @param self The fungible state to check
-    /// @return bool True if the fungible state is empty, false otherwise
-    function isEmpty(FungibleState self) internal pure returns (bool) {
-        return self == EMPTY;
     }
 }

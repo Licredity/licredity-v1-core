@@ -3,7 +3,7 @@ pragma solidity =0.8.30;
 
 import {SafeCast} from "../libraries/SafeCast.sol";
 import {Fungible} from "./Fungible.sol";
-import {FungibleState, FungibleStateLibrary, toFungibleState} from "./FungibleState.sol";
+import {FungibleState, toFungibleState} from "./FungibleState.sol";
 import {NonFungible} from "./NonFungible.sol";
 
 struct Position {
@@ -35,7 +35,7 @@ library PositionLibrary {
     function addFungible(Position storage self, Fungible fungible, uint256 amount) internal {
         FungibleState state = self.fungibleStates[fungible];
 
-        if (state.isEmpty()) {
+        if (state.index() == 0) {
             self.fungibles.push(fungible);
             self.fungibleStates[fungible] = toFungibleState(self.fungibles.length.toUint64(), amount.toUint192());
         } else {
@@ -57,20 +57,43 @@ library PositionLibrary {
         } else {
             uint256 lastIndex = self.fungibles.length;
 
-            // underflow or index out of bounds not possible
-            unchecked {
-                if (index != lastIndex) {
-                    Fungible lastFungible = self.fungibles[lastIndex - 1];
+            if (index != lastIndex) {
+                Fungible lastFungible = self.fungibles[lastIndex - 1];
 
-                    self.fungibles[index - 1] = lastFungible;
-                    self.fungibleStates[lastFungible] =
-                        toFungibleState(index, self.fungibleStates[lastFungible].balance());
-                }
+                self.fungibles[index - 1] = lastFungible;
+                self.fungibleStates[lastFungible] = toFungibleState(index, self.fungibleStates[lastFungible].balance());
             }
-
             self.fungibles.pop();
-            self.fungibleStates[fungible] = FungibleStateLibrary.EMPTY;
+            self.fungibleStates[fungible] = FungibleState.wrap(0);
         }
+    }
+
+    /// @notice Add non-fungible to a position
+    /// @param self The position to add non-fungible to
+    /// @param nonFungible The non-fungible to add
+    function addNonFungible(Position storage self, NonFungible nonFungible) internal {
+        self.nonFungibles.push(nonFungible);
+    }
+
+    /// @notice Remove non-fungible from a position
+    /// @param self The position to remove non-fungible from
+    /// @param nonFungible The non-fungible to remove
+    /// @return bool True if the non-fungible was removed, false if it was not found
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool) {
+        uint256 count = self.nonFungibles.length;
+
+        for (uint256 i = 0; i < count; ++i) {
+            if (self.nonFungibles[i] == nonFungible) {
+                if (i != count - 1) {
+                    self.nonFungibles[i] = self.nonFungibles[count - 1];
+                }
+                self.nonFungibles.pop();
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// @notice Checks if the position is empty

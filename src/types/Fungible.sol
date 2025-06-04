@@ -31,11 +31,7 @@ library FungibleLibrary {
     /// @param owner The address to check the balance for
     /// @return uint256 The balance of the fungible for the address
     function balanceOf(Fungible self, address owner) internal view returns (uint256) {
-        if (self.isNative()) {
-            return owner.balance;
-        } else {
-            return IERC20(Fungible.unwrap(self)).balanceOf(owner);
-        }
+        return self.isNative() ? owner.balance : IERC20(Fungible.unwrap(self)).balanceOf(owner);
     }
 
     /// @notice Checks if the fungible is the native fungible
