@@ -41,9 +41,17 @@ library Locker {
                 revert(0x1c, 0x04)
             }
 
-            let newCount := add(tload(REGISTERED_ITEMS_SLOT), 1)
-            tstore(add(REGISTERED_ITEMS_SLOT, mul(0x20, newCount)), item)
-            tstore(REGISTERED_ITEMS_SLOT, newCount)
+            mstore(0x00, REGISTERED_ITEMS_SLOT)
+            mstore(0x20, item)
+            let slot := keccak256(0x00, 0x40)
+
+            if iszero(tload(slot)) {
+                tstore(slot, true)
+
+                let newCount := add(tload(REGISTERED_ITEMS_SLOT), 1)
+                tstore(add(REGISTERED_ITEMS_SLOT, mul(0x20, newCount)), item)
+                tstore(REGISTERED_ITEMS_SLOT, newCount)
+            }
         }
     }
 
