@@ -168,6 +168,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
             require(position.owner == msg.sender, NotPositionOwner());
             position.removeFungible(Fungible.wrap(address(this)), amount);
             _burn(address(this), amount);
+
+            emit WithdrawFungible(positionId, Fungible.wrap(address(this)), address(0), amount);
         } else {
             require(position.owner != address(0), PositionDoesNotExist());
             _burn(msg.sender, amount);
