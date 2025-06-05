@@ -151,6 +151,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         position.addDebtShare(share);
         if (recipient == address(this)) {
             position.addFungible(Fungible.wrap(address(this)), amount);
+
+            emit DepositFungible(positionId, Fungible.wrap(address(this)), amount);
         }
 
         emit AddDebt(positionId, recipient, share, amount);
@@ -164,6 +166,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         amount = share.fullMulDivUp(totalDebtAmount, totalDebtShare);
         if (useBalance) {
             require(position.owner == msg.sender, NotPositionOwner());
+            position.removeFungible(Fungible.wrap(address(this)), amount);
             _burn(address(this), amount);
         } else {
             require(position.owner != address(0), PositionDoesNotExist());
@@ -173,7 +176,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         totalDebtShare -= share;
         totalDebtAmount -= amount;
         position.removeDebtShare(share);
-        position.removeFungible(Fungible.wrap(address(this)), amount);
 
         emit RemoveDebt(positionId, share, amount, useBalance);
     }
