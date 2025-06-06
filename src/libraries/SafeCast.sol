@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-/// @title SafeCast
+/// @title SafeCast Library
 /// @notice Library for safely casting between different integer types
 library SafeCast {
     /// @notice Thrown when an overflow occurs during casting
