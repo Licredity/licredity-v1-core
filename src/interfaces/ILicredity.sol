@@ -47,8 +47,8 @@ interface ILicredity {
     /// @notice Event emitted when a fungible is withdrawn from a position
     /// @param positionId The ID of the position from which the fungible is withdrawn
     /// @param fungible The fungible that is withdrawn
-    /// @param amount The amount of fungible that is withdrawn
     /// @param recipient The recipient of the fungible withdrawn
+    /// @param amount The amount of fungible that is withdrawn
     event WithdrawFungible(
         uint256 indexed positionId, Fungible indexed fungible, address indexed recipient, uint256 amount
     );
@@ -61,10 +61,10 @@ interface ILicredity {
 
     /// @notice Event emitted when debt is added to a position
     /// @param positionId The ID of the position to which debt is added
+    /// @param recipient The recipient of the debt token
     /// @param share The share of debt added
     /// @param amount The amount of debt token received
-    /// @param recipient The recipient of the debt token
-    event AddDebt(uint256 indexed positionId, uint256 share, address indexed recipient, uint256 amount);
+    event AddDebt(uint256 indexed positionId, address indexed recipient, uint256 share, uint256 amount);
 
     /// @notice Event emitted when debt is removed from a position
     /// @param positionId The ID of the position from which debt is removed
