@@ -21,6 +21,8 @@ interface ILicredity {
     error NonFungibleNotOwned();
     /// @notice Error thrown when a non-fungible is not in the position
     error NonFungibleNotInPosition();
+    /// @notice Error thrown when a position is healthy
+    error PositionIsHealthy();
 
     /// @notice Event emitted when a new position is opened
     /// @param positionId The ID of the newly opened position
@@ -70,6 +72,12 @@ interface ILicredity {
     /// @param amount The amount of debt token given back
     /// @param useBalance Whether to use the balance of the debt token in the position
     event RemoveDebt(uint256 indexed positionId, uint256 share, uint256 amount, bool useBalance);
+
+    /// @notice Event emitted when a position is seized
+    /// @param positionId The ID of the seized position
+    /// @param recipient The recipient of the seized position
+    /// @param shortfall The amount needed to make the position healthy
+    event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 shortfall);
 
     /// @notice Function to unlock the Licredity contract
     /// @param data The data to be passed to the unlock callback
@@ -134,6 +142,6 @@ interface ILicredity {
     /// @notice Function to seize an unhealthy position
     /// @param positionId The ID of the position to seize
     /// @param recipient The recipient of the seized position
-    /// @return deficit The amount of deficit accrued in the seized position
-    function seize(uint256 positionId, address recipient) external returns (uint256 deficit);
+    /// @return shortfall The amount needed to make the position healthy
+    function seize(uint256 positionId, address recipient) external returns (uint256 shortfall);
 }
