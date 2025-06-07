@@ -25,6 +25,8 @@ interface ILicredity {
     error NonFungibleNotInPosition();
     /// @notice Error thrown when a position is healthy
     error PositionIsHealthy();
+    /// @notice Error thrown when a position is unhealthy
+    error PositionIsUnhealthy();
 
     /// @notice Event emitted when a new position is opened
     /// @param positionId The ID of the newly opened position

@@ -12,6 +12,9 @@ import {Currency} from "@uniswap-v4-core/types/Currency.sol";
 import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
+import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
+import {Locker} from "./libraries/Locker.sol";
+
 import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {NonFungible} from "./types/NonFungible.sol";
@@ -49,13 +52,22 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
     /// @inheritdoc ILicredity
     function unlock(bytes calldata data) external returns (bytes memory result) {
-        // TODO: require locked
-        // TODO: unlock
+        Locker.unlock();
 
-        // TODO: invoke unlock callback and assign result
+        result = IUnlockCallback(msg.sender).unlockCallback(data);
 
-        // TODO: ensure every modified position is healthy
-        // TODO: lock
+        bytes32[] memory items = Locker.getRegisteredItems();
+        for (uint256 i = 0; i < items.length; i++) {
+            Position storage position = positions[uint256(items[i])];
+
+            uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
+            (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
+
+            // TODO: also value cannot be greater than X times margin requirement
+            require(value >= debt + marginRequirement, PositionIsUnhealthy());
+        }
+
+        Locker.lock();
     }
 
     /// @inheritdoc ILicredity
@@ -115,7 +127,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         Position storage position = positions[positionId];
         require(position.owner == msg.sender, NotPositionOwner());
 
-        // TODO: add position to health check list
+        Locker.register(bytes32(positionId));
         position.removeFungible(fungible, amount);
         fungible.transfer(amount, recipient);
 
@@ -147,7 +159,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         Position storage position = positions[positionId];
         require(position.owner == msg.sender, NotPositionOwner());
 
-        // TODO: add position to health check list
+        Locker.register(bytes32(positionId));
         require(position.removeNonFungible(nonFungible), NonFungibleNotInPosition());
         nonFungible.transfer(recipient);
 
@@ -159,7 +171,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         Position storage position = positions[positionId];
         require(position.owner == msg.sender, NotPositionOwner());
 
-        // TODO: add position to health check list
+        Locker.register(bytes32(positionId));
         // TODO: disburse interest, which also updates totalDebtAmount
         uint256 _totalDebtShare = totalDebtShare;
         uint256 _totalDebtAmount = totalDebtAmount;
@@ -209,7 +221,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         Position storage position = positions[positionId];
         require(position.owner != address(0), PositionDoesNotExist());
 
-        // TODO: add position to health check list
+        Locker.register(bytes32(positionId));
         // TODO: disburse interest, which also updates totalDebtAmount
         uint256 _debtShare = position.debtShare;
         uint256 _totalDebtShare = totalDebtShare;
@@ -217,6 +229,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
 
         uint256 debt = _debtShare.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
         (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
+        // TODO: or value is less than or equal to X times margin requirement
         require(value < debt + marginRequirement, PositionIsHealthy());
 
         if (value < debt) {
@@ -246,7 +259,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @inheritdoc BaseHooks
-    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal override returns (bytes4) {
+    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal view override returns (bytes4) {
         require(sender == address(this), NotMultiPoolHooks());
 
         return this.beforeInitialize.selector;
@@ -329,7 +342,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     }
 
     /// @notice Calculates top-up amount based on deficit amount in seize()
-    function _getTopUpAmount(uint256 deficit) internal view returns (uint256 topUp) {
+    function _getTopUpAmount(uint256 deficit) internal pure returns (uint256 topUp) {
         topUp = deficit * 2;
     }
 }
