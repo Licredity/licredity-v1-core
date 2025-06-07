@@ -41,6 +41,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeInitialize(sender, key, sqrtPriceX96);
     }
 
+    /// @notice internal function to implement the beforeInitialize hook
     function _beforeInitialize(address, PoolKey calldata, uint160) internal virtual returns (bytes4) {
         revert HookNotImplemented();
     }
@@ -54,6 +55,7 @@ abstract contract BaseHooks is IHooks {
         return _afterInitialize(sender, key, sqrtPriceX96, tick);
     }
 
+    /// @notice internal function to implement the afterInitialize hook
     function _afterInitialize(address, PoolKey calldata, uint160, int24) internal virtual returns (bytes4) {
         revert HookNotImplemented();
     }
@@ -68,6 +70,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeAddLiquidity(sender, key, params, hookData);
     }
 
+    /// @notice internal function to implement the beforeAddLiquidity hook
     function _beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
         internal
         virtual
@@ -86,6 +89,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeRemoveLiquidity(sender, key, params, hookData);
     }
 
+    /// @notice internal function to implement the beforeRemoveLiquidity hook
     function _beforeRemoveLiquidity(
         address,
         PoolKey calldata,
@@ -107,6 +111,7 @@ abstract contract BaseHooks is IHooks {
         return _afterAddLiquidity(sender, key, params, delta, feesAccrued, hookData);
     }
 
+    /// @notice internal function to implement the afterAddLiquidity hook
     function _afterAddLiquidity(
         address,
         PoolKey calldata,
@@ -130,6 +135,7 @@ abstract contract BaseHooks is IHooks {
         return _afterRemoveLiquidity(sender, key, params, delta, feesAccrued, hookData);
     }
 
+    /// @notice internal function to implement the afterRemoveLiquidity hook
     function _afterRemoveLiquidity(
         address,
         PoolKey calldata,
@@ -151,6 +157,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeSwap(sender, key, params, hookData);
     }
 
+    /// @notice internal function to implement the beforeSwap hook
     function _beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
         internal
         virtual
@@ -170,6 +177,7 @@ abstract contract BaseHooks is IHooks {
         return _afterSwap(sender, key, params, delta, hookData);
     }
 
+    /// @notice internal function to implement the afterSwap hook
     function _afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
         internal
         virtual
@@ -189,6 +197,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeDonate(sender, key, amount0, amount1, hookData);
     }
 
+    /// @notice internal function to implement the beforeDonate hook
     function _beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
         internal
         virtual
@@ -208,6 +217,7 @@ abstract contract BaseHooks is IHooks {
         return _afterDonate(sender, key, amount0, amount1, hookData);
     }
 
+    /// @notice internal function to implement the afterDonate hook
     function _afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
         internal
         virtual

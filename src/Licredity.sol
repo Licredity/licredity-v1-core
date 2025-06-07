@@ -2,6 +2,15 @@
 pragma solidity =0.8.30;
 
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
+import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {FixedPoint96} from "@uniswap-v4-core/libraries/FixedPoint96.sol";
+import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
+import {TickMath} from "@uniswap-v4-core/libraries/TickMath.sol";
+import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
+import {BeforeSwapDelta, toBeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
+import {Currency} from "@uniswap-v4-core/types/Currency.sol";
+import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
+import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
@@ -14,20 +23,29 @@ import {DebtToken} from "./DebtToken.sol";
 /// @notice Implementation of the ILicredity interface
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     using Math for uint256;
+    using StateLibrary for IPoolManager;
 
     Fungible transient stagedFungible;
     uint256 transient stagedFungibleBalance;
     NonFungible transient stagedNonFungible;
 
+    address internal immutable baseToken;
+    PoolId internal immutable poolId;
+    PoolKey internal poolKey;
+    uint256 internal debtAmountIn;
+    uint256 internal baseAmountOut;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtAmount = 1; // establishes the initial conversion rate and inflation attack difficulty
     uint256 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
-    constructor(address poolManager, string memory name, string memory symbol, uint8 decimals)
+    constructor(address _baseToken, address poolManager, string memory name, string memory symbol, uint8 decimals)
         BaseHooks(poolManager)
         DebtToken(name, symbol, decimals)
-    {}
+    {
+        baseToken = _baseToken;
+        // TODO: set poolKey and poolId
+    }
 
     /// @inheritdoc ILicredity
     function unlock(bytes calldata data) external returns (bytes memory result) {
@@ -225,6 +243,89 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    /// @inheritdoc BaseHooks
+    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal override returns (bytes4) {
+        require(sender == address(this), NotMultiPoolHooks());
+
+        return this.beforeInitialize.selector;
+    }
+
+    /// @inheritdoc BaseHooks
+    function _beforeAddLiquidity(
+        address,
+        PoolKey calldata,
+        IPoolManager.ModifyLiquidityParams calldata params,
+        bytes calldata
+    ) internal override returns (bytes4) {
+        (, int24 tick,,) = poolManager.getSlot0(poolId);
+
+        if (tick >= params.tickLower && tick <= params.tickUpper) {
+            // TODO: disburse interest
+        }
+
+        return this.beforeAddLiquidity.selector;
+    }
+
+    /// @inheritdoc BaseHooks
+    function _beforeRemoveLiquidity(
+        address,
+        PoolKey calldata,
+        IPoolManager.ModifyLiquidityParams calldata params,
+        bytes calldata
+    ) internal override returns (bytes4) {
+        (, int24 tick,,) = poolManager.getSlot0(poolId);
+
+        if (tick >= params.tickLower && tick <= params.tickUpper) {
+            // TODO: disburse interest
+        }
+
+        return this.beforeRemoveLiquidity.selector;
+    }
+
+    /// @inheritdoc BaseHooks
+    function _beforeSwap(address sender, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
+        internal
+        override
+        returns (bytes4, BeforeSwapDelta, uint24)
+    {
+        if (sender != address(this)) {
+            // TODO: disburse interest
+            // TODO: ping oracle
+        }
+
+        return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
+    }
+
+    function _afterSwap(
+        address sender,
+        PoolKey calldata,
+        IPoolManager.SwapParams calldata,
+        BalanceDelta balanceDelta,
+        bytes calldata
+    ) internal override returns (bytes4, int128) {
+        if (sender != address(this)) {
+            (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+
+            if (sqrtPriceX96 <= FixedPoint96.Q96) {
+                IPoolManager.SwapParams memory params =
+                    IPoolManager.SwapParams(false, -balanceDelta.amount1(), TickMath.MAX_SQRT_PRICE - 1);
+                balanceDelta = poolManager.swap(poolKey, params, "");
+                uint256 baseAmount = uint128(balanceDelta.amount0());
+                uint256 debtAmount = uint128(-balanceDelta.amount1());
+
+                poolManager.sync(Currency.wrap(address(this)));
+                _mint(address(poolManager), debtAmount);
+                poolManager.settle();
+                poolManager.take(Currency.wrap(baseToken), address(this), baseAmount);
+
+                debtAmountIn += debtAmount;
+                baseAmountOut += baseAmount;
+            }
+        }
+
+        return (this.afterSwap.selector, 0);
     }
 
     /// @notice Calculates top-up amount based on deficit amount in seize()
