@@ -14,6 +14,7 @@ import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
 import {Locker} from "./libraries/Locker.sol";
+
 import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {NonFungible} from "./types/NonFungible.sol";
@@ -182,9 +183,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         position.addDebtShare(share);
         if (recipient == address(this)) {
             position.addFungible(Fungible.wrap(address(this)), amount);
+
+            emit DepositFungible(positionId, Fungible.wrap(address(this)), amount);
         }
 
-        emit AddDebt(positionId, share, recipient, amount);
+        emit AddDebt(positionId, recipient, share, amount);
     }
 
     /// @inheritdoc ILicredity
@@ -197,7 +200,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         amount = share.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
         if (useBalance) {
             require(position.owner == msg.sender, NotPositionOwner());
+            position.removeFungible(Fungible.wrap(address(this)), amount);
             _burn(address(this), amount);
+
+            emit WithdrawFungible(positionId, Fungible.wrap(address(this)), address(0), amount);
         } else {
             require(position.owner != address(0), PositionDoesNotExist());
             _burn(msg.sender, amount);
@@ -206,7 +212,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         totalDebtShare = _totalDebtShare - share;
         totalDebtAmount = _totalDebtAmount - amount;
         position.removeDebtShare(share);
-        position.removeFungible(Fungible.wrap(address(this)), amount);
 
         emit RemoveDebt(positionId, share, amount, useBalance);
     }
