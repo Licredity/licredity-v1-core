@@ -4,8 +4,12 @@ pragma solidity >=0.8.0;
 /// @title Math Libaray
 /// @notice Library for performing mathematical operations
 library Math {
-    /// @dev Calculates `floor(x * y / d)` with full precision, throws if result overflows a uint256 or when `d` is zero.
-    /// Credit to Solady under MIT license: https://github.com/Vectorized/solady/blob/main/src/utils/FixedPointMathLib.sol
+    /// @notice Calculates `floor(x * y / d)` with full precision, throws if result overflows a uint256 or when `d` is zero.
+    /// @param x The first multiplicand
+    /// @param y The second multiplicand
+    /// @param d The divisor
+    /// @return z The result of the calculation
+    /// @dev Credit to Solady under MIT license: https://github.com/Vectorized/solady/blob/main/src/utils/FixedPointMathLib.sol
     function fullMulDiv(uint256 x, uint256 y, uint256 d) internal pure returns (uint256 z) {
         assembly ("memory-safe") {
             // 512-bit multiply `[p1 p0] = x * y`.
@@ -64,8 +68,12 @@ library Math {
         }
     }
 
-    /// @dev Calculates `ceiling(x * y / d)` with full precision, throws if result overflows a uint256 or when `d` is zero.
-    /// Credit to Solady under MIT license: https://github.com/Vectorized/solady/blob/main/src/utils/FixedPointMathLib.sol
+    /// @notice Calculates `ceiling(x * y / d)` with full precision, throws if result overflows a uint256 or when `d` is zero.
+    /// @param x The first multiplicand
+    /// @param y The second multiplicand
+    /// @param d The divisor
+    /// @return z The result of the calculation
+    /// @dev Credit to Solady under MIT license: https://github.com/Vectorized/solady/blob/main/src/utils/FixedPointMathLib.sol
     function fullMulDivUp(uint256 x, uint256 y, uint256 d) internal pure returns (uint256 z) {
         z = fullMulDiv(x, y, d);
         assembly ("memory-safe") {
