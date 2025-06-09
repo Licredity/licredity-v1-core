@@ -79,7 +79,7 @@ library PositionLibrary {
     /// @param self The position to remove non-fungible from
     /// @param nonFungible The non-fungible to remove
     /// @return isRemoved True if the non-fungible was removed, false if it was not found
-    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool isRemoved) {
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool) {
         uint256 count = self.nonFungibles.length;
 
         for (uint256 i = 0; i < count; ++i) {
@@ -89,9 +89,11 @@ library PositionLibrary {
                 }
                 self.nonFungibles.pop();
 
-                isRemoved = true;
+                return true;
             }
         }
+
+        return false;
     }
 
     /// @notice Adds debt share to a position
