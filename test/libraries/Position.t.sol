@@ -154,4 +154,11 @@ contract PositionTest is Test {
             }
         }
     }
+
+    function test_addRemoveDebtShare(uint256 addShare, uint256 removeShare) public {
+        vm.assume(addShare >= removeShare);
+        position.addDebtShare(addShare);
+        position.removeDebtShare(removeShare);
+        assertEq(position.debtShare, addShare - removeShare);
+    }
 }
