@@ -57,7 +57,8 @@ abstract contract RiskConfigs {
     /// @param _oracle The address of the oracle
     function setOracle(address _oracle) external onlyGovernor {
         assembly ("memory-safe") {
-            sstore(oracle.slot, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff))
+            let solt := sload(oracle.slot)
+            sstore(oracle.slot, or(solt, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff)))
         }
     }
 
@@ -72,7 +73,8 @@ abstract contract RiskConfigs {
                 revert(0x1c, 0x04)
             }
 
-            sstore(minMarginRequirementBps.slot, _minMarginRequirementBps)
+            let solt := sload(minMarginRequirementBps.slot)
+            sstore(minMarginRequirementBps.slot, or(solt, shl(160, _minMarginRequirementBps)))
         }
     }
 }
