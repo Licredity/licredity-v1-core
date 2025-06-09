@@ -65,7 +65,9 @@ contract PositionTest is Test {
         assertEq(position.fungibleStates[selectedFungible].balance(), db.fungibleBalance(selectedFungible) + amount);
     }
 
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_removeNullFungible() public {
+        vm.expectRevert();
         position.removeFungible(Fungible.wrap(address(0)), 0);
 
         assertEq(position.fungibles.length, 0);
