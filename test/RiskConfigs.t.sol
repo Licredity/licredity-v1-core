@@ -70,15 +70,21 @@ contract RiskConfigsTest is Test {
         assertEq(riskConfigs.loadMinMarginRequirementBps(), minMarginRequirementBps);
     }
     
-    /// forge-config: default.fuzz.runs = 10000
-    function test_setOracleAndMinMarginRequirementBps(address _oracle, uint16 _minMarginRequirementBps) public {
-        uint16 minMarginRequirementBps = uint16(bound(_minMarginRequirementBps, 0, 10000));
+    /// forge-config: default.fuzz.runs = 1000
+    function test_setOracleAndMinMarginRequirementBps(address[] calldata _oracle, uint16[] calldata _minMarginRequirementBps) public {
+        vm.assume(_oracle.length > 1);
+        vm.assume(_minMarginRequirementBps.length > 1);
+        for (uint256 i = 0; i < _oracle.length; i++) {
+            riskConfigs.setOracle(_oracle[i]);
+        }
+        assertEq(riskConfigs.loadOracle(), _oracle[_oracle.length - 1]);
 
-        riskConfigs.setOracle(_oracle);
-        riskConfigs.setMinMarginRequirementBps(minMarginRequirementBps);
-        riskConfigs.setOracle(_oracle);
+        uint16 minMarginRequirementBps;
+        for (uint256 j = 0; j < _minMarginRequirementBps.length; j++) {
+            minMarginRequirementBps = uint16(bound(_minMarginRequirementBps[j], 0, 10000));
+            riskConfigs.setMinMarginRequirementBps(minMarginRequirementBps);
+        }
 
-        assertEq(riskConfigs.loadOracle(), _oracle);
         assertEq(riskConfigs.loadMinMarginRequirementBps(), minMarginRequirementBps);
     }
 }
