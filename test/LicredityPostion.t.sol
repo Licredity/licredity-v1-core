@@ -10,6 +10,8 @@ contract LicredityPositionTest is Deployers {
     error PositionNotEmpty();
     error PositionDoesNotExist();
     error NonZeroNativeValue();
+    error NonFungibleAlreadyOwned();
+    error NonFungibleNotOwned();
 
     event OpenPosition(uint256 indexed positionId, address indexed owner);
     event ClosePosition(uint256 indexed positionId);
@@ -73,9 +75,9 @@ contract LicredityPositionTest is Deployers {
 
     // TODO: close position when not zero debt share
 
-    function test_depositNullPosition() public {
+    function test_depositFungibleNullPosition(uint256 positionId) public {
         vm.expectRevert(PositionDoesNotExist.selector);
-        licredity.depositFungible(0);
+        licredity.depositFungible(positionId);
     }
 
     function test_depositNativeNotStage() public {
@@ -111,5 +113,25 @@ contract LicredityPositionTest is Deployers {
         licredity.stageFungible(fungible);
         vm.expectRevert(NonZeroNativeValue.selector);
         licredity.depositFungible{value: 0.1 ether}(positionId);
+    }
+
+    function test_stageNonFungibleInLicredity() public {
+        nonFungibleMock.mint(address(licredity), 1);
+        vm.expectRevert(NonFungibleAlreadyOwned.selector);
+        licredity.stageNonFungible(getMockFungible(1));
+    }
+
+    function test_depositNonFungibleNullPosition(uint256 positionId) public {
+        vm.expectRevert(PositionDoesNotExist.selector);
+        licredity.depositNonFungible(positionId);
+    }
+
+    function test_depositNonFungibleNotOwned() public {
+        nonFungibleMock.mint(address(1), 1);
+
+        uint256 positionId = licredity.open();
+        licredity.stageNonFungible(getMockFungible(1));
+        vm.expectRevert(NonFungibleNotOwned.selector);
+        licredity.depositNonFungible(positionId);
     }
 }
