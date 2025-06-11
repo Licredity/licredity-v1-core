@@ -106,6 +106,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         uint256 amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
         require(amount == debtAmountIn, UnexpectedStagedFungibleBalance());
 
+        stagedFungible = Fungible.wrap(address(0));
         _burn(address(this), amount);
         baseFungible.transfer(baseAmountOut, recipient);
 
@@ -366,11 +367,13 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         view
         returns (uint256 value, uint256 marginRequirement)
     {
+        uint256 _value;
+        uint256 _marginRequirement;
+
         uint256 fungibleCount = position.fungibles.length;
         for (uint256 i = 0; i < fungibleCount; i++) {
             Fungible fungible = position.fungibles[i];
-            (uint256 _value, uint256 _marginRequirement) =
-                oracle.quoteFungible(fungible, position.fungibleStates[fungible].balance());
+            (_value, _marginRequirement) = oracle.quoteFungible(fungible, position.fungibleStates[fungible].balance());
 
             value += _value;
             marginRequirement += _marginRequirement;
@@ -378,8 +381,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
 
         uint256 nonFungibleCount = position.nonFungibles.length;
         for (uint256 i = 0; i < nonFungibleCount; i++) {
-            NonFungible nonFungible = position.nonFungibles[i];
-            (uint256 _value, uint256 _marginRequirement) = oracle.quoteNonFungible(nonFungible);
+            (_value, _marginRequirement) = oracle.quoteNonFungible(position.nonFungibles[i]);
 
             value += _value;
             marginRequirement += _marginRequirement;
