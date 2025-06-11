@@ -65,7 +65,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
             Position storage position = positions[uint256(items[i])];
 
             uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
-            (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
+            (uint256 value, uint256 marginRequirement) = _getValueAndMarginRequirement(position);
             require(!_isAtRisk(value, debt, marginRequirement), PositionIsAtRisk());
         }
 
@@ -230,7 +230,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         uint256 _totalDebtAmount = totalDebtAmount;
 
         uint256 debt = _debtShare.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
-        (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
+        (uint256 value, uint256 marginRequirement) = _getValueAndMarginRequirement(position);
         require(_isAtRisk(value, debt, marginRequirement), PositionIsHealthy());
 
         if (value < debt) {
@@ -349,6 +349,40 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         // TODO: implement
     }
 
+    /// @notice Gets the value and margin requirement of a position in debt token terms
+    /// @param position The position to get the value and margin requirement for
+    /// @return value The value of the position in debt token terms
+    /// @return marginRequirement The margin requirement of the position in debt token terms
+    function _getValueAndMarginRequirement(Position storage position)
+        internal
+        view
+        returns (uint256 value, uint256 marginRequirement)
+    {
+        uint256 fungibleCount = position.fungibles.length;
+        for (uint256 i = 0; i < fungibleCount; i++) {
+            Fungible fungible = position.fungibles[i];
+            (uint256 _value, uint256 _marginRequirement) =
+                oracle.quoteFungible(fungible, position.fungibleStates[fungible].balance());
+
+            value += _value;
+            marginRequirement += _marginRequirement;
+        }
+
+        uint256 nonFungibleCount = position.nonFungibles.length;
+        for (uint256 i = 0; i < nonFungibleCount; i++) {
+            NonFungible nonFungible = position.nonFungibles[i];
+            (uint256 _value, uint256 _marginRequirement) = oracle.quoteNonFungible(nonFungible);
+
+            value += _value;
+            marginRequirement += _marginRequirement;
+        }
+    }
+
+    /// @notice Checks if a position is at risk given its value, debt, and margin requirement
+    /// @param value The value of the position in debt token terms
+    /// @param debt The total debt of the position in debt token terms
+    /// @param marginRequirement The margin requirement of the position in debt token terms
+    /// @return bool True if the position is at risk, false otherwise
     function _isAtRisk(uint256 value, uint256 debt, uint256 marginRequirement) internal view returns (bool) {
         return
             value < debt + marginRequirement || value < (value + debt).fullMulDivUp(positionMrrBps, UNIT_BASIS_POINTS);

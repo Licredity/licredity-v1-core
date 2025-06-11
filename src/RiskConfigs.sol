@@ -19,7 +19,6 @@ abstract contract RiskConfigs {
     IOracle internal oracle;
     uint16 internal positionMrrBps;
     uint16 internal protocolFeeBps;
-    mapping(Fungible => uint16) internal fungibleMrrBps;
 
     /// @notice Modifier for functions that can only be called by the governor
     modifier onlyGovernor() {
@@ -100,19 +99,5 @@ abstract contract RiskConfigs {
 
             sstore(protocolFeeBps.slot, or(maskedSlot, maskedValue))
         }
-    }
-
-    /// @notice Sets the fungible margin requirement ratio in basis points
-    /// @param _fungible The fungible to set the margin requirement ratio for
-    /// @param _mrrBps The margin requirement ratio in basis points
-    function setFungibleMrrBps(Fungible _fungible, uint16 _mrrBps) external onlyGovernor {
-        assembly ("memory-safe") {
-            if gt(_mrrBps, UNIT_BASIS_POINTS) {
-                mstore(0x00, 0x8ec7a9b4) // 'InvalidFungibleMrrBps()'
-                revert(0x1c, 0x04)
-            }
-        }
-
-        fungibleMrrBps[_fungible] = _mrrBps;
     }
 }
