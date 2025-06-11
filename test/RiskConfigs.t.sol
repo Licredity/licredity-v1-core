@@ -30,7 +30,7 @@ contract RiskConfigsTest is Test {
 
     function test_confirmGovernor(address _governorAddr) public {
         riskConfigs.appointGovernor(_governorAddr);
-        
+
         vm.startPrank(_governorAddr);
         riskConfigs.confirmGovernor();
         vm.stopPrank();
@@ -69,9 +69,12 @@ contract RiskConfigsTest is Test {
 
         assertEq(riskConfigs.loadMinMarginRequirementBps(), minMarginRequirementBps);
     }
-    
+
     /// forge-config: default.fuzz.runs = 1000
-    function test_setOracleAndMinMarginRequirementBps(address[] calldata _oracle, uint16[] calldata _minMarginRequirementBps) public {
+    function test_setOracleAndMinMarginRequirementBps(
+        address[] calldata _oracle,
+        uint16[] calldata _minMarginRequirementBps
+    ) public {
         vm.assume(_oracle.length > 1);
         vm.assume(_minMarginRequirementBps.length > 1);
         for (uint256 i = 0; i < _oracle.length; i++) {

@@ -21,10 +21,11 @@ import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {DebtToken} from "./DebtToken.sol";
 import {RiskConfigs} from "./RiskConfigs.sol";
+import {Extsload} from "./Extsload.sol";
 
 /// @title Licredity
 /// @notice Implementation of the ILicredity interface
-contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, RiskConfigs {
+contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, RiskConfigs, Extsload {
     using Math for uint256;
     using StateLibrary for IPoolManager;
 
