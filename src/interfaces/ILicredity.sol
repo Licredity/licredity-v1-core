@@ -27,6 +27,10 @@ interface ILicredity {
     error PositionIsHealthy();
     /// @notice Error thrown when a position is at risk
     error PositionIsAtRisk();
+    /// @notice Error thrown when staged fungible is unexpected
+    error UnexpectedStagedFungible();
+    /// @notice Error thrown when staged balance is unexpected
+    error UnexpectedStagedFungibleBalance();
 
     /// @notice Event emitted when a new position is opened
     /// @param positionId The ID of the newly opened position
@@ -82,6 +86,12 @@ interface ILicredity {
     /// @param recipient The recipient of the seized position
     /// @param shortfall The amount needed to make the position healthy
     event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 shortfall);
+
+    /// @notice Event emitted when debt fungible is exchanged for base fungible
+    /// @param recipient The recipient of the exchanged base fungible
+    /// @param debtAmountIn The amount of debt fungible exchanged
+    /// @param baseAmountOut The amount of base fungible received
+    event Exchange(address indexed recipient, uint256 debtAmountIn, uint256 baseAmountOut);
 
     /// @notice Function to unlock the Licredity contract
     /// @param data The data to be passed to the unlock callback

@@ -32,7 +32,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     uint256 transient stagedFungibleBalance;
     NonFungible transient stagedNonFungible;
 
-    address internal immutable baseToken;
+    Fungible internal immutable baseFungible;
     PoolId internal immutable poolId;
     PoolKey internal poolKey;
     uint256 internal debtAmountIn;
@@ -43,14 +43,14 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     mapping(uint256 => Position) internal positions;
 
     constructor(
-        address _baseToken,
+        address baseToken,
         address poolManager,
         string memory name,
         string memory symbol,
         uint8 decimals,
         address initialGovernor
     ) BaseHooks(poolManager) DebtToken(name, symbol, decimals) RiskConfigs(initialGovernor) {
-        baseToken = _baseToken;
+        baseFungible = Fungible.wrap(baseToken);
         // TODO: set poolKey and poolId
     }
 
@@ -101,7 +101,15 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
 
     /// @inheritdoc ILicredity
     function exchangeFungible(address recipient) external {
-        // TODO: implement
+        Fungible fungible = stagedFungible;
+        require(fungible == Fungible.wrap(address(this)), UnexpectedStagedFungible());
+        uint256 amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+        require(amount == debtAmountIn, UnexpectedStagedFungibleBalance());
+
+        _burn(address(this), amount);
+        baseFungible.transfer(baseAmountOut, recipient);
+
+        emit Exchange(recipient, debtAmountIn, baseAmountOut);
     }
 
     /// @inheritdoc ILicredity
@@ -332,7 +340,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
                 poolManager.sync(Currency.wrap(address(this)));
                 _mint(address(poolManager), debtAmount);
                 poolManager.settle();
-                poolManager.take(Currency.wrap(baseToken), address(this), baseAmount);
+                poolManager.take(Currency.wrap(Fungible.unwrap(baseFungible)), address(this), baseAmount);
 
                 debtAmountIn += debtAmount;
                 baseAmountOut += baseAmount;
