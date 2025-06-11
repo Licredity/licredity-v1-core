@@ -7,6 +7,7 @@ import {IOracle} from "./interfaces/IOracle.sol";
 /// @notice Abstract implementation of the IRiskConfigs interface
 abstract contract RiskConfigs {
     uint16 internal constant UNIT_BASIS_POINTS = 10000;
+    uint256 internal constant ORACLE_SLOT_MASK = 0xffff0000000000000000000000000000000000000000;
 
     address internal governor;
     address internal pendingGovernor;
@@ -57,7 +58,8 @@ abstract contract RiskConfigs {
     /// @param _oracle The address of the oracle
     function setOracle(address _oracle) external onlyGovernor {
         assembly ("memory-safe") {
-            sstore(oracle.slot, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff))
+            let slot := and(sload(oracle.slot), ORACLE_SLOT_MASK)
+            sstore(oracle.slot, or(slot, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff)))
         }
     }
 
@@ -72,7 +74,9 @@ abstract contract RiskConfigs {
                 revert(0x1c, 0x04)
             }
 
-            sstore(minMarginRequirementBps.slot, _minMarginRequirementBps)
+            let slot := and(sload(minMarginRequirementBps.slot), not(ORACLE_SLOT_MASK))
+
+            sstore(minMarginRequirementBps.slot, or(slot, shl(160, and(_minMarginRequirementBps, 0xffff))))
         }
     }
 }
