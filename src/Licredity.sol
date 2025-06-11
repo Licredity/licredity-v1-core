@@ -66,12 +66,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
 
             uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
             (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
-
-            require(
-                value >= debt + marginRequirement
-                    && value >= (value + debt).fullMulDivUp(minMarginRequirementBps, UNIT_BASIS_POINTS),
-                PositionIsUnhealthy()
-            );
+            require(!_isAtRisk(value, debt, marginRequirement), PositionIsAtRisk());
         }
 
         Locker.lock();
@@ -236,11 +231,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
 
         uint256 debt = _debtShare.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
         (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
-        require(
-            value < debt + marginRequirement
-                || value < (value + debt).fullMulDivUp(minMarginRequirementBps, UNIT_BASIS_POINTS),
-            PositionIsHealthy()
-        );
+        require(_isAtRisk(value, debt, marginRequirement), PositionIsHealthy());
 
         if (value < debt) {
             uint256 deficit = debt - value;
@@ -353,13 +344,18 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         return (this.afterSwap.selector, 0);
     }
 
-    /// @notice Calculates top-up amount based on deficit amount in seize()
-    function _getTopUpAmount(uint256 deficit) internal pure returns (uint256 topUp) {
-        topUp = deficit * 2;
-    }
-
     /// @notice Disburse interest to active liquidity providers
     function _disburseInterest() internal {
         // TODO: implement
+    }
+
+    function _isAtRisk(uint256 value, uint256 debt, uint256 marginRequirement) internal view returns (bool) {
+        return
+            value < debt + marginRequirement || value < (value + debt).fullMulDivUp(positionMrrBps, UNIT_BASIS_POINTS);
+    }
+
+    /// @notice Calculates top-up amount based on deficit amount in seize()
+    function _getTopUpAmount(uint256 deficit) internal pure returns (uint256 topUp) {
+        topUp = deficit * 2;
     }
 }

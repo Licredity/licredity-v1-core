@@ -2,17 +2,24 @@
 pragma solidity ^0.8.0;
 
 import {IOracle} from "./interfaces/IOracle.sol";
+import {Fungible} from "./types/Fungible.sol";
 
 /// @title RiskConfigs
 /// @notice Abstract implementation of the IRiskConfigs interface
 abstract contract RiskConfigs {
     uint16 internal constant UNIT_BASIS_POINTS = 10000;
-    uint256 internal constant ORACLE_SLOT_MASK = 0xffff0000000000000000000000000000000000000000;
+    uint256 internal constant ORACLE_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
+    uint256 internal constant POSITION_MRR_BPS_MASK = 0xffff0000000000000000000000000000000000000000;
+    uint256 internal constant POSITION_MRR_BPS_OFFSET = 160;
+    uint256 internal constant PROTOCOL_FEE_BPS_MASK = 0xffff00000000000000000000000000000000000000000000;
+    uint256 internal constant PROTOCOL_FEE_BPS_OFFSET = 176;
 
     address internal governor;
     address internal pendingGovernor;
     IOracle internal oracle;
-    uint16 internal minMarginRequirementBps;
+    uint16 internal positionMrrBps;
+    uint16 internal protocolFeeBps;
+    mapping(Fungible => uint16) internal fungibleMrrBps;
 
     /// @notice Modifier for functions that can only be called by the governor
     modifier onlyGovernor() {
@@ -58,25 +65,54 @@ abstract contract RiskConfigs {
     /// @param _oracle The address of the oracle
     function setOracle(address _oracle) external onlyGovernor {
         assembly ("memory-safe") {
-            let slot := and(sload(oracle.slot), ORACLE_SLOT_MASK)
-            sstore(oracle.slot, or(slot, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff)))
+            let maskedSlot := and(sload(oracle.slot), not(ORACLE_MASK))
+            sstore(oracle.slot, or(maskedSlot, and(_oracle, ORACLE_MASK)))
         }
     }
 
-    /// @notice Sets the minimum margin requirement in basis points
-    /// @param _minMarginRequirementBps The minimum margin requirement in basis points
-    function setMinMarginRequirementBps(uint16 _minMarginRequirementBps) external onlyGovernor {
+    /// @notice Sets the position margin requirement ratio in basis points
+    /// @param _positionMrrBps The position margin requirement ratio in basis points
+    function setPositionMrrBps(uint16 _positionMrrBps) external onlyGovernor {
         assembly ("memory-safe") {
-            _minMarginRequirementBps := and(_minMarginRequirementBps, 0xffff)
-
-            if gt(_minMarginRequirementBps, UNIT_BASIS_POINTS) {
-                mstore(0x00, 0x8505f13c) // 'InvalidMinMarginRequirementBps()'
+            if gt(_positionMrrBps, UNIT_BASIS_POINTS) {
+                mstore(0x00, 0x56701746) // 'InvalidPositionMrrBps()'
                 revert(0x1c, 0x04)
             }
 
-            let slot := and(sload(minMarginRequirementBps.slot), not(ORACLE_SLOT_MASK))
+            let maskedSlot := and(sload(positionMrrBps.slot), not(POSITION_MRR_BPS_MASK))
+            let maskedValue := and(shl(POSITION_MRR_BPS_OFFSET, _positionMrrBps), POSITION_MRR_BPS_MASK)
 
-            sstore(minMarginRequirementBps.slot, or(slot, shl(160, and(_minMarginRequirementBps, 0xffff))))
+            sstore(positionMrrBps.slot, or(maskedSlot, maskedValue))
         }
+    }
+
+    /// @notice Sets the protocol fee in basis points
+    /// @param _protocolFeeBps The protocol fee in basis points
+    function setProtocolFeeBps(uint16 _protocolFeeBps) external onlyGovernor {
+        assembly ("memory-safe") {
+            if gt(_protocolFeeBps, UNIT_BASIS_POINTS) {
+                mstore(0x00, 0xa535919f) // 'InvalidProtocolFeeBps()'
+                revert(0x1c, 0x04)
+            }
+
+            let maskedSlot := and(sload(protocolFeeBps.slot), not(PROTOCOL_FEE_BPS_MASK))
+            let maskedValue := and(shl(PROTOCOL_FEE_BPS_OFFSET, _protocolFeeBps), PROTOCOL_FEE_BPS_MASK)
+
+            sstore(protocolFeeBps.slot, or(maskedSlot, maskedValue))
+        }
+    }
+
+    /// @notice Sets the fungible margin requirement ratio in basis points
+    /// @param _fungible The fungible to set the margin requirement ratio for
+    /// @param _mrrBps The margin requirement ratio in basis points
+    function setFungibleMrrBps(Fungible _fungible, uint16 _mrrBps) external onlyGovernor {
+        assembly ("memory-safe") {
+            if gt(_mrrBps, UNIT_BASIS_POINTS) {
+                mstore(0x00, 0x8ec7a9b4) // 'InvalidFungibleMrrBps()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        fungibleMrrBps[_fungible] = _mrrBps;
     }
 }

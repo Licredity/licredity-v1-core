@@ -14,7 +14,7 @@ contract Deployers is Test {
     TestERC20 public fungibleMock;
 
     function deployFreshETHLicredity() public {
-        licredity = new Licredity(address(0), UNISWAP_V4, "Debt ETH", "DETH", 18);
+        licredity = new Licredity(address(0), UNISWAP_V4, "Debt ETH", "DETH", 18, address(this));
     }
 
     function deployNonFungibleMock() public {

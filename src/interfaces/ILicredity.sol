@@ -25,8 +25,8 @@ interface ILicredity {
     error NonFungibleNotInPosition();
     /// @notice Error thrown when a position is healthy
     error PositionIsHealthy();
-    /// @notice Error thrown when a position is unhealthy
-    error PositionIsUnhealthy();
+    /// @notice Error thrown when a position is at risk
+    error PositionIsAtRisk();
 
     /// @notice Event emitted when a new position is opened
     /// @param positionId The ID of the newly opened position
@@ -143,7 +143,7 @@ interface ILicredity {
     /// @return amount The amount of debt token given back
     function removeDebt(uint256 positionId, uint256 share, bool useBalance) external returns (uint256 amount);
 
-    /// @notice Function to seize an unhealthy position
+    /// @notice Function to seize an at risk or underwater position
     /// @param positionId The ID of the position to seize
     /// @param recipient The recipient of the seized position
     /// @return shortfall The amount needed to make the position healthy
