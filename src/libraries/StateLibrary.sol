@@ -13,6 +13,10 @@ library StateLibrary {
     uint256 public constant NON_FUNGIBLES_OFFSET = 3;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
 
+    /// @notice Get the owner of a position
+    /// @param manager The licredity contract
+    /// @param positionId The position id
+    /// @return owner The owner of the position
     function getPositionOwner(ILicredity manager, uint256 positionId) internal view returns (address owner) {
         bytes32 stateSlot = _getPositionSlot(positionId);
         bytes32 value = manager.extsload(stateSlot);
@@ -21,6 +25,10 @@ library StateLibrary {
         }
     }
 
+    /// @notice Get the fungibles of a position
+    /// @param manager The licredity contract
+    /// @param positionId The position id
+    /// @return fungibles The fungibles of the position
     function getPositionFungibles(ILicredity manager, uint256 positionId)
         internal
         view
@@ -37,6 +45,10 @@ library StateLibrary {
         }
     }
 
+    /// @notice Get the non fungibles of a position
+    /// @param manager The licredity contract
+    /// @param positionId The position id
+    /// @return nonFungibles The non fungibles of the position
     function getPositionNonFungibles(ILicredity manager, uint256 positionId)
         internal
         view
@@ -53,6 +65,11 @@ library StateLibrary {
         }
     }
 
+    /// @notice Get the balance of a fungible in a position
+    /// @param manager The licredity contract
+    /// @param positionId The position id
+    /// @param token The fungible address
+    /// @return balance The balance of the fungible in the position
     function getPositionFungiblesBalance(ILicredity manager, uint256 positionId, address token)
         internal
         view
