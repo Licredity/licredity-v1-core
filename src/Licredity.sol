@@ -14,17 +14,17 @@ import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
 import {Locker} from "./libraries/Locker.sol";
-
 import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {DebtToken} from "./DebtToken.sol";
+import {RiskConfigs} from "./RiskConfigs.sol";
 
 /// @title Licredity
 /// @notice Implementation of the ILicredity interface
-contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
+contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, RiskConfigs {
     using Math for uint256;
     using StateLibrary for IPoolManager;
 
@@ -42,10 +42,14 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     uint256 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
-    constructor(address _baseToken, address poolManager, string memory name, string memory symbol, uint8 decimals)
-        BaseHooks(poolManager)
-        DebtToken(name, symbol, decimals)
-    {
+    constructor(
+        address _baseToken,
+        address poolManager,
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        address initialGovernor
+    ) BaseHooks(poolManager) DebtToken(name, symbol, decimals) RiskConfigs(initialGovernor) {
         baseToken = _baseToken;
         // TODO: set poolKey and poolId
     }
@@ -63,8 +67,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
             uint256 debt = position.debtShare.fullMulDivUp(totalDebtAmount, totalDebtShare);
             (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
 
-            // TODO: also value cannot be greater than X times margin requirement
-            require(value >= debt + marginRequirement, PositionIsUnhealthy());
+            require(
+                value >= debt + marginRequirement
+                    && value >= (value + debt).fullMulDivUp(minMarginRequirementBps, UNIT_BASIS_POINTS),
+                PositionIsUnhealthy()
+            );
         }
 
         Locker.lock();
@@ -172,7 +179,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         require(position.owner == msg.sender, NotPositionOwner());
 
         Locker.register(bytes32(positionId));
-        // TODO: disburse interest, which also updates totalDebtAmount
+        _disburseInterest();
         uint256 _totalDebtShare = totalDebtShare;
         uint256 _totalDebtAmount = totalDebtAmount;
         amount = share.fullMulDiv(_totalDebtAmount, _totalDebtShare);
@@ -194,7 +201,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     function removeDebt(uint256 positionId, uint256 share, bool useBalance) external returns (uint256 amount) {
         Position storage position = positions[positionId];
 
-        // TODO: disburse interest, which also updates totalDebtAmount
+        _disburseInterest();
         uint256 _totalDebtShare = totalDebtShare;
         uint256 _totalDebtAmount = totalDebtAmount;
         amount = share.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
@@ -222,15 +229,18 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         require(position.owner != address(0), PositionDoesNotExist());
 
         Locker.register(bytes32(positionId));
-        // TODO: disburse interest, which also updates totalDebtAmount
+        _disburseInterest();
         uint256 _debtShare = position.debtShare;
         uint256 _totalDebtShare = totalDebtShare;
         uint256 _totalDebtAmount = totalDebtAmount;
 
         uint256 debt = _debtShare.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
         (uint256 value, uint256 marginRequirement) = position.getValueAndMarginRequirement();
-        // TODO: or value is less than or equal to X times margin requirement
-        require(value < debt + marginRequirement, PositionIsHealthy());
+        require(
+            value < debt + marginRequirement
+                || value < (value + debt).fullMulDivUp(minMarginRequirementBps, UNIT_BASIS_POINTS),
+            PositionIsHealthy()
+        );
 
         if (value < debt) {
             uint256 deficit = debt - value;
@@ -275,7 +285,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
-            // TODO: disburse interest
+            _disburseInterest();
         }
 
         return this.beforeAddLiquidity.selector;
@@ -291,7 +301,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
-            // TODO: disburse interest
+            _disburseInterest();
         }
 
         return this.beforeRemoveLiquidity.selector;
@@ -304,13 +314,13 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         if (sender != address(this)) {
-            // TODO: disburse interest
-            // TODO: ping oracle
+            _disburseInterest();
         }
 
         return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
     }
 
+    /// @inheritdoc BaseHooks
     function _afterSwap(
         address sender,
         PoolKey calldata,
@@ -336,6 +346,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
                 debtAmountIn += debtAmount;
                 baseAmountOut += baseAmount;
             }
+
+            oracle.update();
         }
 
         return (this.afterSwap.selector, 0);
@@ -344,5 +356,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken {
     /// @notice Calculates top-up amount based on deficit amount in seize()
     function _getTopUpAmount(uint256 deficit) internal pure returns (uint256 topUp) {
         topUp = deficit * 2;
+    }
+
+    /// @notice Disburse interest to active liquidity providers
+    function _disburseInterest() internal {
+        // TODO: implement
     }
 }
