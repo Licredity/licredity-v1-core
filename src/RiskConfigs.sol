@@ -19,6 +19,7 @@ abstract contract RiskConfigs {
     IOracle internal oracle;
     uint16 internal positionMrrBps;
     uint16 internal protocolFeeBps;
+    address internal protocolFeeRecipient;
 
     /// @notice Modifier for functions that can only be called by the governor
     modifier onlyGovernor() {
@@ -96,6 +97,14 @@ abstract contract RiskConfigs {
             let maskedValue := and(shl(PROTOCOL_FEE_BPS_OFFSET, _protocolFeeBps), PROTOCOL_FEE_BPS_MASK)
 
             sstore(protocolFeeBps.slot, or(maskedSlot, maskedValue))
+        }
+    }
+
+    /// @notice Sets the protocol fee recipient
+    /// @param _protocolFeeRecipient The address of the protocol fee recipient
+    function setProtocolFeeRecipient(address _protocolFeeRecipient) external onlyGovernor {
+        assembly ("memory-safe") {
+            sstore(protocolFeeRecipient.slot, _protocolFeeRecipient)
         }
     }
 }

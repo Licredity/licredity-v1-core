@@ -388,6 +388,12 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
             interest += accruedInterest;
             accruedInterest = 0;
 
+            if (protocolFeeBps > 0 && protocolFeeRecipient != address(0)) {
+                uint256 protocolFee = interest.fullMulDivUp(protocolFeeBps, UNIT_BASIS_POINTS);
+                interest -= protocolFee;
+                baseFungible.transfer(protocolFee, protocolFeeRecipient);
+            }
+
             poolManager.donate(poolKey, 0, interest, "");
             poolManager.sync(Currency.wrap(address(this)));
             _mint(address(poolManager), interest);
