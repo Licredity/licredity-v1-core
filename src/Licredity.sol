@@ -416,7 +416,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         uint256 fungibleCount = position.fungibles.length;
         for (uint256 i = 0; i < fungibleCount; i++) {
             Fungible fungible = position.fungibles[i];
-            (_value, _marginRequirement) = oracle.quoteFungible(fungible, position.fungibleStates[fungible].balance());
+            (_value, _marginRequirement) =
+                oracle.quoteFungible(Fungible.unwrap(fungible), position.fungibleStates[fungible].balance());
 
             value += _value;
             marginRequirement += _marginRequirement;
@@ -424,7 +425,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
 
         uint256 nonFungibleCount = position.nonFungibles.length;
         for (uint256 i = 0; i < nonFungibleCount; i++) {
-            (_value, _marginRequirement) = oracle.quoteNonFungible(position.nonFungibles[i]);
+            NonFungible nonFungible = position.nonFungibles[i];
+            (_value, _marginRequirement) = oracle.quoteNonFungible(nonFungible.token(), nonFungible.id());
 
             value += _value;
             marginRequirement += _marginRequirement;
