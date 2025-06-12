@@ -375,9 +375,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         uint256 elapsed = block.timestamp - lastInterestDisbursementTimeStamp;
         if (elapsed == 0) return;
 
-        InterestRate interestRate = InterestRate.wrap(oracle.getBasePrice());
+        InterestRate interestRate = InterestRate.wrap(oracle.getBasePrice() * 1e9); // TODO: quick hack to convert 1e18 to 1e27, clean up later
         uint256 _totalDebtAmount = totalDebtAmount;
-        uint256 interest = interestRate.compound(_totalDebtAmount, elapsed) - _totalDebtAmount;
+        uint256 interest = interestRate.calculateInterest(_totalDebtAmount, elapsed);
 
         totalDebtAmount = _totalDebtAmount + interest;
         lastInterestDisbursementTimeStamp = block.timestamp;
