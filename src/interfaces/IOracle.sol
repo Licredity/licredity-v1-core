@@ -7,6 +7,10 @@ import {NonFungible} from "../types/NonFungible.sol";
 /// @title IOracle
 /// @notice Interface for the oracle contracts
 interface IOracle {
+    /// @notice Gets the price of the base fungible in debt fungible terms
+    /// @return uint256 The price of the base fungible in debt fungible terms
+    function getBasePrice() external view returns (uint256);
+
     /// @notice Function to get the value and margin requirement, in debt token terms, of some amount of fungible
     /// @param fungible The fungible to quote
     /// @param amount The amount of fungible to quote

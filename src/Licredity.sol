@@ -2,6 +2,7 @@
 pragma solidity =0.8.30;
 
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
+import {IHooks} from "@uniswap-v4-core/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 import {FixedPoint96} from "@uniswap-v4-core/libraries/FixedPoint96.sol";
 import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
@@ -16,6 +17,7 @@ import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
 import {Locker} from "./libraries/Locker.sol";
 import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
+import {InterestRate} from "./types/InterestRate.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
@@ -29,15 +31,21 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     using Math for uint256;
     using StateLibrary for IPoolManager;
 
-    Fungible transient stagedFungible;
-    uint256 transient stagedFungibleBalance;
-    NonFungible transient stagedNonFungible;
+    uint24 internal constant FEE = 100;
+    int24 internal constant TICK_SPACING = 1;
+    uint160 internal constant SQRT_PRICE_X96 = uint160(FixedPoint96.Q96);
+
+    Fungible internal transient stagedFungible;
+    uint256 internal transient stagedFungibleBalance;
+    NonFungible internal transient stagedNonFungible;
 
     Fungible internal immutable baseFungible;
     PoolId internal immutable poolId;
     PoolKey internal poolKey;
     uint256 internal debtAmountIn;
     uint256 internal baseAmountOut;
+    uint256 internal accruedInterest;
+    uint256 internal lastInterestDisbursementTimeStamp;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtAmount = 1; // establishes the initial conversion rate and inflation attack difficulty
     uint256 internal positionCount;
@@ -45,14 +53,21 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
 
     constructor(
         address baseToken,
-        address poolManager,
+        address _poolManager,
         string memory name,
         string memory symbol,
-        uint8 decimals,
         address initialGovernor
-    ) BaseHooks(poolManager) DebtToken(name, symbol, decimals) RiskConfigs(initialGovernor) {
+    )
+        BaseHooks(_poolManager)
+        DebtToken(name, symbol, Fungible.wrap(baseToken).decimals())
+        RiskConfigs(initialGovernor)
+    {
         baseFungible = Fungible.wrap(baseToken);
-        // TODO: set poolKey and poolId
+
+        poolKey =
+            PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
+        poolId = poolKey.toId();
+        poolManager.initialize(poolKey, SQRT_PRICE_X96);
     }
 
     /// @inheritdoc ILicredity
@@ -184,7 +199,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         require(position.owner == msg.sender, NotPositionOwner());
 
         Locker.register(bytes32(positionId));
-        _disburseInterest();
+        _disburseInterest(true);
         uint256 _totalDebtShare = totalDebtShare;
         uint256 _totalDebtAmount = totalDebtAmount;
         amount = share.fullMulDiv(_totalDebtAmount, _totalDebtShare);
@@ -206,7 +221,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     function removeDebt(uint256 positionId, uint256 share, bool useBalance) external returns (uint256 amount) {
         Position storage position = positions[positionId];
 
-        _disburseInterest();
+        _disburseInterest(true);
         uint256 _totalDebtShare = totalDebtShare;
         uint256 _totalDebtAmount = totalDebtAmount;
         amount = share.fullMulDivUp(_totalDebtAmount, _totalDebtShare);
@@ -234,7 +249,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         require(position.owner != address(0), PositionDoesNotExist());
 
         Locker.register(bytes32(positionId));
-        _disburseInterest();
+        _disburseInterest(true);
         uint256 _debtShare = position.debtShare;
         uint256 _totalDebtShare = totalDebtShare;
         uint256 _totalDebtAmount = totalDebtAmount;
@@ -286,7 +301,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
-            _disburseInterest();
+            _disburseInterest(false);
         }
 
         return this.beforeAddLiquidity.selector;
@@ -302,7 +317,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
-            _disburseInterest();
+            _disburseInterest(false);
         }
 
         return this.beforeRemoveLiquidity.selector;
@@ -315,7 +330,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         if (sender != address(this)) {
-            _disburseInterest();
+            _disburseInterest(false);
         }
 
         return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
@@ -355,8 +370,29 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     }
 
     /// @notice Disburse interest to active liquidity providers
-    function _disburseInterest() internal {
-        // TODO: implement
+    /// @param  accrueOnly If true, only accrue interest without donating to the pool
+    function _disburseInterest(bool accrueOnly) internal {
+        uint256 elapsed = block.timestamp - lastInterestDisbursementTimeStamp;
+        if (elapsed == 0) return;
+
+        InterestRate interestRate = InterestRate.wrap(oracle.getBasePrice());
+        uint256 _totalDebtAmount = totalDebtAmount;
+        uint256 interest = interestRate.compound(_totalDebtAmount, elapsed) - _totalDebtAmount;
+
+        totalDebtAmount = _totalDebtAmount + interest;
+        lastInterestDisbursementTimeStamp = block.timestamp;
+
+        if (accrueOnly) {
+            accruedInterest += interest;
+        } else {
+            interest += accruedInterest;
+            accruedInterest = 0;
+
+            poolManager.donate(poolKey, 0, interest, "");
+            poolManager.sync(Currency.wrap(address(this)));
+            _mint(address(poolManager), interest);
+            poolManager.settle();
+        }
     }
 
     /// @notice Gets the value and margin requirement of a position in debt token terms
