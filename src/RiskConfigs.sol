@@ -48,14 +48,12 @@ abstract contract RiskConfigs {
     /// @notice Confirms the appointment of a new governor
     function confirmGovernor() external {
         assembly ("memory-safe") {
-            let _pendingGovernor := sload(pendingGovernor.slot)
-
-            if iszero(eq(caller(), _pendingGovernor)) {
+            if iszero(eq(caller(), sload(pendingGovernor.slot))) {
                 mstore(0x00, 0xcea73e00) // 'NotPendingGovernor()'
                 revert(0x1c, 0x04)
             }
 
-            sstore(governor.slot, _pendingGovernor)
+            sstore(governor.slot, caller())
             sstore(pendingGovernor.slot, 0x00)
         }
     }

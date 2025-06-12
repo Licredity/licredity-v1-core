@@ -396,7 +396,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     /// @return bool True if the position is at risk, false otherwise
     function _isAtRisk(uint256 value, uint256 debt, uint256 marginRequirement) internal view returns (bool) {
         return
-            value < debt + marginRequirement || value < (value + debt).fullMulDivUp(positionMrrBps, UNIT_BASIS_POINTS);
+            value < debt + marginRequirement || debt > value - (value).fullMulDivUp(positionMrrBps, UNIT_BASIS_POINTS);
     }
 
     /// @notice Calculates top-up amount based on deficit amount in seize()
