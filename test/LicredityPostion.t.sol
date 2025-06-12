@@ -4,8 +4,12 @@ pragma solidity ^0.8.20;
 import {Deployers} from "./utils/Deployer.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
+import {StateLibrary} from "src/libraries/StateLibrary.sol";
+import {Licredity} from "src/Licredity.sol";
 
 contract LicredityPositionTest is Deployers {
+    using StateLibrary for Licredity;
+
     error NotPositionOwner();
     error PositionNotEmpty();
     error PositionDoesNotExist();
@@ -32,9 +36,11 @@ contract LicredityPositionTest is Deployers {
         emit OpenPosition(1, address(this));
         uint256 positionId = licredity.open();
         assertEq(positionId, 1);
+        assertEq(licredity.getPositionOwner(positionId), address(this));
 
         positionId = licredity.open();
         assertEq(positionId, 2);
+        assertEq(licredity.getPositionOwner(positionId), address(this));
     }
 
     function test_closeNullPosition() public {
@@ -44,9 +50,13 @@ contract LicredityPositionTest is Deployers {
 
     function test_closeOpenPosition() public {
         licredity.open();
+        assertEq(licredity.getPositionOwner(1), address(this));
+
         vm.expectEmit(true, false, false, false, address(licredity));
         emit ClosePosition(1);
         licredity.close(1);
+
+        assertEq(licredity.getPositionOwner(1), address(0));
     }
 
     function test_closeNotFungibleEmptyPosition() public {

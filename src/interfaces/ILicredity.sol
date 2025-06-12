@@ -3,10 +3,11 @@ pragma solidity >=0.8.0;
 
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
+import {IExtsload} from "./IExtsload.sol";
 
 /// @title ILicredity
 /// @notice Interface for the Licredity contract
-interface ILicredity {
+interface ILicredity is IExtsload {
     /// @notice Error thrown when trying attach hooks to more than one pool
     error NotMultiPoolHooks();
     /// @notice Error thrown when an unexpected non-zero value is received

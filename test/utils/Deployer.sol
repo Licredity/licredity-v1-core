@@ -12,9 +12,10 @@ contract Deployers is Test {
     Licredity public licredity;
     NonFungibleMock public nonFungibleMock;
     TestERC20 public fungibleMock;
+    TestERC20 public otherFungibleMock;
 
     function deployFreshETHLicredity() public {
-        licredity = new Licredity(address(0), UNISWAP_V4, "Debt ETH", "DETH", 18);
+        licredity = new Licredity(address(0), UNISWAP_V4, "Debt ETH", "DETH", 18, address(this));
     }
 
     function deployNonFungibleMock() public {
@@ -23,6 +24,7 @@ contract Deployers is Test {
 
     function deployFungibleMock() public {
         fungibleMock = new TestERC20(0);
+        otherFungibleMock = new TestERC20(0);
     }
 
     function getMockFungible(uint256 tokenId) public view returns (NonFungible nft) {
