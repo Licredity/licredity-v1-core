@@ -391,7 +391,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
             if (protocolFeeBps > 0 && protocolFeeRecipient != address(0)) {
                 uint256 protocolFee = interest.fullMulDivUp(protocolFeeBps, UNIT_BASIS_POINTS);
                 interest -= protocolFee;
-                baseFungible.transfer(protocolFee, protocolFeeRecipient);
+                _mint(protocolFeeRecipient, protocolFee);
             }
 
             poolManager.donate(poolKey, 0, interest, "");
@@ -407,7 +407,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     /// @return marginRequirement The margin requirement of the position in debt token terms
     function _getValueAndMarginRequirement(Position storage position)
         internal
-        view
         returns (uint256 value, uint256 marginRequirement)
     {
         uint256 _value;
