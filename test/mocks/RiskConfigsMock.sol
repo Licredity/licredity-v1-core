@@ -18,7 +18,7 @@ contract RiskConfigsMock is RiskConfigs {
         return address(oracle);
     }
 
-    function loadMinMarginRequirementBps() external view returns (uint16) {
-        return minMarginRequirementBps;
+    function loadPositionMrrBps() external view returns (uint16) {
+        return positionMrrBps;
     }
 }

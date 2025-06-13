@@ -7,7 +7,7 @@ import {RiskConfigsMock} from "./mocks/RiskConfigsMock.sol";
 contract RiskConfigsTest is Test {
     error NotGovernor();
     error NotPendingGovernor();
-    error InvalidMinMarginRequirementBps();
+    error InvalidPositionMrrBps();
 
     RiskConfigsMock public riskConfigs;
 
@@ -56,38 +56,35 @@ contract RiskConfigsTest is Test {
         assertEq(riskConfigs.loadOracle(), _oracle);
     }
 
-    function test_setMinMarginRequirementBps_invalid(uint16 _minMarginRequirementBps) public {
-        uint16 minMarginRequirementBps = uint16(bound(_minMarginRequirementBps, 10001, type(uint16).max));
-        vm.expectRevert(InvalidMinMarginRequirementBps.selector);
-        riskConfigs.setMinMarginRequirementBps(minMarginRequirementBps);
+    function test_setPositionMrrBps_invalid(uint16 _positionMrrBps) public {
+        uint16 positionMrrBps = uint16(bound(_positionMrrBps, 10001, type(uint16).max));
+        vm.expectRevert(InvalidPositionMrrBps.selector);
+        riskConfigs.setPositionMrrBps(positionMrrBps);
     }
 
-    function test_setMinMarginRequirementBps_valid(uint16 _minMarginRequirementBps) public {
-        uint16 minMarginRequirementBps = uint16(bound(_minMarginRequirementBps, 0, 10000));
+    function test_setPositionMrrBps_valid(uint16 _positionMrrBps) public {
+        uint16 positionMrrBps = uint16(bound(_positionMrrBps, 0, 10000));
 
-        riskConfigs.setMinMarginRequirementBps(minMarginRequirementBps);
+        riskConfigs.setPositionMrrBps(positionMrrBps);
 
-        assertEq(riskConfigs.loadMinMarginRequirementBps(), minMarginRequirementBps);
+        assertEq(riskConfigs.loadPositionMrrBps(), positionMrrBps);
     }
 
     /// forge-config: default.fuzz.runs = 1000
-    function test_setOracleAndMinMarginRequirementBps(
-        address[] calldata _oracle,
-        uint16[] calldata _minMarginRequirementBps
-    ) public {
+    function test_setOracleAndPositionMrrBps(address[] calldata _oracle, uint16[] calldata _positionMrrBps) public {
         vm.assume(_oracle.length > 1);
-        vm.assume(_minMarginRequirementBps.length > 1);
+        vm.assume(_positionMrrBps.length > 1);
         for (uint256 i = 0; i < _oracle.length; i++) {
             riskConfigs.setOracle(_oracle[i]);
         }
         assertEq(riskConfigs.loadOracle(), _oracle[_oracle.length - 1]);
 
-        uint16 minMarginRequirementBps;
-        for (uint256 j = 0; j < _minMarginRequirementBps.length; j++) {
-            minMarginRequirementBps = uint16(bound(_minMarginRequirementBps[j], 0, 10000));
-            riskConfigs.setMinMarginRequirementBps(minMarginRequirementBps);
+        uint16 positionMrrBps;
+        for (uint256 j = 0; j < _positionMrrBps.length; j++) {
+            positionMrrBps = uint16(bound(_positionMrrBps[j], 0, 10000));
+            riskConfigs.setPositionMrrBps(positionMrrBps);
         }
 
-        assertEq(riskConfigs.loadMinMarginRequirementBps(), minMarginRequirementBps);
+        assertEq(riskConfigs.loadPositionMrrBps(), positionMrrBps);
     }
 }

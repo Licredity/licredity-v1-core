@@ -26,8 +26,12 @@ interface ILicredity is IExtsload {
     error NonFungibleNotInPosition();
     /// @notice Error thrown when a position is healthy
     error PositionIsHealthy();
-    /// @notice Error thrown when a position is unhealthy
-    error PositionIsUnhealthy();
+    /// @notice Error thrown when a position is at risk
+    error PositionIsAtRisk();
+    /// @notice Error thrown when staged fungible is unexpected
+    error UnexpectedStagedFungible();
+    /// @notice Error thrown when staged balance is unexpected
+    error UnexpectedStagedFungibleBalance();
 
     /// @notice Event emitted when a new position is opened
     /// @param positionId The ID of the newly opened position
@@ -83,6 +87,12 @@ interface ILicredity is IExtsload {
     /// @param recipient The recipient of the seized position
     /// @param shortfall The amount needed to make the position healthy
     event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 shortfall);
+
+    /// @notice Event emitted when debt fungible is exchanged for base fungible
+    /// @param recipient The recipient of the exchanged base fungible
+    /// @param debtAmountIn The amount of debt fungible exchanged
+    /// @param baseAmountOut The amount of base fungible received
+    event Exchange(address indexed recipient, uint256 debtAmountIn, uint256 baseAmountOut);
 
     /// @notice Function to unlock the Licredity contract
     /// @param data The data to be passed to the unlock callback
@@ -144,7 +154,7 @@ interface ILicredity is IExtsload {
     /// @return amount The amount of debt token given back
     function removeDebt(uint256 positionId, uint256 share, bool useBalance) external returns (uint256 amount);
 
-    /// @notice Function to seize an unhealthy position
+    /// @notice Function to seize an at risk or underwater position
     /// @param positionId The ID of the position to seize
     /// @param recipient The recipient of the seized position
     /// @return shortfall The amount needed to make the position healthy

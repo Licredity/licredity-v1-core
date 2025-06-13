@@ -116,16 +116,4 @@ library PositionLibrary {
     function isEmpty(Position storage self) internal view returns (bool) {
         return self.debtShare == 0 && self.fungibles.length == 0 && self.nonFungibles.length == 0;
     }
-
-    /// @notice Gets the value and margin requirement of a position
-    /// @param self The position to get value and margin requirement for
-    /// @return value The value of the position
-    /// @return marginRequirement The margin requirement of the position
-    function getValueAndMarginRequirement(Position storage self)
-        internal
-        view
-        returns (uint256 value, uint256 marginRequirement)
-    {
-        // TODO: implement
-    }
 }
