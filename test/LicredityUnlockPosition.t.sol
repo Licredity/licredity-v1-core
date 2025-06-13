@@ -28,13 +28,46 @@ contract LicredityExchangeTest is Deployers {
 
         uint256 share = amount.toSharesUp(totalAssets, totalShares);
 
-        if (amount < 1000 ether) {
+        if (amount < 1 ether) {
             licredityRouterHelper.addDebt(positionId, share, address(this));
             assertEq(licredity.balanceOf(address(this)), amount);
         } else {
             vm.expectRevert(PositionIsAtRisk.selector);
             licredityRouterHelper.addDebt(positionId, share, address(this));
-            // assertEq(licredity.balanceOf(address(this)), 1000 ether);
         }
+    }
+
+    function test_addDebtPosition(uint192 amount) public {
+        vm.assume(amount < type(uint192).max / 1e6);
+
+        uint256 positionId = licredityRouter.open();
+
+        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        licredity.depositFungible{value: 1 ether}(positionId);
+
+        uint256 share = uint256(amount).toSharesUp(totalAssets, totalShares);
+
+        licredity.setPositionMrrBps(10);
+
+        if (amount < 1000 ether) {
+            licredityRouterHelper.addDebt(positionId, share, address(licredity));
+            assertEq(licredity.getPositionFungiblesBalance(positionId, address(licredity)), amount);
+        } else {
+            vm.expectRevert(PositionIsAtRisk.selector);
+            licredityRouterHelper.addDebt(positionId, share, address(licredity));
+        }
+    }
+
+    function test_addDebt_PositionMrrBps() public {
+       uint256 positionId = licredityRouter.open();
+
+        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        licredity.depositFungible{value: 1 ether}(positionId);
+
+        uint256 share = uint256(9 ether + 1).toSharesUp(totalAssets, totalShares);
+
+        licredity.setPositionMrrBps(1000);
+        vm.expectRevert(PositionIsAtRisk.selector);
+        licredityRouterHelper.addDebt(positionId, share, address(licredity));
     }
 }

@@ -55,6 +55,7 @@ contract Deployers is Test {
     function deployAndSetOracleMock() public {
         OracleMock oracleMock = new OracleMock();
         oracleMock.setFungibleConfig(address(0), 1 ether, 10); // 10 / 10000 = 0.1%
+        oracleMock.setFungibleConfig(address(licredity), 1 ether, 0); // 10 / 10000 = 0.1%
         licredity.setOracle(address(oracleMock));
     }
 
