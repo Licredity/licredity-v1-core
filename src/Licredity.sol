@@ -381,7 +381,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         uint256 elapsed = block.timestamp - lastInterestDisbursementTimeStamp;
         if (elapsed == 0) return;
 
-        InterestRate interestRate = InterestRate.wrap(oracle.getBasePrice() * 1e9); // TODO: quick hack to convert 1e18 to 1e27, clean up later
+        InterestRate interestRate = InterestRate.wrap(oracle.quotePrice() * 1e9); // TODO: quick hack to convert 1e18 to 1e27, clean up later
         uint256 _totalDebtAmount = totalDebtAmount;
         uint256 interest = interestRate.calculateInterest(_totalDebtAmount, elapsed);
 
@@ -415,22 +415,34 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
         internal
         returns (uint256 value, uint256 marginRequirement)
     {
-        uint256 _value;
-        uint256 _marginRequirement;
+        {
+            uint256 count = position.fungibles.length;
+            address[] memory tokens = new address[](count);
+            uint256[] memory amounts = new uint256[](count);
 
-        uint256 fungibleCount = position.fungibles.length;
-        for (uint256 i = 0; i < fungibleCount; i++) {
-            Fungible fungible = position.fungibles[i];
-            (_value, _marginRequirement) = oracle.quoteFungible(fungible, position.fungibleStates[fungible].balance());
+            for (uint256 i = 0; i < count; i++) {
+                Fungible fungible = position.fungibles[i];
+                tokens[i] = Fungible.unwrap(fungible);
+                amounts[i] = position.fungibleStates[fungible].balance();
+            }
 
+            (uint256 _value, uint256 _marginRequirement) = oracle.quoteFungibles(tokens, amounts);
             value += _value;
             marginRequirement += _marginRequirement;
         }
 
-        uint256 nonFungibleCount = position.nonFungibles.length;
-        for (uint256 i = 0; i < nonFungibleCount; i++) {
-            (_value, _marginRequirement) = oracle.quoteNonFungible(position.nonFungibles[i]);
+        {
+            uint256 count = position.nonFungibles.length;
+            address[] memory tokens = new address[](count);
+            uint256[] memory ids = new uint256[](count);
 
+            for (uint256 i = 0; i < count; i++) {
+                NonFungible nonFungible = position.nonFungibles[i];
+                tokens[i] = nonFungible.token();
+                ids[i] = nonFungible.id();
+            }
+
+            (uint256 _value, uint256 _marginRequirement) = oracle.quoteNonFungibles(tokens, ids);
             value += _value;
             marginRequirement += _marginRequirement;
         }

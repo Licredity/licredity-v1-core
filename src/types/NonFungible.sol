@@ -24,13 +24,35 @@ library NonFungibleLibrary {
         uint256 tokenId;
         assembly ("memory-safe") {
             tokenAddress := shr(96, self)
-            tokenId := and(self, sub(shl(96, 1), 1))
+            tokenId := and(self, 0xffffffffffffffffffffffff)
         }
 
         IERC721(tokenAddress).safeTransferFrom(address(this), recipient, tokenId);
     }
 
-    /// @notice Get the owner of a non-fungible
+    /// @notice Gets the token of a non-fungible
+    /// @param self The non-fungible to get the token of
+    /// @return address The address of the token
+    function token(NonFungible self) internal pure returns (address) {
+        address tokenAddress;
+        assembly ("memory-safe") {
+            tokenAddress := shr(96, self)
+        }
+        return tokenAddress;
+    }
+
+    /// @notice Gets the ID of a non-fungible
+    /// @param self The non-fungible to get the ID of
+    /// @return uint256 The ID of the non-fungible
+    function id(NonFungible self) internal pure returns (uint256) {
+        uint256 tokenId;
+        assembly ("memory-safe") {
+            tokenId := and(self, 0xffffffffffffffffffffffff)
+        }
+        return tokenId;
+    }
+
+    /// @notice Gets the owner of a non-fungible
     /// @param self The non-fungible to get the owner of
     /// @return address The owner of the non-fungible
     function owner(NonFungible self) internal view returns (address) {
@@ -38,7 +60,7 @@ library NonFungibleLibrary {
         uint256 tokenId;
         assembly ("memory-safe") {
             tokenAddress := shr(96, self)
-            tokenId := and(self, sub(shl(96, 1), 1))
+            tokenId := and(self, 0xffffffffffffffffffffffff)
         }
 
         return IERC721(tokenAddress).ownerOf(tokenId);

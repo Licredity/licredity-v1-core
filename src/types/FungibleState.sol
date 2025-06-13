@@ -8,7 +8,7 @@ using FungibleStateLibrary for FungibleState global;
 
 function toFungibleState(uint64 index, uint192 _balance) pure returns (FungibleState state) {
     assembly ("memory-safe") {
-        state := or(shl(192, index), and(_balance, sub(shl(192, 1), 1)))
+        state := or(shl(192, index), and(_balance, 0xffffffffffffffffffffffffffffffffffffffffffffffff))
     }
 }
 
@@ -29,7 +29,7 @@ library FungibleStateLibrary {
     /// @return _balance The balance part of the fungible state
     function balance(FungibleState self) internal pure returns (uint192 _balance) {
         assembly ("memory-safe") {
-            _balance := and(self, sub(shl(192, 1), 1))
+            _balance := and(self, 0xffffffffffffffffffffffffffffffffffffffffffffffff)
         }
     }
 }
