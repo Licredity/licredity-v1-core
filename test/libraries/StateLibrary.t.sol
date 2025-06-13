@@ -14,7 +14,7 @@ contract StateLibraryTest is Deployers {
     Fungible public otherFungible;
 
     function setUp() public {
-        deployFreshETHLicredity();
+        deployETHLicredityWithUniswapV4();
         deployNonFungibleMock();
         deployFungibleMock();
 

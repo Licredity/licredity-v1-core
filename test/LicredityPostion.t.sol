@@ -24,7 +24,7 @@ contract LicredityPositionTest is Deployers {
     Fungible public fungible;
 
     function setUp() public {
-        deployFreshETHLicredity();
+        deployETHLicredityWithUniswapV4();
         deployNonFungibleMock();
         deployFungibleMock();
 
