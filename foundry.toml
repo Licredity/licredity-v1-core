@@ -11,4 +11,6 @@ remappings = [
 forge-std = "1.9.7"
 uniswap-v4-core = "4"
 
+[rpc_endpoints]
+ETH = "${ETH_RPC_URL}"
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
