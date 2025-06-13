@@ -21,8 +21,11 @@ library FungibleLibrary {
     /// @notice Thrown when an ERC20 transfer fails
     error ERC20TransferFailed();
 
-    /// @notice A constant representing the native fungible
+    /// @notice The native fungible, represented by the zero address
     Fungible public constant NATIVE = Fungible.wrap(address(0));
+
+    /// @notice The number of decimals for the native fungible
+    uint8 public constant NATIVE_DECIMALS = 18;
 
     /// @notice Transfer fungible to recipient
     /// @param self The fungible to transfer
@@ -69,6 +72,13 @@ library FungibleLibrary {
     /// @return uint256 The balance of the fungible for the address
     function balanceOf(Fungible self, address owner) internal view returns (uint256) {
         return self.isNative() ? owner.balance : IERC20(Fungible.unwrap(self)).balanceOf(owner);
+    }
+
+    /// @notice Get the decimals of a fungible
+    /// @param self The fungible to check the decimals of
+    /// @return uint8 The decimals of the fungible
+    function decimals(Fungible self) internal view returns (uint8) {
+        return self.isNative() ? NATIVE_DECIMALS : IERC20(Fungible.unwrap(self)).decimals();
     }
 
     /// @notice Checks if the fungible is the native fungible
