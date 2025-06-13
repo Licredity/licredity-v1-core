@@ -23,7 +23,7 @@ library InterestRateLibrary {
         }
     }
 
-    function compound(InterestRate rate, uint256 principal, uint256 elapsed) internal pure returns (uint256) {
+    function calculateInterest(InterestRate rate, uint256 principal, uint256 elapsed) internal pure returns (uint256) {
         uint256 expMinusOne;
         uint256 expMinusTwo;
         uint256 basePowerTwo;
@@ -46,7 +46,8 @@ library InterestRateLibrary {
             thirdTerm /= 6;
         }
 
-        uint256 compoundRate = RAY + (InterestRate.unwrap(rate) * elapsed) / SECONDS_PER_YEAR + secondTerm + thirdTerm;
+        uint256 compoundRate =
+            Math.fullMulDivUp(InterestRate.unwrap(rate), elapsed, SECONDS_PER_YEAR) + secondTerm + thirdTerm;
 
         return Math.fullMulDivUp(principal, compoundRate, RAY);
     }
