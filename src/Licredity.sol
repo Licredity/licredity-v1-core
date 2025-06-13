@@ -104,14 +104,20 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     function exchangeFungible(address recipient) external {
         Fungible fungible = stagedFungible;
         require(fungible == Fungible.wrap(address(this)), UnexpectedStagedFungible());
+
+        uint256 _debtAmountIn = debtAmountIn;
+        uint256 _baseAmountOut = baseAmountOut;
         uint256 amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
-        require(amount == debtAmountIn, UnexpectedStagedFungibleBalance());
+        require(amount == _debtAmountIn, UnexpectedStagedFungibleBalance());
 
         stagedFungible = Fungible.wrap(address(0));
-        _burn(address(this), amount);
-        baseFungible.transfer(baseAmountOut, recipient);
+        debtAmountIn = 0;
+        baseAmountOut = 0;
 
-        emit Exchange(recipient, debtAmountIn, baseAmountOut);
+        _burn(address(this), _debtAmountIn);
+        baseFungible.transfer(_baseAmountOut, recipient);
+
+        emit Exchange(recipient, _debtAmountIn, _baseAmountOut);
     }
 
     /// @inheritdoc ILicredity
@@ -395,8 +401,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
     /// @param marginRequirement The margin requirement of the position in debt token terms
     /// @return bool True if the position is at risk, false otherwise
     function _isAtRisk(uint256 value, uint256 debt, uint256 marginRequirement) internal view returns (bool) {
-        return
-            value < debt + marginRequirement || debt > value - (value).fullMulDivUp(positionMrrBps, UNIT_BASIS_POINTS);
+        return value < debt + marginRequirement || debt > value - value.mulBpsUp(positionMrrBps);
     }
 
     /// @notice Calculates top-up amount based on deficit amount in seize()

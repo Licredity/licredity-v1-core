@@ -2,12 +2,12 @@
 pragma solidity ^0.8.0;
 
 import {IOracle} from "./interfaces/IOracle.sol";
+import {Math} from "./libraries/Math.sol";
 import {Fungible} from "./types/Fungible.sol";
 
 /// @title RiskConfigs
 /// @notice Abstract implementation of the IRiskConfigs interface
 abstract contract RiskConfigs {
-    uint16 internal constant UNIT_BASIS_POINTS = 10000;
     uint256 internal constant ORACLE_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
     uint256 internal constant POSITION_MRR_BPS_MASK = 0xffff0000000000000000000000000000000000000000;
     uint256 internal constant POSITION_MRR_BPS_OFFSET = 160;
@@ -70,8 +70,10 @@ abstract contract RiskConfigs {
     /// @notice Sets the position margin requirement ratio in basis points
     /// @param _positionMrrBps The position margin requirement ratio in basis points
     function setPositionMrrBps(uint16 _positionMrrBps) external onlyGovernor {
+        uint16 bps = Math.UNIT_BASIS_POINTS;
+
         assembly ("memory-safe") {
-            if gt(_positionMrrBps, UNIT_BASIS_POINTS) {
+            if gt(_positionMrrBps, bps) {
                 mstore(0x00, 0x56701746) // 'InvalidPositionMrrBps()'
                 revert(0x1c, 0x04)
             }
@@ -86,8 +88,10 @@ abstract contract RiskConfigs {
     /// @notice Sets the protocol fee in basis points
     /// @param _protocolFeeBps The protocol fee in basis points
     function setProtocolFeeBps(uint16 _protocolFeeBps) external onlyGovernor {
+        uint16 bps = Math.UNIT_BASIS_POINTS;
+
         assembly ("memory-safe") {
-            if gt(_protocolFeeBps, UNIT_BASIS_POINTS) {
+            if gt(_protocolFeeBps, bps) {
                 mstore(0x00, 0xa535919f) // 'InvalidProtocolFeeBps()'
                 revert(0x1c, 0x04)
             }
