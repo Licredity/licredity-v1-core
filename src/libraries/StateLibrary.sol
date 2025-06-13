@@ -8,10 +8,21 @@ import {NonFungible} from "../types/NonFungible.sol";
 /// @title State Library
 /// @notice A helper library to provide state getters that use extsload
 library StateLibrary {
-    uint256 public constant POSITIONS_OFFSET = 15;
+    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 15;
+    uint256 public constant TOTAL_DEBT_AMOUNT_OFFSET = 16;
+    uint256 public constant POSITIONS_OFFSET = 18;
     uint256 public constant FUNGIBLES_OFFSET = 2;
     uint256 public constant NON_FUNGIBLES_OFFSET = 3;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
+
+    /// @notice Get the total debt share and amount
+    /// @param manager The licredity contract
+    /// @return totalDebtShare The total debt share
+    /// @return totalDebtAmount The total debt amount
+    function getTotalDebt(ILicredity manager) internal view returns (uint256 totalDebtShare, uint256 totalDebtAmount) {
+        totalDebtShare = uint256(manager.extsload(bytes32(TOTAL_DEBT_SHARE_OFFSET)));
+        totalDebtAmount = uint256(manager.extsload(bytes32(TOTAL_DEBT_AMOUNT_OFFSET)));
+    }
 
     /// @notice Get the owner of a position
     /// @param manager The licredity contract
