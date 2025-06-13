@@ -5,6 +5,7 @@ import {Test} from "@forge-std/Test.sol";
 import {Licredity} from "src/Licredity.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {NonFungibleMock} from "test/mocks/NonFungibleMock.sol";
+import {OracleMock} from "test/mocks/OracleMock.sol";
 import {LicredityRouter} from "./LicredityRouter.sol";
 import {LicredityRouterHelper} from "./LicredityRouterHelper.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
@@ -49,6 +50,12 @@ contract Deployers is Test {
     function deployFungibleMock() public {
         fungibleMock = new TestERC20(0);
         otherFungibleMock = new TestERC20(0);
+    }
+
+    function deployAndSetOracleMock() public {
+        OracleMock oracleMock = new OracleMock();
+        oracleMock.setFungibleConfig(address(0), 1 ether, 10); // 10 / 10000 = 0.1%
+        licredity.setOracle(address(oracleMock));
     }
 
     function getMockFungible(uint256 tokenId) public view returns (NonFungible nft) {
