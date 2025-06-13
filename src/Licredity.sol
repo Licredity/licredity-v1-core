@@ -395,7 +395,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ri
             accruedInterest = 0;
 
             if (protocolFeeBps > 0 && protocolFeeRecipient != address(0)) {
-                uint256 protocolFee = interest.fullMulDivUp(protocolFeeBps, UNIT_BASIS_POINTS);
+                uint256 protocolFee = interest.mulBpsUp(protocolFeeBps);
                 interest -= protocolFee;
                 _mint(protocolFeeRecipient, protocolFee);
             }
