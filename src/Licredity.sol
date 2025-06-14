@@ -2,6 +2,10 @@
 pragma solidity =0.8.30;
 
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
+import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
+import {BeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
+import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {CreditToken} from "./CreditToken.sol";
@@ -11,8 +15,47 @@ import {RiskConfigs} from "./RiskConfigs.sol";
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, Extsload, RiskConfigs {
+    constructor(address _governor, address _poolManager) BaseHooks(_poolManager) RiskConfigs(_governor) {}
+
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
+    }
+
+    function _beforeInitialize(address, PoolKey calldata, uint160) internal override returns (bytes4) {
+        // TODO: implement
+    }
+
+    function _beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
+        internal
+        override
+        returns (bytes4)
+    {
+        // TODO: implement
+    }
+
+    function _beforeRemoveLiquidity(
+        address,
+        PoolKey calldata,
+        IPoolManager.ModifyLiquidityParams calldata,
+        bytes calldata
+    ) internal override returns (bytes4) {
+        // TODO: implement
+    }
+
+    function _beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
+        internal
+        override
+        returns (bytes4, BeforeSwapDelta, uint24)
+    {
+        // TODO: implement
+    }
+
+    function _afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
+        internal
+        override
+        returns (bytes4, int128)
+    {
+        // TODO: implement
     }
 }
