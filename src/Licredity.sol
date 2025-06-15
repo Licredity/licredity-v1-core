@@ -13,6 +13,7 @@ import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
 import {Locker} from "./libraries/Locker.sol";
 import {Fungible} from "./types/Fungible.sol";
+import {NonFungible} from "./types/NonFungible.sol";
 import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {DebtToken} from "./DebtToken.sol";
@@ -28,6 +29,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
     Fungible internal transient stagedFungible;
     uint256 internal transient stagedFungibleBalance;
+    NonFungible internal transient stagedNonFungible;
 
     Fungible internal immutable baseFungible;
     PoolKey internal poolKey;
@@ -154,7 +156,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
-        Fungible fungible = stagedFungible;
         Position storage position = positions[positionId];
         if (position.owner == address(0)) {
             assembly ("memory-safe") {
@@ -162,6 +163,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
                 revert(0x1c, 0x04)
             }
         }
+        Fungible fungible = stagedFungible;
 
         uint256 amount;
         if (fungible.isNative()) {
@@ -212,6 +214,80 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
                 positionId,
                 recipient,
                 fungible
+            )
+        }
+    }
+
+    /// @inheritdoc ILicredity
+    function stageNonFungible(NonFungible nonFungible) external {
+        if (nonFungible.owner() == address(this)) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x37cf3ba4) // 'NonFungibleAlreadyOwned()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        stagedNonFungible = nonFungible;
+    }
+
+    /// @inheritdoc ILicredity
+    function depositNonFungible(uint256 positionId) external {
+        Position storage position = positions[positionId];
+        if (position.owner == address(0)) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0xf7b3b391) // 'PositionDoesNotExist()'
+                revert(0x1c, 0x04)
+            }
+        }
+        NonFungible nonFungible = stagedNonFungible;
+        if (nonFungible.owner() != address(this)) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0xc485032c) // 'NonFungibleNotOwned()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        assembly ("memory-safe") {
+            tstore(stagedNonFungible.slot, 0)
+        }
+        position.addNonFungible(nonFungible);
+
+        // emit DepositNonFungible(positionId, nonFungible);
+        assembly ("memory-safe") {
+            log3(
+                0x00, 0x00, 0x113d8217beb98f6a392770deea72be5d6d47842b1511e5c0f55e6607a6ffa4c3, positionId, nonFungible
+            )
+        }
+    }
+
+    /// @inheritdoc ILicredity
+    function withdrawNonFungible(uint256 positionId, address recipient, NonFungible nonFungible) external {
+        Position storage position = positions[positionId];
+        if (position.owner != msg.sender) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        Locker.register(bytes32(positionId));
+        if (!position.removeNonFungible(nonFungible)) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x1f353c1f) // 'NonFungibleNotInPosition()'
+                revert(0x1c, 0x04)
+            }
+        }
+        nonFungible.transfer(recipient);
+
+        // emit WithdrawNonFungible(positionId, recipient, nonFungible);
+        assembly ("memory-safe") {
+            log4(
+                0x00,
+                0x00,
+                0x472a88e11786f436885e90e4a73c1555038dd47cb5035ccd1928cc974ad9d1bf,
+                positionId,
+                recipient,
+                nonFungible
             )
         }
     }
