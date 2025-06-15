@@ -67,7 +67,7 @@ contract LockerTest is Test {
             }
         }
 
-        bytes32[] memory _registeredItems = Locker.getRegisteredItems();
+        bytes32[] memory _registeredItems = Locker.registeredItems();
 
         assertEq(_registeredItems.length, registeredItems.length);
         for (uint256 i = 0; i < _registeredItems.length; i++) {
@@ -76,7 +76,7 @@ contract LockerTest is Test {
 
         Locker.lock();
         Locker.unlock();
-        bytes32[] memory zeroRegisteredItems = Locker.getRegisteredItems();
+        bytes32[] memory zeroRegisteredItems = Locker.registeredItems();
         assertEq(zeroRegisteredItems.length, 0);
     }
 }

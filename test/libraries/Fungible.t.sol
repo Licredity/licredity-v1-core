@@ -3,18 +3,18 @@ pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
 import {Fungible} from "src/types/Fungible.sol";
-import {CreditTokenMock} from "test/mocks/CreditTokenMock.sol";
+import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
 
 contract FungibleTest is Test {
-    CreditTokenMock public token;
+    DebtTokenMock public token;
     Fungible public constant NATIVE = Fungible.wrap(address(0));
 
     function setUp() public {
-        token = new CreditTokenMock("Token", "T", 18);
+        token = new DebtTokenMock("Token", "T", 18);
     }
 
     function _newAsset(uint8 decimals) internal returns (Fungible) {
-        token = new CreditTokenMock("Token", "T", decimals);
+        token = new DebtTokenMock("Token", "T", decimals);
         return Fungible.wrap(address(token));
     }
 

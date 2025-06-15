@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.30;
 
-import {CreditToken} from "src/CreditToken.sol";
+import {DebtToken} from "src/DebtToken.sol";
 
-contract CreditTokenMock is CreditToken {
-    constructor(string memory name, string memory symbol, uint8 decimals) CreditToken(name, symbol, decimals) {}
+contract DebtTokenMock is DebtToken {
+    constructor(string memory name, string memory symbol, uint8 decimals) DebtToken(name, symbol, decimals) {}
 
     function mint(address to, uint256 amount) external {
         _mint(to, amount);

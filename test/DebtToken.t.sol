@@ -2,16 +2,16 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
-import {CreditTokenMock} from "test/mocks/CreditTokenMock.sol";
+import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
 
-contract CreditTokenTest is Test {
-    CreditTokenMock public token;
+contract DebtTokenMockTest is Test {
+    DebtTokenMock public token;
 
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() public {
-        token = new CreditTokenMock("CreditToken", "CT", 18);
+        token = new DebtTokenMock("CreditToken", "CT", 18);
     }
 
     function test_metadata() public view {
