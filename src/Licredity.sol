@@ -15,13 +15,13 @@ import {Locker} from "./libraries/Locker.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
-import {CreditToken} from "./CreditToken.sol";
+import {DebtToken} from "./DebtToken.sol";
 import {Extsload} from "./Extsload.sol";
 import {RiskConfigs} from "./RiskConfigs.sol";
 
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
-contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, Extsload, RiskConfigs {
+contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Extsload, RiskConfigs {
     uint24 private constant FEE = 100;
     int24 private constant TICK_SPACING = 1;
     uint160 private constant INITIAL_SQRT_PRICE_X96 = 0x1000000000000000000000000;
@@ -39,8 +39,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, 
 
     constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
         BaseHooks(_poolManager)
+        DebtToken(name, symbol, Fungible.wrap(baseToken).decimals())
         RiskConfigs(_governor)
-        CreditToken(name, symbol, Fungible.wrap(baseToken).decimals())
     {
         if (address(this) <= baseToken) {
             assembly ("memory-safe") {
@@ -154,7 +154,38 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, 
 
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
-        // TODO: implement
+        Fungible fungible = stagedFungible;
+        Position storage position = positions[positionId];
+        if (position.owner == address(0)) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0xf7b3b391) // 'PositionDoesNotExist()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        uint256 amount;
+        if (fungible.isNative()) {
+            amount = msg.value;
+        } else {
+            assembly ("memory-safe") {
+                if iszero(iszero(callvalue())) {
+                    mstore(0x00, 0x19d245cf) // 'NonZeroNativeValue()'
+                    revert(0x1c, 0x04)
+                }
+            }
+            amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+        }
+
+        assembly ("memory-safe") {
+            mstore(stagedFungible.slot, 0)
+        }
+        position.addFungible(fungible, amount);
+
+        // emit DepositFungible(positionId, fungible, amount);
+        assembly ("memory-safe") {
+            mstore(0x00, amount)
+            log3(0x00, 0x20, 0x0e02681f4373fa55c60df5d9889b62e8adfe3253bc50a7dd512607e6327e90c6, positionId, fungible)
+        }
     }
 
     /// @inheritdoc ILicredity
