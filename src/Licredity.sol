@@ -2,9 +2,12 @@
 pragma solidity =0.8.30;
 
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
+import {IHooks} from "@uniswap-v4-core/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
+import {Currency} from "@uniswap-v4-core/types/Currency.sol";
+import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
@@ -19,6 +22,13 @@ import {RiskConfigs} from "./RiskConfigs.sol";
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, Extsload, RiskConfigs {
+    uint24 private constant FEE = 100;
+    int24 private constant TICK_SPACING = 1;
+    uint160 private constant INITIAL_SQRT_PRICE_X96 = 0x1000000000000000000000000;
+
+    Fungible internal immutable baseFungible;
+    PoolKey internal poolKey;
+    PoolId internal immutable poolId;
     uint64 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
@@ -26,7 +36,21 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, 
         BaseHooks(_poolManager)
         RiskConfigs(_governor)
         CreditToken(name, symbol, Fungible.wrap(baseToken).decimals())
-    {}
+    {
+        if (address(this) <= baseToken) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0xe6c4247b) // 'InvalidAddress()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        baseFungible = Fungible.wrap(baseToken);
+
+        poolKey =
+            PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
+        poolId = poolKey.toId();
+        poolManager.initialize(poolKey, INITIAL_SQRT_PRICE_X96);
+    }
 
     /// @inheritdoc ILicredity
     function unlock(bytes calldata data) external override returns (bytes memory result) {
