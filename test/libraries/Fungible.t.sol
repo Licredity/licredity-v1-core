@@ -1,25 +1,40 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.20;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.20;
 
-// import {Test} from "@forge-std/Test.sol";
-// import {Fungible} from "src/types/Fungible.sol";
-// import {TestERC20} from "@uniswap-v4-core/test/TestERC20.sol";
+import {Test} from "@forge-std/Test.sol";
+import {Fungible} from "src/types/Fungible.sol";
+import {CreditTokenMock} from "test/mocks/CreditTokenMock.sol";
 
-// contract FungibleTest is Test {
-//     TestERC20 public token;
-//     Fungible public constant NATIVE = Fungible.wrap(address(0));
+contract FungibleTest is Test {
+    CreditTokenMock public token;
+    Fungible public constant NATIVE = Fungible.wrap(address(0));
 
-//     function setUp() public {
-//         token = new TestERC20(0);
-//     }
+    function setUp() public {
+        token = new CreditTokenMock("Token", "T", 18);
+    }
 
-//     function test_NativeFungible_BalanceOf(address owner, uint256 amount) public {
-//         vm.deal(owner, amount);
-//         assertEq(NATIVE.balanceOf(owner), amount);
-//     }
+    function _newAsset(uint8 decimals) internal returns (Fungible) {
+        token = new CreditTokenMock("Token", "T", decimals);
+        return Fungible.wrap(address(token));
+    }
 
-//     function test_Fungible_BalanceOf(address owner, uint256 amount) public {
-//         token.mint(owner, amount);
-//         assertEq(Fungible.wrap(address(token)).balanceOf(owner), amount);
-//     }
-// }
+    function test_decimals(uint8 decimals) public {
+        Fungible asset = _newAsset(decimals);
+        assertEq(asset.decimals(), decimals);
+    }
+
+    function test_isNative() public {
+        assertEq(NATIVE.isNative(), true);
+        assertEq(_newAsset(18).isNative(), false);
+    }
+
+    // function test_NativeFungible_BalanceOf(address owner, uint256 amount) public {
+    //     vm.deal(owner, amount);
+    //     assertEq(NATIVE.balanceOf(owner), amount);
+    // }
+
+    // function test_Fungible_BalanceOf(address owner, uint256 amount) public {
+    //     token.mint(owner, amount);
+    //     assertEq(Fungible.wrap(address(token)).balanceOf(owner), amount);
+    // }
+}
