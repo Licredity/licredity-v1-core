@@ -136,7 +136,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
             }
 
             // clear staged fungible and exchange amounts
-            mstore(stagedFungible.slot, 0)
+            tstore(stagedFungible.slot, 0)
             mstore(baseAmountAvailable.slot, 0)
             mstore(debtAmountOutstanding.slot, 0)
         }
@@ -177,7 +177,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         }
 
         assembly ("memory-safe") {
-            mstore(stagedFungible.slot, 0)
+            tstore(stagedFungible.slot, 0)
         }
         position.addFungible(fungible, amount);
 
