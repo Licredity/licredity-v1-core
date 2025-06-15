@@ -26,10 +26,15 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, 
     int24 private constant TICK_SPACING = 1;
     uint160 private constant INITIAL_SQRT_PRICE_X96 = 0x1000000000000000000000000;
 
+    Fungible internal transient stagedFungible;
+    uint256 internal transient stagedFungibleBalance;
+
     Fungible internal immutable baseFungible;
     PoolKey internal poolKey;
     PoolId internal immutable poolId;
     uint64 internal positionCount;
+    uint128 internal baseAmountAvailable;
+    uint128 internal debtAmountOutstanding;
     mapping(uint256 => Position) internal positions;
 
     constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
@@ -102,19 +107,56 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, 
             log2(0x00, 0x00, 0x76ea9b4ec8740d36765c806fad62b75c4418d245d5264e20b01f07ca9ef48b1c, positionId)
         }
     }
-    /// @inheritdoc ILicredity
 
+    /// @inheritdoc ILicredity
     function stageFungible(Fungible fungible) external {
-        // TODO: implement
+        stagedFungible = fungible;
+        if (!fungible.isNative()) {
+            stagedFungibleBalance = fungible.balanceOf(address(this));
+        }
     }
+
     /// @inheritdoc ILicredity
     function exchangeFungible(address recipient) external {
-        // TODO: implement
+        Fungible fungible = stagedFungible;
+        assembly ("memory-safe") {
+            if iszero(eq(fungible, address())) {
+                mstore(0x00, 0x93bbf24d) // 'NotDebtFungible()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        uint128 _baseAmountAvailable = baseAmountAvailable;
+        uint128 _debtAmountOutstanding = debtAmountOutstanding;
+        uint256 amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+        assembly ("memory-safe") {
+            if iszero(eq(amount, _debtAmountOutstanding)) {
+                mstore(0x00, 0xb2afc83e) // 'NotAmountOutstanding()'
+                revert(0x1c, 0x04)
+            }
+
+            // clear staged fungible and exchange amounts
+            mstore(stagedFungible.slot, 0)
+            mstore(baseAmountAvailable.slot, 0)
+            mstore(debtAmountOutstanding.slot, 0)
+        }
+
+        _burn(address(this), _debtAmountOutstanding);
+        baseFungible.transfer(recipient, _baseAmountAvailable);
+
+        // emit Exchange(recipient, _debtAmountOutstanding, _baseAmountAvailable);
+        assembly ("memory-safe") {
+            mstore(0x00, _debtAmountOutstanding)
+            mstore(0x20, _baseAmountAvailable)
+            log2(0x00, 0x40, 0x26981b9aefbb0f732b0264bd34c255e831001eb50b06bc85b32cc39e14389721, recipient)
+        }
     }
+
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
         // TODO: implement
     }
+
     /// @inheritdoc ILicredity
     function withdrawFungible(uint256 positionId, Fungible fungible, address recipient, uint256 amount) external {
         // TODO: implement
