@@ -19,6 +19,7 @@ import {RiskConfigs} from "./RiskConfigs.sol";
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, Extsload, RiskConfigs {
+    uint64 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
     constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
@@ -33,7 +34,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, 
 
         result = IUnlockCallback(msg.sender).unlockCallback(data);
 
-        bytes32[] memory items = Locker.getRegisteredItems();
+        bytes32[] memory items = Locker.registeredItems();
         for (uint256 i = 0; i < items.length; ++i) {
             Position storage position = positions[uint256(items[i])];
 
@@ -41,6 +42,58 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, 
         }
 
         Locker.lock();
+    }
+
+    /// @inheritdoc ILicredity
+    function open() external returns (uint256 positionId) {
+        positionId = ++positionCount;
+        positions[positionId].setOwner(msg.sender);
+
+        // emit OpenPosition(positionId, msg.sender);
+        assembly ("memory-safe") {
+            log3(0x00, 0x00, 0x3ffddb72d5a0bb21e612abf8887ea717fc463df82000825adeecd6558bf722e1, positionId, caller())
+        }
+    }
+
+    /// @inheritdoc ILicredity
+    function close(uint256 positionId) external {
+        Position storage position = positions[positionId];
+        if (position.owner != msg.sender) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
+                revert(0x1c, 0x04)
+            }
+        }
+        if (!position.isEmpty()) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x1acb203e) // 'PositionNotEmpty()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        delete positions[positionId];
+
+        // emit ClosePosition(positionId);
+        assembly ("memory-safe") {
+            log2(0x00, 0x00, 0x76ea9b4ec8740d36765c806fad62b75c4418d245d5264e20b01f07ca9ef48b1c, positionId)
+        }
+    }
+    /// @inheritdoc ILicredity
+
+    function stageFungible(Fungible fungible) external {
+        // TODO: implement
+    }
+    /// @inheritdoc ILicredity
+    function exchangeFungible(address recipient) external {
+        // TODO: implement
+    }
+    /// @inheritdoc ILicredity
+    function depositFungible(uint256 positionId) external payable {
+        // TODO: implement
+    }
+    /// @inheritdoc ILicredity
+    function withdrawFungible(uint256 positionId, Fungible fungible, address recipient, uint256 amount) external {
+        // TODO: implement
     }
 
     /// @inheritdoc IERC721TokenReceiver

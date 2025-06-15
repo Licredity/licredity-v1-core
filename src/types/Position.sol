@@ -19,4 +19,18 @@ using PositionLibrary for Position global;
 
 /// @title PositionLibrary
 /// @notice Library for managing positions
-library PositionLibrary {}
+library PositionLibrary {
+    /// @notice Sets the owner of a position
+    /// @param self The position to set owner for
+    /// @param owner The new owner of the position
+    function setOwner(Position storage self, address owner) internal {
+        self.owner = owner;
+    }
+
+    /// @notice Checks whether a position is empty
+    /// @param self The position to check
+    /// @return bool True if the position is empty, false otherwise
+    function isEmpty(Position storage self) internal view returns (bool) {
+        return self.debtShare == 0 && self.fungibles.length == 0 && self.nonFungibles.length == 0;
+    }
+}

@@ -68,7 +68,7 @@ library Locker {
     }
 
     /// @notice Gets the registered items in the locker
-    function getRegisteredItems() internal view returns (bytes32[] memory items) {
+    function registeredItems() internal view returns (bytes32[] memory items) {
         assembly ("memory-safe") {
             let count := tload(REGISTERED_ITEMS_SLOT)
             items := mload(0x40)
