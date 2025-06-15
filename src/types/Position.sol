@@ -45,6 +45,32 @@ library PositionLibrary {
         }
     }
 
+    /// @notice Removes amount of fungible from a position
+    /// @param self The position to remove fungible from
+    /// @param fungible The fungible to remove
+    /// @param amount The amount of fungible to remove
+    function removeFungible(Position storage self, Fungible fungible, uint256 amount) internal {
+        FungibleState state = self.fungibleStates[fungible];
+        uint64 index = state.index();
+        uint128 newBalance = (state.balance() - amount).toUint128();
+
+        if (newBalance != 0) {
+            self.fungibleStates[fungible] = toFungibleState(index, newBalance);
+        } else {
+            uint256 lastIndex = self.fungibles.length;
+
+            if (index != lastIndex) {
+                Fungible lastFungible = self.fungibles[lastIndex - 1];
+
+                self.fungibles[index - 1] = lastFungible;
+                self.fungibleStates[lastFungible] = toFungibleState(index, self.fungibleStates[lastFungible].balance());
+            }
+
+            self.fungibles.pop();
+            self.fungibleStates[fungible] = FungibleState.wrap(0);
+        }
+    }
+
     /// @notice Checks whether a position is empty
     /// @param self The position to check
     /// @return bool True if the position is empty, false otherwise

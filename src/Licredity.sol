@@ -190,7 +190,30 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
     /// @inheritdoc ILicredity
     function withdrawFungible(uint256 positionId, Fungible fungible, address recipient, uint256 amount) external {
-        // TODO: implement
+        Position storage position = positions[positionId];
+        if (position.owner != msg.sender) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        Locker.register(bytes32(positionId));
+        position.removeFungible(fungible, amount);
+        fungible.transfer(recipient, amount);
+
+        // emit WithdrawFungible(positionId, fungible, recipient, amount);
+        assembly ("memory-safe") {
+            mstore(0x00, amount)
+            log4(
+                0x00,
+                0x20,
+                0x7f0f6df14aff9d3d2a754d46f36c5d8b96a162bb8c5df2ad63509d2402530d22,
+                positionId,
+                fungible,
+                recipient
+            )
+        }
     }
 
     /// @inheritdoc IERC721TokenReceiver
