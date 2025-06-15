@@ -33,8 +33,8 @@ interface ILicredity {
 
     /// @notice Withdraws amount of fungible from a position to a recipient
     /// @param positionId The ID of the position to withdraw from
-    /// @param fungible The fungible to withdraw
     /// @param recipient The recipient of the withdrawal
+    /// @param fungible The fungible to withdraw
     /// @param amount The amount of fungible to withdraw
-    function withdrawFungible(uint256 positionId, Fungible fungible, address recipient, uint256 amount) external;
+    function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount) external;
 }

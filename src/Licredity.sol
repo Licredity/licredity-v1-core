@@ -189,7 +189,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     }
 
     /// @inheritdoc ILicredity
-    function withdrawFungible(uint256 positionId, Fungible fungible, address recipient, uint256 amount) external {
+    function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount) external {
         Position storage position = positions[positionId];
         if (position.owner != msg.sender) {
             assembly ("memory-safe") {
@@ -202,16 +202,16 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         position.removeFungible(fungible, amount);
         fungible.transfer(recipient, amount);
 
-        // emit WithdrawFungible(positionId, fungible, recipient, amount);
+        // emit WithdrawFungible(positionId, recipient, fungible, amount);
         assembly ("memory-safe") {
             mstore(0x00, amount)
             log4(
                 0x00,
                 0x20,
-                0x7f0f6df14aff9d3d2a754d46f36c5d8b96a162bb8c5df2ad63509d2402530d22,
+                0x1d48ddd3ba3d0b826b92ce100b333c318522d68579237d273a3e3619d0d46c72,
                 positionId,
-                fungible,
-                recipient
+                recipient,
+                fungible
             )
         }
     }
