@@ -6,6 +6,7 @@ import {Locker} from "src/libraries/Locker.sol";
 
 contract LockerTest is Test {
     error AlreadyLocked();
+    error AlreadyUnlocked();
     error NotUnlocked();
 
     bytes32 private constant UNLOCKED_SLOT = 0xc090fc4683624cfc3884e9d8de5eca132f2d0ec062aff75d43c0465d5ceeab23;
@@ -25,6 +26,13 @@ contract LockerTest is Test {
         }
         assertTrue(unlocked);
         assertEq(count, 0);
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
+    function test_duplicate_unlock() public {
+        Locker.unlock();
+        vm.expectRevert(AlreadyUnlocked.selector);
+        Locker.unlock();
     }
 
     function test_lock() public {
@@ -65,5 +73,10 @@ contract LockerTest is Test {
         for (uint256 i = 0; i < _registeredItems.length; i++) {
             assertEq(_registeredItems[i], registeredItems[i]);
         }
+
+        Locker.lock();
+        Locker.unlock();
+        bytes32[] memory zeroRegisteredItems = Locker.getRegisteredItems();
+        assertEq(zeroRegisteredItems.length, 0);
     }
 }
