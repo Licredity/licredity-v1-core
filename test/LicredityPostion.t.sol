@@ -15,12 +15,13 @@ contract LicredityPositionTest is Deployers {
     error PositionNotEmpty();
     error PositionDoesNotExist();
     error NonZeroNativeValue();
-    //     error NonFungibleAlreadyOwned();
-    //     error NonFungibleNotOwned();
+    error NonFungibleAlreadyOwned();
+    error NonFungibleNotOwned();
 
     event OpenPosition(uint256 indexed positionId, address indexed owner);
     event ClosePosition(uint256 indexed positionId);
     event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
+    event DepositNonFungible(uint256 indexed positionId, NonFungible indexed nonFungible);
 
     Fungible public fungible;
     DebtTokenMock public token;
@@ -136,23 +137,35 @@ contract LicredityPositionTest is Deployers {
         licredity.depositFungible(positionId);
     }
 
-    //     function test_stageNonFungibleInLicredity() public {
-    //         nonFungibleMock.mint(address(licredity), 1);
-    //         vm.expectRevert(NonFungibleAlreadyOwned.selector);
-    //         licredity.stageNonFungible(getMockFungible(1));
-    //     }
+    function test_depositNonFungible() public {
+        nonFungibleMock.mint(address(this), 1);
 
-    //     function test_depositNonFungibleNullPosition(uint256 positionId) public {
-    //         vm.expectRevert(PositionDoesNotExist.selector);
-    //         licredity.depositNonFungible(positionId);
-    //     }
+        uint256 positionId = licredity.open();
+        licredity.stageNonFungible(getMockFungible(1));
+        nonFungibleMock.transferFrom(address(this), address(licredity), 1);
 
-    //     function test_depositNonFungibleNotOwned() public {
-    //         nonFungibleMock.mint(address(1), 1);
+        vm.expectEmit(true, false, false, false, address(licredity));
+        emit DepositNonFungible(positionId, getMockFungible(1));
+        licredity.depositNonFungible(positionId);
+    }
 
-    //         uint256 positionId = licredity.open();
-    //         licredity.stageNonFungible(getMockFungible(1));
-    //         vm.expectRevert(NonFungibleNotOwned.selector);
-    //         licredity.depositNonFungible(positionId);
-    //     }
+    function test_stageNonFungibleInLicredity() public {
+        nonFungibleMock.mint(address(licredity), 1);
+        vm.expectRevert(NonFungibleAlreadyOwned.selector);
+        licredity.stageNonFungible(getMockFungible(1));
+    }
+
+    function test_depositNonFungibleNullPosition() public {
+        vm.expectRevert(PositionDoesNotExist.selector);
+        licredity.depositNonFungible(1);
+    }
+
+    function test_depositNonFungibleNotOwned() public {
+        nonFungibleMock.mint(address(1), 1);
+
+        uint256 positionId = licredity.open();
+        licredity.stageNonFungible(getMockFungible(1));
+        vm.expectRevert(NonFungibleNotOwned.selector);
+        licredity.depositNonFungible(positionId);
+    }
 }

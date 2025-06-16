@@ -255,7 +255,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         // emit DepositNonFungible(positionId, nonFungible);
         assembly ("memory-safe") {
             log3(
-                0x00, 0x00, 0x113d8217beb98f6a392770deea72be5d6d47842b1511e5c0f55e6607a6ffa4c3, positionId, nonFungible
+                0x00, 0x00, 0x2fcee665a957a4b410c1fb5fb3573a6cd08cfc98f2465898ea1ccfb32139208b, positionId, nonFungible
             )
         }
     }
