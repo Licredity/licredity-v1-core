@@ -97,6 +97,20 @@ library PositionLibrary {
         return false;
     }
 
+    /// @notice Increases the debt share in a position
+    /// @param self The position to increase debt share in
+    /// @param delta The number of debt shares to increase by
+    function increaseDebtShare(Position storage self, uint256 delta) internal {
+        self.debtShare += delta.toUint128();
+    }
+
+    /// @notice Decreases the debt share in a position
+    /// @param self The position to decrease debt share in
+    /// @param delta The number of debt shares to decrease by
+    function decreaseDebtShare(Position storage self, uint256 delta) internal {
+        self.debtShare -= delta.toUint128();
+    }
+
     /// @notice Checks whether a position is empty
     /// @param self The position to check
     /// @return bool True if the position is empty, false otherwise
