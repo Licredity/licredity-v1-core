@@ -1,42 +1,44 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.20;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.20;
 
-// import {Deployers} from "./utils/Deployer.sol";
-// import {ShareMath} from "./utils/ShareMath.sol";
+import {Deployers} from "./utils/Deployer.sol";
+import {ShareMath} from "./utils/ShareMath.sol";
 // import {StateLibrary} from "src/libraries/StateLibrary.sol";
 // import {Licredity} from "src/Licredity.sol";
 
-// contract LicredityExchangeTest is Deployers {
-//     using ShareMath for uint256;
-//     using StateLibrary for Licredity;
+contract LicredityExchangeTest is Deployers {
+    using ShareMath for uint256;
+    
+    error NotPositionOwner();
+    error PositionIsAtRisk();
 
-//     error PositionIsAtRisk();
+    function setUp() public {
+        deployETHLicredityWithUniswapV4();
+        deployAndSetOracleMock();
+        deployLicredityRouter();
+    }
 
-//     function setUp() public {
-//         deployETHLicredityWithUniswapV4();
-//         deployAndSetOracleMock();
-//         deployLicredityRouter();
-//     }
+    function test_addDebt_notOwner() public {
+        vm.expectRevert(NotPositionOwner.selector);
+        licredityRouterHelper.addDebt(1, 1, address(this));
+    }
 
-//     function test_addDebt(uint256 amount) public {
-//         vm.assume(amount < type(uint256).max / 1e6);
+    function test_addDebt(uint256 amount) public {
+        vm.assume(amount < type(uint128).max / 1e6);
 
-//         uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.open();
 
-//         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-//         licredity.depositFungible{value: 1 ether}(positionId);
+        licredity.depositFungible{value: 1 ether}(positionId);
 
-//         uint256 share = amount.toSharesUp(totalAssets, totalShares);
-
-//         if (amount < 1 ether) {
-//             licredityRouterHelper.addDebt(positionId, share, address(this));
-//             assertEq(licredity.balanceOf(address(this)), amount);
-//         } else {
-//             vm.expectRevert(PositionIsAtRisk.selector);
-//             licredityRouterHelper.addDebt(positionId, share, address(this));
-//         }
-//     }
-
+        if (amount < 1 ether) {
+            licredityRouterHelper.addDebt(positionId, amount, address(this));
+            assertEq(licredity.balanceOf(address(this)), amount);
+        } else {
+            vm.expectRevert(PositionIsAtRisk.selector);
+            licredityRouterHelper.addDebt(positionId, amount, address(this));
+        }
+    }
+}
 //     function test_addDebtPosition(uint192 amount) public {
 //         vm.assume(amount < type(uint192).max / 1e6);
 
@@ -56,7 +58,7 @@
 //             vm.expectRevert(PositionIsAtRisk.selector);
 //             licredityRouterHelper.addDebt(positionId, share, address(licredity));
 //         }
-//     }
+// }
 
 //     function test_addDebt_PositionMrrBps() public {
 //         uint256 positionId = licredityRouter.open();
@@ -70,4 +72,3 @@
 //         vm.expectRevert(PositionIsAtRisk.selector);
 //         licredityRouterHelper.addDebt(positionId, share, address(licredity));
 //     }
-// }

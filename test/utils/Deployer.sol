@@ -3,12 +3,13 @@ pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
 import {Licredity} from "src/Licredity.sol";
+import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {NonFungibleMock} from "test/mocks/NonFungibleMock.sol";
-// import {OracleMock} from "test/mocks/OracleMock.sol";
+import {OracleMock} from "test/mocks/OracleMock.sol";
 import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
-// import {LicredityRouter} from "./LicredityRouter.sol";
-// import {LicredityRouterHelper} from "./LicredityRouterHelper.sol";
+import {LicredityRouter} from "./LicredityRouter.sol";
+import {LicredityRouterHelper} from "./LicredityRouterHelper.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 
 contract Deployers is Test {
@@ -21,8 +22,8 @@ contract Deployers is Test {
     //     TestERC20 public fungibleMock;
     //     TestERC20 public otherFungibleMock;
 
-    //     LicredityRouter public licredityRouter;
-    //     LicredityRouterHelper public licredityRouterHelper;
+    LicredityRouter public licredityRouter;
+    LicredityRouterHelper public licredityRouterHelper;
 
     function _newAsset(uint8 decimals) internal returns (DebtTokenMock) {
         return new DebtTokenMock("Token", "T", decimals);
@@ -46,21 +47,21 @@ contract Deployers is Test {
         licredity = Licredity(mockLicredity);
     }
 
-    // function deployLicredityRouter() public {
-    //     licredityRouter = new LicredityRouter(licredity);
-    //     licredityRouterHelper = new LicredityRouterHelper(licredityRouter);
-    // }
+    function deployLicredityRouter() public {
+        licredityRouter = new LicredityRouter(licredity);
+        licredityRouterHelper = new LicredityRouterHelper(licredityRouter);
+    }
 
     function deployNonFungibleMock() public {
         nonFungibleMock = new NonFungibleMock();
     }
 
-    // function deployAndSetOracleMock() public {
-    //     OracleMock oracleMock = new OracleMock();
-    //     oracleMock.setFungibleConfig(address(0), 1 ether, 1000); // 1000 / 1_000_000 = 0.1%
-    //     oracleMock.setFungibleConfig(address(licredity), 1 ether, 0);
-    //     licredity.setOracle(address(oracleMock));
-    // }
+    function deployAndSetOracleMock() public {
+        OracleMock oracleMock = new OracleMock();
+        oracleMock.setFungibleConfig(Fungible.wrap(address(0)), 1 ether, 1000); // 1000 / 1_000_000 = 0.1%
+        oracleMock.setFungibleConfig(Fungible.wrap(address(licredity)), 1 ether, 0);
+        licredity.setOracle(address(oracleMock));
+    }
 
     function getMockFungible(uint256 tokenId) public view returns (NonFungible nft) {
         address nonFungibleMockAddress = address(nonFungibleMock);
