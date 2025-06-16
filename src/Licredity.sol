@@ -4,8 +4,9 @@ pragma solidity =0.8.30;
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
 import {IHooks} from "@uniswap-v4-core/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
 import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
-import {BeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
+import {BeforeSwapDelta, toBeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
 import {Currency} from "@uniswap-v4-core/types/Currency.sol";
 import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
@@ -26,10 +27,12 @@ import {RiskConfigs} from "./RiskConfigs.sol";
 /// @notice Provides the core functionalities of the Licredity protocol
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Extsload, RiskConfigs {
     using SafeCast for uint256;
+    using StateLibrary for IPoolManager;
 
     uint24 private constant FEE = 100;
     int24 private constant TICK_SPACING = 1;
-    uint160 private constant INITIAL_SQRT_PRICE_X96 = 0x1000000000000000000000000;
+    uint160 private constant ONE_SQRT_PRICE_X96 = 0x1000000000000000000000000;
+    uint160 private constant MAX_SQRT_PRICE_X96 = 1461446703485210103287273052203988822378723970342;
 
     Fungible internal transient stagedFungible;
     uint256 internal transient stagedFungibleBalance;
@@ -64,7 +67,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         poolKey =
             PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
         poolId = poolKey.toId();
-        poolManager.initialize(poolKey, INITIAL_SQRT_PRICE_X96);
+        poolManager.initialize(poolKey, ONE_SQRT_PRICE_X96);
     }
 
     /// @inheritdoc ILicredity
@@ -476,45 +479,93 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     }
 
     /// @inheritdoc BaseHooks
-    function _beforeInitialize(address, PoolKey calldata, uint160) internal override returns (bytes4) {
-        // TODO: implement
+    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal override returns (bytes4) {
+        assembly ("memory-safe") {
+            if iszero(eq(sender, address())) {
+                mstore(0x00, 0x7a08c3ff) // 'NotLicredity()'
+                revert(0x1c, 0x04)
+            }
+        }
+
+        return this.beforeInitialize.selector;
     }
 
     /// @inheritdoc BaseHooks
-    function _beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        override
-        returns (bytes4)
-    {
-        // TODO: implement
+    function _beforeAddLiquidity(
+        address,
+        PoolKey calldata,
+        IPoolManager.ModifyLiquidityParams calldata params,
+        bytes calldata
+    ) internal override returns (bytes4) {
+        (, int24 tick,,) = poolManager.getSlot0(poolId);
+
+        if (tick >= params.tickLower && tick <= params.tickUpper) {
+            _disburseInterest(false);
+        }
+
+        return this.beforeAddLiquidity.selector;
     }
 
     /// @inheritdoc BaseHooks
     function _beforeRemoveLiquidity(
         address,
         PoolKey calldata,
-        IPoolManager.ModifyLiquidityParams calldata,
+        IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata
     ) internal override returns (bytes4) {
-        // TODO: implement
+        (, int24 tick,,) = poolManager.getSlot0(poolId);
+
+        if (tick >= params.tickLower && tick <= params.tickUpper) {
+            _disburseInterest(false);
+        }
+
+        return this.beforeRemoveLiquidity.selector;
     }
 
     /// @inheritdoc BaseHooks
-    function _beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
+    function _beforeSwap(address sender, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
         internal
         override
         returns (bytes4, BeforeSwapDelta, uint24)
     {
-        // TODO: implement
+        if (sender != address(this)) {
+            _disburseInterest(false);
+        }
+
+        return (this.beforeSwap.selector, toBeforeSwapDelta(0, 0), 0);
     }
 
     /// @inheritdoc BaseHooks
-    function _afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
-        internal
-        override
-        returns (bytes4, int128)
-    {
-        // TODO: implement
+    function _afterSwap(
+        address sender,
+        PoolKey calldata,
+        IPoolManager.SwapParams calldata,
+        BalanceDelta balanceDelta,
+        bytes calldata
+    ) internal override returns (bytes4, int128) {
+        if (sender != address(this)) {
+            (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+
+            if (sqrtPriceX96 <= ONE_SQRT_PRICE_X96) {
+                IPoolManager.SwapParams memory params =
+                    IPoolManager.SwapParams(false, -balanceDelta.amount1(), MAX_SQRT_PRICE_X96 - 1);
+                balanceDelta = poolManager.swap(poolKey, params, "");
+                uint128 baseAmount = uint128(balanceDelta.amount0());
+                uint128 debtAmount = uint128(-balanceDelta.amount1());
+
+                poolManager.sync(Currency.wrap(address(this)));
+                _mint(address(poolManager), debtAmount);
+                poolManager.settle();
+                poolManager.take(Currency.wrap(Fungible.unwrap(baseFungible)), address(this), baseAmount);
+
+                baseAmountAvailable += baseAmount;
+                debtAmountOutstanding += debtAmount;
+            }
+
+            oracle.update();
+        }
+
+        return (this.afterSwap.selector, 0);
     }
 
     /// @notice Appraises a position for value, margin requirement, debt, and health status

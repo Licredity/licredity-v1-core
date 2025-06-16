@@ -11,6 +11,8 @@ abstract contract DebtToken is IERC20 {
         mapping(address => uint256) allowances;
     }
 
+    uint256 private constant BALANCE_OFFSET = 0;
+    uint256 private constant ALLOWANCES_OFFSET = 1;
     uint256 private constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
     uint256 private constant APPROVAL_EVENT_SIGNATURE =
         0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925;
@@ -36,10 +38,17 @@ abstract contract DebtToken is IERC20 {
 
     /// @inheritdoc IERC20
     function approve(address spender, uint256 amount) public returns (bool) {
-        ownerData[msg.sender].allowances[spender] = amount;
-
-        // emit Approval(msg.sender, spender, amount);
         assembly ("memory-safe") {
+            mstore(0x00, caller())
+            mstore(0x20, ownerData.slot)
+            let ownerDataSlot := keccak256(0x00, 0x40)
+
+            mstore(0x00, spender)
+            mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
+
+            sstore(keccak256(0x00, 0x40), amount)
+
+            // emit Approval(msg.sender, spender, amount);
             mstore(0x00, amount)
             log3(0x00, 0x20, APPROVAL_EVENT_SIGNATURE, caller(), and(spender, ADDRESS_MASK))
         }
@@ -56,25 +65,55 @@ abstract contract DebtToken is IERC20 {
 
     /// @inheritdoc IERC20
     function transferFrom(address from, address to, uint256 amount) public returns (bool) {
-        uint256 currentAllowance = ownerData[from].allowances[msg.sender];
+        uint256 allowanceSlot;
+        uint256 currentAllowance;
+        assembly ("memory-safe") {
+            mstore(0x00, from)
+            mstore(0x20, ownerData.slot)
+            let ownerDataSlot := keccak256(0x00, 0x40)
 
-        // do not reduce if given unlimited allowance
-        if (currentAllowance != type(uint256).max) {
-            ownerData[from].allowances[msg.sender] = currentAllowance - amount; // underflow desired
+            mstore(0x00, caller())
+            mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
+
+            allowanceSlot := keccak256(0x00, 0x40)
+            currentAllowance := sload(allowanceSlot)
         }
+
+        if (currentAllowance != type(uint256).max) {
+            uint256 newAllowance = currentAllowance - amount; // underflow desired
+
+            assembly ("memory-safe") {
+                sstore(allowanceSlot, newAllowance)
+            }
+        }
+
         _transfer(from, to, amount);
 
         return true;
     }
 
     /// @inheritdoc IERC20
-    function balanceOf(address owner) public view returns (uint256) {
-        return ownerData[owner].balance;
+    function balanceOf(address owner) public view returns (uint256 _balance) {
+        assembly ("memory-safe") {
+            mstore(0x00, owner)
+            mstore(0x20, ownerData.slot)
+
+            _balance := sload(add(keccak256(0x00, 0x40), BALANCE_OFFSET))
+        }
     }
 
     /// @inheritdoc IERC20
-    function allowance(address owner, address spender) public view returns (uint256) {
-        return ownerData[owner].allowances[spender];
+    function allowance(address owner, address spender) public view returns (uint256 _allowance) {
+        assembly ("memory-safe") {
+            mstore(0x00, owner)
+            mstore(0x20, ownerData.slot)
+            let ownerDataSlot := keccak256(0x00, 0x40)
+
+            mstore(0x00, spender)
+            mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
+
+            _allowance := sload(keccak256(0x00, 0x40))
+        }
     }
 
     function _mint(address to, uint256 amount) internal {
