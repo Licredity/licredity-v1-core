@@ -23,11 +23,19 @@ using PositionLibrary for Position global;
 library PositionLibrary {
     using SafeCast for uint256;
 
+    uint256 private constant OWNER_OFFSET = 0;
+    uint256 private constant DEBT_SHARE_OFFSET = 1;
+    uint256 private constant FUNGIBLES_OFFSET = 2;
+    uint256 private constant NON_FUNGIBLES_OFFSET = 3;
+    uint256 private constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
+
     /// @notice Sets the owner of a position
     /// @param self The position to set owner for
     /// @param owner The new owner of the position
     function setOwner(Position storage self, address owner) internal {
-        self.owner = owner;
+        assembly ("memory-safe") {
+            sstore(add(self.slot, OWNER_OFFSET), and(owner, ADDRESS_MASK))
+        }
     }
 
     /// @notice Adds amount of fungible to a position
@@ -75,26 +83,46 @@ library PositionLibrary {
     /// @param self The position to add non-fungible to
     /// @param nonFungible The non-fungible to add
     function addNonFungible(Position storage self, NonFungible nonFungible) internal {
-        self.nonFungibles.push(nonFungible);
+        assembly ("memory-safe") {
+            let slot := add(self.slot, NON_FUNGIBLES_OFFSET)
+            let len := sload(slot)
+            mstore(0x00, slot)
+            let dataSlot := keccak256(0x00, 0x20)
+
+            sstore(add(dataSlot, len), nonFungible)
+            sstore(slot, add(len, 1))
+        }
     }
 
     /// @notice Removes a non-fungible from a position
     /// @param self The position to remove non-fungible from
     /// @param nonFungible The non-fungible to remove
-    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool) {
-        uint256 count = self.nonFungibles.length;
+    /// @return isRemoved True if the non-fungible was removed, false otherwise
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool isRemoved) {
+        assembly ("memory-safe") {
+            let slot := add(self.slot, NON_FUNGIBLES_OFFSET)
+            let len := sload(slot)
+            mstore(0x00, slot)
+            let dataSlot := keccak256(0x00, 0x20)
 
-        for (uint256 i = 0; i < count; ++i) {
-            if (self.nonFungibles[i] == nonFungible) {
-                if (i != count - 1) {
-                    self.nonFungibles[i] = self.nonFungibles[count - 1];
+            for { let i := 0 } lt(i, len) { i := add(i, 1) } {
+                let elementSlot := add(dataSlot, i)
+                let element := sload(elementSlot)
+
+                if eq(element, nonFungible) {
+                    let lenMinusOne := sub(len, 1)
+                    let lastElementSlot := add(dataSlot, lenMinusOne)
+
+                    if iszero(eq(i, lenMinusOne)) { sstore(elementSlot, sload(lastElementSlot)) }
+
+                    sstore(lastElementSlot, 0)
+                    sstore(slot, lenMinusOne)
+
+                    isRemoved := 1
+                    break
                 }
-                self.nonFungibles.pop();
-
-                return true;
             }
         }
-        return false;
     }
 
     /// @notice Increases the debt share in a position
@@ -115,6 +143,15 @@ library PositionLibrary {
     /// @param self The position to check
     /// @return bool True if the position is empty, false otherwise
     function isEmpty(Position storage self) internal view returns (bool) {
-        return self.debtShare == 0 && self.fungibles.length == 0 && self.nonFungibles.length == 0;
+        assembly ("memory-safe") {
+            let debtShare := sload(add(self.slot, DEBT_SHARE_OFFSET))
+            let fungiblesCount := sload(add(self.slot, FUNGIBLES_OFFSET))
+            let nonFungiblesCount := sload(add(self.slot, NON_FUNGIBLES_OFFSET))
+
+            if iszero(add(debtShare, add(fungiblesCount, nonFungiblesCount))) {
+                mstore(0x00, true)
+                return(0x00, 0x20)
+            }
+        }
     }
 }
