@@ -52,4 +52,25 @@ interface ILicredity {
     /// @param recipient The recipient of the withdrawal
     /// @param nonFungible The non-fungible to withdraw
     function withdrawNonFungible(uint256 positionId, address recipient, NonFungible nonFungible) external;
+
+    /// @notice Increases the debt share in a position
+    /// @param positionId The ID of the position to increase debt share in
+    /// @param delta The number of debt shares to increase by
+    /// @param recipient The recipient of the debt fungible
+    /// @return amount The amount of debt fungible minted
+    function increaseDebtShare(uint256 positionId, uint256 delta, address recipient)
+        external
+        returns (uint256 amount);
+
+    /// @notice Decreases the debt share in a position
+    /// @param positionId The ID of the position to decrease debt share in
+    /// @param delta The number of debt shares to decrease by
+    /// @param useBalance Whether to use debt fungible balance in the position
+    function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance) external returns (uint256 amount);
+
+    /// @notice Seizes an unhealthy position
+    /// @param positionId The ID of the position to seize
+    /// @param recipient The recipient of the seized position
+    /// @return shortfall The amount of debt fungible required to make the position healthy
+    function seize(uint256 positionId, address recipient) external returns (uint256 shortfall);
 }

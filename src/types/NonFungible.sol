@@ -20,7 +20,7 @@ function equals(NonFungible x, NonFungible y) pure returns (bool) {
 }
 
 /// @title NonFungibleLibrary
-/// @notice Library for managing non-fungible
+/// @notice Library for managing non-fungibles
 library NonFungibleLibrary {
     /// @notice Transfers a non-fungible to recipient
     /// @param self The non-fungible to transfer
