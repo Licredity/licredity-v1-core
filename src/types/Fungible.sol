@@ -11,7 +11,7 @@ type Fungible is address;
 using FungibleLibrary for Fungible global;
 
 /// @title FungibleLibrary
-/// @notice Library for managing fungible
+/// @notice Library for managing fungibles
 library FungibleLibrary {
     /// @notice Transfers amount of fungible to recipient
     /// @param self The fungible to transfer

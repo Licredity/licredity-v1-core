@@ -13,6 +13,7 @@ import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
 import {Locker} from "./libraries/Locker.sol";
 import {Fungible} from "./types/Fungible.sol";
+import {InterestRate} from "./types/InterestRate.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
@@ -35,8 +36,12 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     PoolKey internal poolKey;
     PoolId internal immutable poolId;
     uint64 internal positionCount;
+    uint128 internal accruedInterest;
+    uint64 internal lastInterestDisbursementTimestamp;
     uint128 internal baseAmountAvailable;
     uint128 internal debtAmountOutstanding;
+    uint128 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
+    uint128 internal totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
     mapping(uint256 => Position) internal positions;
 
     constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
@@ -297,10 +302,12 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         return this.onERC721Received.selector;
     }
 
+    /// @inheritdoc BaseHooks
     function _beforeInitialize(address, PoolKey calldata, uint160) internal override returns (bytes4) {
         // TODO: implement
     }
 
+    /// @inheritdoc BaseHooks
     function _beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
         internal
         override
@@ -309,6 +316,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         // TODO: implement
     }
 
+    /// @inheritdoc BaseHooks
     function _beforeRemoveLiquidity(
         address,
         PoolKey calldata,
@@ -318,6 +326,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         // TODO: implement
     }
 
+    /// @inheritdoc BaseHooks
     function _beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
         internal
         override
@@ -326,11 +335,77 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         // TODO: implement
     }
 
+    /// @inheritdoc BaseHooks
     function _afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
         internal
         override
         returns (bytes4, int128)
     {
         // TODO: implement
+    }
+
+    /// @notice Appraises a position for value and margin requirement
+    /// @param position The position to evaluate
+    /// @return value The value of the position
+    /// @return marginRequirement The margin requirement of the position
+    function _appraisePosition(Position storage position) internal returns (uint256 value, uint256 marginRequirement) {
+        uint256 _value;
+        uint256 _marginRequirement;
+
+        Fungible[] memory fungibles = position.fungibles;
+        uint256[] memory amounts = new uint256[](fungibles.length);
+        for (uint256 i = 0; i < fungibles.length; ++i) {
+            amounts[i] = position.fungibleStates[fungibles[i]].balance();
+        }
+
+        (_value, _marginRequirement) = oracle.quoteFungibles(fungibles, amounts);
+        value += _value;
+        marginRequirement += _marginRequirement;
+
+        (_value, _marginRequirement) = oracle.quoteNonFungibles(position.nonFungibles);
+        value += _value;
+        marginRequirement += _marginRequirement;
+    }
+
+    /// @notice Disburses (or accrues) interest to active liquidity providers
+    /// @param accrueOnly If true, only accrues interest without disbursing it
+    function _disburseInterest(bool accrueOnly) internal {
+        uint256 elapsed = block.timestamp - lastInterestDisbursementTimestamp;
+        if (elapsed == 0) return;
+
+        uint128 _totalDebtBalance = totalDebtBalance;
+        InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
+        // assume interest never overflows uint128
+        uint128 interest = uint128(interestRate.calculateInterest(_totalDebtBalance, elapsed));
+
+        totalDebtBalance = _totalDebtBalance + interest;
+        // assume timestamp never overflows uint64
+        lastInterestDisbursementTimestamp = uint64(block.timestamp);
+
+        if (accrueOnly) {
+            accruedInterest += interest;
+        } else {
+            interest += accruedInterest;
+            accruedInterest = 0;
+
+            if (protocolFeePips > 0 && protocolFeeRecipient != address(0)) {
+                // protocolFeePips < UNIT_PIPS
+                uint128 protocolFee = uint128(uint256(interest) * protocolFeePips / UNIT_PIPS);
+                interest -= protocolFee;
+                _mint(protocolFeeRecipient, protocolFee);
+            }
+
+            poolManager.donate(poolKey, 0, interest, "");
+            poolManager.sync(Currency.wrap(address(this)));
+            _mint(address(poolManager), interest);
+            poolManager.settle();
+        }
+    }
+
+    /// @notice Converts a price with 18 decimals to an interest rate with 27 decimals
+    /// @param price The price to convert
+    /// @return interestRate The converted interest rate
+    function _priceToInterestRate(uint256 price) internal pure returns (InterestRate interestRate) {
+        interestRate = InterestRate.wrap(price * 1e9);
     }
 }

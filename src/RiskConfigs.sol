@@ -6,7 +6,7 @@ import {IOracle} from "./interfaces/IOracle.sol";
 /// @title RiskConfigs
 /// @notice Abstract implementation of risk configurations
 abstract contract RiskConfigs {
-    uint256 private constant UNIT_PIPS = 1_000_000;
+    uint24 internal constant UNIT_PIPS = 1_000_000;
     uint256 private constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
     uint256 private constant PROTOCOL_FEE_PIPS_MASK = 0xffffff0000000000000000000000000000000000000000;
     uint256 private constant PROTOCOL_FEE_PIPS_OFFSET = 160;
