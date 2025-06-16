@@ -7,6 +7,8 @@ import {BalanceDelta} from "@uniswap-v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
+import {Fungible} from "./types/Fungible.sol";
+import {Position} from "./types/Position.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {CreditToken} from "./CreditToken.sol";
 import {Extsload} from "./Extsload.sol";
@@ -15,7 +17,13 @@ import {RiskConfigs} from "./RiskConfigs.sol";
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, CreditToken, Extsload, RiskConfigs {
-    constructor(address _governor, address _poolManager) BaseHooks(_poolManager) RiskConfigs(_governor) {}
+    mapping(uint256 => Position) internal positions;
+
+    constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
+        BaseHooks(_poolManager)
+        RiskConfigs(_governor)
+        CreditToken(name, symbol, Fungible.wrap(baseToken).decimals())
+    {}
 
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {

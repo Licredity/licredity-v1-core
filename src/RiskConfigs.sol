@@ -6,12 +6,12 @@ import {IOracle} from "./interfaces/IOracle.sol";
 /// @title RiskConfigs
 /// @notice Abstract implementation of risk configurations
 abstract contract RiskConfigs {
-    uint256 internal constant UNIT_PIPS = 1_000_000;
-    uint256 internal constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
-    uint256 internal constant PROTOCOL_FEE_PIPS_MASK = 0xffffff0000000000000000000000000000000000000000;
-    uint256 internal constant PROTOCOL_FEE_PIPS_OFFSET = 160;
-    uint256 internal constant POSITION_MRR_PIPS_MASK = 0xffffff0000000000000000000000000000000000000000000000;
-    uint256 internal constant POSITION_MRR_PIPS_OFFSET = 184;
+    uint256 private constant UNIT_PIPS = 1_000_000;
+    uint256 private constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
+    uint256 private constant PROTOCOL_FEE_PIPS_MASK = 0xffffff0000000000000000000000000000000000000000;
+    uint256 private constant PROTOCOL_FEE_PIPS_OFFSET = 160;
+    uint256 private constant POSITION_MRR_PIPS_MASK = 0xffffff0000000000000000000000000000000000000000000000;
+    uint256 private constant POSITION_MRR_PIPS_OFFSET = 184;
 
     address internal governor;
     address internal nextGovernor;
