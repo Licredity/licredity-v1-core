@@ -71,6 +71,32 @@ library PositionLibrary {
         }
     }
 
+    /// @notice Adds a non-fungible to a position
+    /// @param self The position to add non-fungible to
+    /// @param nonFungible The non-fungible to add
+    function addNonFungible(Position storage self, NonFungible nonFungible) internal {
+        self.nonFungibles.push(nonFungible);
+    }
+
+    /// @notice Removes a non-fungible from a position
+    /// @param self The position to remove non-fungible from
+    /// @param nonFungible The non-fungible to remove
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool) {
+        uint256 count = self.nonFungibles.length;
+
+        for (uint256 i = 0; i < count; ++i) {
+            if (self.nonFungibles[i] == nonFungible) {
+                if (i != count - 1) {
+                    self.nonFungibles[i] = self.nonFungibles[count - 1];
+                }
+                self.nonFungibles.pop();
+
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// @notice Checks whether a position is empty
     /// @param self The position to check
     /// @return bool True if the position is empty, false otherwise
