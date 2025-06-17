@@ -3,9 +3,13 @@ pragma solidity ^0.8.20;
 
 import {IUnlockCallback} from "src/interfaces/IUnlockCallback.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {Fungible} from "src/types/Fungible.sol";
+import {NonFungible} from "src/types/NonFungible.sol";
 
 enum Actions {
-    ADD_DEBT
+    ADD_DEBT,
+    WITHDRAW_FUNGIBLE,
+    WITHDRAW_NON_FUNGIBLE
 }
 
 contract LicredityRouter is IUnlockCallback {
@@ -21,6 +25,14 @@ contract LicredityRouter is IUnlockCallback {
         positionId = licredity.open();
     }
 
+    function close(uint256 positionId) external {
+        licredity.close(positionId);
+    }
+
+    function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance) external {
+        licredity.decreaseDebtShare(positionId, delta, useBalance);
+    }
+    
     function executeActions(Actions[] memory actions, bytes[] memory params) external payable {
         licredity.unlock(abi.encode(actions, params));
     }
@@ -33,6 +45,10 @@ contract LicredityRouter is IUnlockCallback {
 
             if (action == Actions.ADD_DEBT) {
                 _addDebt(param);
+            } else if (action == Actions.WITHDRAW_FUNGIBLE) {
+                _withdrawFungible(param);
+            } else if (action == Actions.WITHDRAW_NON_FUNGIBLE) {
+                _withdrawNonFungible(param);
             }
         }
         return "";
@@ -41,5 +57,15 @@ contract LicredityRouter is IUnlockCallback {
     function _addDebt(bytes memory param) internal {
         (uint256 positionId, uint256 delta, address recipient) = abi.decode(param, (uint256, uint256, address));
         licredity.increaseDebtShare(positionId, delta, recipient);
+    }
+
+    function _withdrawFungible(bytes memory param) internal {
+        (uint256 positionId, address recipient, address fungible, uint256 amount) = abi.decode(param, (uint256, address, address, uint256));
+        licredity.withdrawFungible(positionId, recipient, Fungible.wrap(fungible), amount);
+    }
+
+    function _withdrawNonFungible(bytes memory param) internal {
+        (uint256 positionId, address recipient, bytes32 nonFungible) = abi.decode(param, (uint256, address, bytes32));
+        licredity.withdrawNonFungible(positionId, recipient, NonFungible.wrap(nonFungible));
     }
 }

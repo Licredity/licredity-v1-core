@@ -18,7 +18,7 @@ contract Deployers is Test {
 
     Licredity public licredity;
     NonFungibleMock public nonFungibleMock;
-
+    OracleMock public oracleMock;
     //     TestERC20 public fungibleMock;
     //     TestERC20 public otherFungibleMock;
 
@@ -57,7 +57,8 @@ contract Deployers is Test {
     }
 
     function deployAndSetOracleMock() public {
-        OracleMock oracleMock = new OracleMock();
+        oracleMock = new OracleMock();
+        oracleMock.setQuotePrice(1e18);
         oracleMock.setFungibleConfig(Fungible.wrap(address(0)), 1 ether, 1000); // 1000 / 1_000_000 = 0.1%
         oracleMock.setFungibleConfig(Fungible.wrap(address(licredity)), 1 ether, 0);
         licredity.setOracle(address(oracleMock));

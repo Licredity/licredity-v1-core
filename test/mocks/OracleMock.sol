@@ -11,8 +11,8 @@ contract OracleMock is IOracle {
     uint256 public quotePrice;
     mapping(Fungible fungible => uint256 price) fungiblePrices;
     mapping(Fungible fungible => uint16 mrrBps) fungibleMrrBps;
-    mapping(address nonFungible => mapping(uint256 id => uint256 price)) nonFungibleValue;
-    mapping(address nonFungible => uint16 mrrBps) nonFungibleMrrBps;
+    mapping(NonFungible nonFungible => uint256 price) nonFungibleValue;
+    mapping(NonFungible nonFungible => uint16 mrrBps) nonFungibleMrrBps;
 
     function setQuotePrice(uint256 quotePrice_) external {
         quotePrice = quotePrice_;
@@ -45,8 +45,8 @@ contract OracleMock is IOracle {
         }
     }
 
-    function setNonFungibleConfig(address nonFungible, uint256 tokenId, uint256 value, uint16 mrrBps) external {
-        nonFungibleValue[nonFungible][tokenId] = value;
+    function setNonFungibleConfig(NonFungible nonFungible, uint256 value, uint16 mrrBps) external {
+        nonFungibleValue[nonFungible] = value;
         nonFungibleMrrBps[nonFungible] = mrrBps;
     }
 
@@ -57,11 +57,10 @@ contract OracleMock is IOracle {
     {
         uint256 count = nonFungibles.length;
         for (uint256 i = 0; i < count; i++) {
-            address token = nonFungibles[i].token();
-            uint256 id = nonFungibles[i].id();
+            NonFungible nonFungible = nonFungibles[i];
 
-            value += nonFungibleValue[token][id];
-            marginRequirement += value * nonFungibleMrrBps[token] / UNIT_PIPS;
+            value += nonFungibleValue[nonFungible];
+            marginRequirement += value * nonFungibleMrrBps[nonFungible] / UNIT_PIPS;
         }
     }
 
