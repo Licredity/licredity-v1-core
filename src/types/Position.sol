@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.30;
 
-import {SafeCast} from "../libraries/SafeCast.sol";
 import {Fungible} from "./Fungible.sol";
 import {FungibleState, toFungibleState} from "./FungibleState.sol";
 import {NonFungible} from "./NonFungible.sol";
@@ -10,7 +9,7 @@ import {NonFungible} from "./NonFungible.sol";
 /// @notice Represents a margin position
 struct Position {
     address owner;
-    uint128 debtShare;
+    uint256 debtShare;
     Fungible[] fungibles;
     NonFungible[] nonFungibles;
     mapping(Fungible => FungibleState) fungibleStates;
@@ -21,13 +20,15 @@ using PositionLibrary for Position global;
 /// @title PositionLibrary
 /// @notice Library for managing positions
 library PositionLibrary {
-    using SafeCast for uint256;
-
     uint256 private constant OWNER_OFFSET = 0;
     uint256 private constant DEBT_SHARE_OFFSET = 1;
     uint256 private constant FUNGIBLES_OFFSET = 2;
     uint256 private constant NON_FUNGIBLES_OFFSET = 3;
+    uint256 private constant FUNGIBLE_STATES_OFFSET = 4;
     uint256 private constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
+
+    uint256 private constant MAX_FUNGIBLES = 128; // maximum fungibles per position
+    uint256 private constant MAX_NON_FUNGIBLES = 128; // maximum non-fungibles per position
 
     /// @notice Sets the owner of a position
     /// @param self The position to set owner for
@@ -46,10 +47,31 @@ library PositionLibrary {
         FungibleState state = self.fungibleStates[fungible];
 
         if (state.index() == 0) {
-            self.fungibles.push(fungible);
-            self.fungibleStates[fungible] = toFungibleState(self.fungibles.length.toUint64(), amount.toUint128());
+            state = toFungibleState(self.fungibles.length, amount);
+
+            // add a new fungible
+            assembly ("memory-safe") {
+                let slot := add(self.slot, FUNGIBLES_OFFSET)
+                let len := sload(slot)
+
+                if iszero(lt(len, MAX_FUNGIBLES)) {
+                    mstore(0x00, 0x4aea57b1) // `FungibleLimitReached()`
+                    revert(0x1c, 0x04)
+                }
+
+                mstore(0x00, slot)
+                sstore(add(keccak256(0x00, 0x20), len), fungible)
+                sstore(slot, add(len, 1))
+            }
         } else {
-            self.fungibleStates[fungible] = toFungibleState(state.index(), (state.balance() + amount).toUint128());
+            state = toFungibleState(state.index(), state.balance() + amount); // overflow desired
+        }
+
+        // save fungible state
+        assembly ("memory-safe") {
+            mstore(0x00, fungible)
+            mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
+            sstore(keccak256(0x00, 0x40), state)
         }
     }
 
@@ -58,24 +80,42 @@ library PositionLibrary {
     /// @param fungible The fungible to remove
     /// @param amount The amount of fungible to remove
     function removeFungible(Position storage self, Fungible fungible, uint256 amount) internal {
-        FungibleState state = self.fungibleStates[fungible];
-        uint64 index = state.index();
-        uint128 newBalance = (state.balance() - amount).toUint128();
+        FungibleState state;
+        assembly ("memory-safe") {
+            mstore(0x00, fungible)
+            mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
+            state := sload(keccak256(0x00, 0x40))
+        }
+
+        uint256 index = state.index();
+        uint256 newBalance = state.balance() - amount;
 
         if (newBalance != 0) {
-            self.fungibleStates[fungible] = toFungibleState(index, newBalance);
+            state = toFungibleState(index, newBalance);
         } else {
-            uint256 lastIndex = self.fungibles.length;
+            state = FungibleState.wrap(0);
 
-            if (index != lastIndex) {
-                Fungible lastFungible = self.fungibles[lastIndex - 1];
+            assembly ("memory-safe") {
+                let slot := add(self.slot, FUNGIBLES_OFFSET)
+                let len := sload(slot)
+                mstore(0x00, slot)
+                let dataSlot := keccak256(0x00, 0x20)
 
-                self.fungibles[index - 1] = lastFungible;
-                self.fungibleStates[lastFungible] = toFungibleState(index, self.fungibleStates[lastFungible].balance());
+                let lenMinusOne := sub(len, 1)
+                let lastElementSlot := add(dataSlot, lenMinusOne)
+
+                if iszero(eq(index, len)) { sstore(add(dataSlot, sub(index, 1)), sload(lastElementSlot)) }
+
+                sstore(lastElementSlot, 0)
+                sstore(slot, lenMinusOne)
             }
+        }
 
-            self.fungibles.pop();
-            self.fungibleStates[fungible] = FungibleState.wrap(0);
+        // save fungible state
+        assembly ("memory-safe") {
+            mstore(0x00, fungible)
+            mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
+            sstore(keccak256(0x00, 0x40), state)
         }
     }
 
@@ -86,10 +126,14 @@ library PositionLibrary {
         assembly ("memory-safe") {
             let slot := add(self.slot, NON_FUNGIBLES_OFFSET)
             let len := sload(slot)
-            mstore(0x00, slot)
-            let dataSlot := keccak256(0x00, 0x20)
 
-            sstore(add(dataSlot, len), nonFungible)
+            if iszero(lt(len, MAX_NON_FUNGIBLES)) {
+                mstore(0x00, 0x5dd75208) // `NonFungibleLimitReached()`
+                revert(0x1c, 0x04)
+            }
+
+            mstore(0x00, slot)
+            sstore(add(keccak256(0x00, 0x20), len), nonFungible)
             sstore(slot, add(len, 1))
         }
     }
@@ -107,9 +151,8 @@ library PositionLibrary {
 
             for { let i := 0 } lt(i, len) { i := add(i, 1) } {
                 let elementSlot := add(dataSlot, i)
-                let element := sload(elementSlot)
 
-                if eq(element, nonFungible) {
+                if eq(sload(elementSlot), nonFungible) {
                     let lenMinusOne := sub(len, 1)
                     let lastElementSlot := add(dataSlot, lenMinusOne)
 
@@ -129,29 +172,27 @@ library PositionLibrary {
     /// @param self The position to increase debt share in
     /// @param delta The number of debt shares to increase by
     function increaseDebtShare(Position storage self, uint256 delta) internal {
-        self.debtShare += delta.toUint128();
+        self.debtShare += delta; // overflow desired
     }
 
     /// @notice Decreases the debt share in a position
     /// @param self The position to decrease debt share in
     /// @param delta The number of debt shares to decrease by
     function decreaseDebtShare(Position storage self, uint256 delta) internal {
-        self.debtShare -= delta.toUint128();
+        self.debtShare -= delta; // underflow desired
     }
 
     /// @notice Checks whether a position is empty
     /// @param self The position to check
-    /// @return bool True if the position is empty, false otherwise
-    function isEmpty(Position storage self) internal view returns (bool) {
+    /// @return _isEmpty True if the position is empty, false otherwise
+    function isEmpty(Position storage self) internal view returns (bool _isEmpty) {
         assembly ("memory-safe") {
-            let debtShare := sload(add(self.slot, DEBT_SHARE_OFFSET))
-            let fungiblesCount := sload(add(self.slot, FUNGIBLES_OFFSET))
-            let nonFungiblesCount := sload(add(self.slot, NON_FUNGIBLES_OFFSET))
-
-            if iszero(add(debtShare, add(fungiblesCount, nonFungiblesCount))) {
-                mstore(0x00, true)
-                return(0x00, 0x20)
-            }
+            if iszero(
+                add(
+                    sload(add(self.slot, DEBT_SHARE_OFFSET)),
+                    add(sload(add(self.slot, FUNGIBLES_OFFSET)), sload(add(self.slot, NON_FUNGIBLES_OFFSET)))
+                )
+            ) { _isEmpty := true }
         }
     }
 }

@@ -13,6 +13,7 @@ library Locker {
     /// @notice Unlocks the locker and clears registered items
     function unlock() internal {
         assembly ("memory-safe") {
+            // revert if already unlocked
             if iszero(iszero(tload(UNLOCKED_SLOT))) {
                 mstore(0x00, 0x5090d6c6) // 'AlreadyUnlocked()'
                 revert(0x1c, 0x04)
@@ -21,9 +22,11 @@ library Locker {
             // clear each registered item
             let count := tload(REGISTERED_ITEMS_SLOT)
             for { let i := 1 } iszero(gt(i, count)) { i := add(i, 1) } {
-                mstore(0x00, tload(add(REGISTERED_ITEMS_SLOT, mul(0x20, i))))
+                let itemSlot := add(REGISTERED_ITEMS_SLOT, mul(0x20, i))
+                mstore(0x00, tload(itemSlot))
                 mstore(0x20, REGISTERED_ITEMS_SLOT)
                 tstore(keccak256(0x00, 0x40), false)
+                tstore(itemSlot, 0)
             }
             tstore(REGISTERED_ITEMS_SLOT, 0)
 
@@ -34,6 +37,7 @@ library Locker {
     /// @notice Locks the locker
     function lock() internal {
         assembly ("memory-safe") {
+            // revert if already locked
             if iszero(tload(UNLOCKED_SLOT)) {
                 mstore(0x00, 0x5f0ccd7c) // 'AlreadyLocked()'
                 revert(0x1c, 0x04)
@@ -46,6 +50,7 @@ library Locker {
     /// @notice Registers an item in the locker
     function register(bytes32 item) internal {
         assembly ("memory-safe") {
+            // revert if not unlocked
             if iszero(tload(UNLOCKED_SLOT)) {
                 mstore(0x00, 0xfa680065) // 'NotUnlocked()'
                 revert(0x1c, 0x04)
@@ -73,12 +78,15 @@ library Locker {
             let count := tload(REGISTERED_ITEMS_SLOT)
             items := mload(0x40)
 
+            // copy arry from transient storage to memory
             mstore(items, count)
             let i := 1
             for {} iszero(gt(i, count)) { i := add(i, 1) } {
-                let slot := mul(0x20, i)
-                mstore(add(items, slot), tload(add(REGISTERED_ITEMS_SLOT, slot)))
+                let offset := mul(0x20, i)
+                mstore(add(items, offset), tload(add(REGISTERED_ITEMS_SLOT, offset)))
             }
+
+            // update free memory pointer
             mstore(0x40, add(items, mul(0x20, i)))
         }
     }
