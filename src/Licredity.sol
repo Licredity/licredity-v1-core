@@ -226,7 +226,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
             log4(
                 0x00,
                 0x20,
-                0x3933597222c8b52f5ac7094fac2afa136f151b5d564892abe64509bdac1eef06,
+                0xfb3042bebfd7f55f21e673d861ca2919c54d953e3ac3e23576141079b10797d0,
                 positionId,
                 recipient,
                 fungible
@@ -300,7 +300,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
             log4(
                 0x00,
                 0x00,
-                0x472a88e11786f436885e90e4a73c1555038dd47cb5035ccd1928cc974ad9d1bf,
+                0x05d4d965df19c2a37a2b5128c3f6738ac62a8351aefe3b9af9f535d46994684a,
                 positionId,
                 recipient,
                 nonFungible
@@ -342,7 +342,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
                 log3(
                     0x00,
                     0x20,
-                    0x0e02681f4373fa55c60df5d9889b62e8adfe3253bc50a7dd512607e6327e90c6,
+                    0x035870714bdad9af06468d642c6278777f9a7342ca6c1855dd76f1795f2e495c,
                     positionId,
                     address()
                 )
@@ -645,6 +645,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     /// @param price The price to convert
     /// @return interestRate The converted interest rate
     function _priceToInterestRate(uint256 price) internal pure returns (InterestRate interestRate) {
-        interestRate = InterestRate.wrap(price * 1e9);
+        interestRate = InterestRate.wrap((price - 1e18) * 1e9);
     }
 }
