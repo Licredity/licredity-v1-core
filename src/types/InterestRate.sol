@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {FullMath} from "../libraries/FullMath.sol";
+
 /// @title InterestRate
 /// @notice Represents a interest rate
 /// @dev Interest rate has 27 decimal places (a ray)
@@ -11,6 +13,8 @@ using InterestRateLibrary for InterestRate global;
 /// @title InterestRateLibrary
 /// @notice Library for managing interest rates
 library InterestRateLibrary {
+    using FullMath for uint256;
+
     uint256 private constant SECONDS_PER_YEAR = 365 days;
     uint256 private constant RAY = 1e27;
     uint256 private constant HALF_RAY = 0.5e27;
@@ -52,23 +56,10 @@ library InterestRateLibrary {
             basePowerThree = InterestRate.unwrap(mul(InterestRate.wrap(basePowerTwo), rate)) / SECONDS_PER_YEAR;
         }
 
-        uint256 firstTerm = InterestRate.unwrap(rate) * elapsed;
-        unchecked {
-            firstTerm /= SECONDS_PER_YEAR;
-        }
-        uint256 secondTerm = elapsed * expMinusOne * basePowerTwo;
-        unchecked {
-            secondTerm /= 2;
-        }
-        uint256 thirdTerm = elapsed * expMinusOne * expMinusTwo * basePowerThree;
-        unchecked {
-            thirdTerm /= 6;
-        }
-        uint256 compoundRate = firstTerm + secondTerm + thirdTerm;
+        uint256 firstTerm = InterestRate.unwrap(rate).fullMulDiv(elapsed, SECONDS_PER_YEAR);
+        uint256 secondTerm = basePowerTwo.fullMulDiv(elapsed * expMinusOne, 2);
+        uint256 thirdTerm = basePowerThree.fullMulDiv(elapsed * expMinusOne * expMinusTwo, 6);
 
-        interest = principal * compoundRate;
-        unchecked {
-            interest /= RAY;
-        }
+        interest = principal.fullMulDiv(firstTerm + secondTerm + thirdTerm, RAY);
     }
 }

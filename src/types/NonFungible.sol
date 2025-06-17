@@ -13,6 +13,8 @@ using NonFungibleLibrary for NonFungible global;
 /// @title NonFungibleLibrary
 /// @notice Library for managing non-fungibles
 library NonFungibleLibrary {
+    uint256 private constant MASK_64_BITS = 0xffffffffffffffff;
+
     /// @notice Transfers a non-fungible to recipient
     /// @param self The non-fungible to transfer
     /// @param recipient The recipient of the transfer
@@ -41,7 +43,7 @@ library NonFungibleLibrary {
     /// @return _id The ID of the non-fungible
     function id(NonFungible self) internal pure returns (uint256 _id) {
         assembly ("memory-safe") {
-            _id := and(self, 0xffffffffffffffff)
+            _id := and(self, MASK_64_BITS)
         }
     }
 }

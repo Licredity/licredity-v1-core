@@ -26,7 +26,7 @@ abstract contract DebtToken is IERC20 {
     /// @inheritdoc IERC20
     uint8 public immutable decimals;
     /// @inheritdoc IERC20
-    uint256 public totalSupply;
+    uint256 public totalSupply = 0;
 
     mapping(address => OwnerData) internal ownerData;
 
@@ -39,18 +39,21 @@ abstract contract DebtToken is IERC20 {
     /// @inheritdoc IERC20
     function approve(address spender, uint256 amount) public returns (bool) {
         assembly ("memory-safe") {
+            spender := and(spender, ADDRESS_MASK)
+
+            // calculate owner data slot
             mstore(0x00, caller())
             mstore(0x20, ownerData.slot)
             let ownerDataSlot := keccak256(0x00, 0x40)
 
+            // set allowance
             mstore(0x00, spender)
             mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
-
             sstore(keccak256(0x00, 0x40), amount)
 
             // emit Approval(msg.sender, spender, amount);
             mstore(0x00, amount)
-            log3(0x00, 0x20, APPROVAL_EVENT_SIGNATURE, caller(), and(spender, ADDRESS_MASK))
+            log3(0x00, 0x20, APPROVAL_EVENT_SIGNATURE, caller(), spender)
         }
 
         return true;
@@ -65,25 +68,30 @@ abstract contract DebtToken is IERC20 {
 
     /// @inheritdoc IERC20
     function transferFrom(address from, address to, uint256 amount) public returns (bool) {
-        uint256 allowanceSlot;
-        uint256 currentAllowance;
         assembly ("memory-safe") {
-            mstore(0x00, from)
-            mstore(0x20, ownerData.slot)
-            let ownerDataSlot := keccak256(0x00, 0x40)
+            from := and(from, ADDRESS_MASK)
 
-            mstore(0x00, caller())
-            mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
+            // check and update allowance if from is not the caller
+            if iszero(eq(from, caller())) {
+                // calculate owner data slot
+                mstore(0x00, from)
+                mstore(0x20, ownerData.slot)
+                let ownerDataSlot := keccak256(0x00, 0x40)
 
-            allowanceSlot := keccak256(0x00, 0x40)
-            currentAllowance := sload(allowanceSlot)
-        }
+                // get allowance
+                mstore(0x00, caller())
+                mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
+                let allowanceSlot := keccak256(0x00, 0x40)
+                let _allowance := sload(allowanceSlot)
 
-        if (currentAllowance != type(uint256).max) {
-            uint256 newAllowance = currentAllowance - amount; // underflow desired
+                // revert on insufficient allowance
+                if lt(_allowance, amount) {
+                    mstore(0x00, 0x13be252b) // 'InsufficientAllowance()'
+                    revert(0x1c, 0x04)
+                }
 
-            assembly ("memory-safe") {
-                sstore(allowanceSlot, newAllowance)
+                // update allowance if not infinite
+                if iszero(eq(_allowance, sub(0, 1))) { mstore(allowanceSlot, sub(_allowance, amount)) }
             }
         }
 
@@ -95,9 +103,9 @@ abstract contract DebtToken is IERC20 {
     /// @inheritdoc IERC20
     function balanceOf(address owner) public view returns (uint256 _balance) {
         assembly ("memory-safe") {
-            mstore(0x00, owner)
+            // get balance
+            mstore(0x00, and(owner, ADDRESS_MASK))
             mstore(0x20, ownerData.slot)
-
             _balance := sload(add(keccak256(0x00, 0x40), BALANCE_OFFSET))
         }
     }
@@ -105,13 +113,14 @@ abstract contract DebtToken is IERC20 {
     /// @inheritdoc IERC20
     function allowance(address owner, address spender) public view returns (uint256 _allowance) {
         assembly ("memory-safe") {
-            mstore(0x00, owner)
+            // calculate owner data slot
+            mstore(0x00, and(owner, ADDRESS_MASK))
             mstore(0x20, ownerData.slot)
             let ownerDataSlot := keccak256(0x00, 0x40)
 
-            mstore(0x00, spender)
+            // get allowance
+            mstore(0x00, and(spender, ADDRESS_MASK))
             mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
-
             _allowance := sload(keccak256(0x00, 0x40))
         }
     }
@@ -126,24 +135,36 @@ abstract contract DebtToken is IERC20 {
 
     function _transfer(address from, address to, uint256 amount) internal {
         if (from == address(0)) {
+            // mint
             totalSupply += amount; // overflow desired
         } else {
+            // transfer
             ownerData[from].balance -= amount; // underflow desired
         }
 
-        // over/underflow not possible
-        unchecked {
-            if (to == address(0)) {
-                totalSupply -= amount;
-            } else {
-                ownerData[to].balance += amount;
-            }
-        }
-
-        // emit Transfer(from, to, amount);
         assembly ("memory-safe") {
+            to := and(to, ADDRESS_MASK)
+
+            // burn
+            if iszero(to) {
+                // underflow not possible
+                mstore(totalSupply.slot, sub(sload(totalSupply.slot), amount))
+            }
+
+            // transfer
+            if iszero(iszero(to)) {
+                // calculate owner data slot
+                mstore(0x00, to)
+                mstore(0x20, ownerData.slot)
+                let balanceSlot := add(keccak256(0x00, 0x40), BALANCE_OFFSET)
+
+                // overflow not possible
+                mstore(balanceSlot, add(sload(balanceSlot), amount))
+            }
+
+            // emit Transfer(from, to, amount);
             mstore(0x00, amount)
-            log3(0x00, 0x20, TRANSFER_EVENT_SIGNATURE, and(from, ADDRESS_MASK), and(to, ADDRESS_MASK))
+            log3(0x00, 0x20, TRANSFER_EVENT_SIGNATURE, and(from, ADDRESS_MASK), to)
         }
     }
 }

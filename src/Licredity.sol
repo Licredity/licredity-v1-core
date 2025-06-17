@@ -12,8 +12,9 @@ import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
+import {FullMath} from "./libraries/FullMath.sol";
 import {Locker} from "./libraries/Locker.sol";
-import {SafeCast} from "./libraries/SafeCast.sol";
+import {PipsMath} from "./libraries/PipsMath.sol";
 import {Fungible} from "./types/Fungible.sol";
 import {InterestRate} from "./types/InterestRate.sol";
 import {NonFungible} from "./types/NonFungible.sol";
@@ -26,13 +27,16 @@ import {RiskConfigs} from "./RiskConfigs.sol";
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Extsload, RiskConfigs {
-    using SafeCast for uint256;
+    using FullMath for uint256;
+    using PipsMath for uint256;
     using StateLibrary for IPoolManager;
 
     uint24 private constant FEE = 100;
     int24 private constant TICK_SPACING = 1;
     uint160 private constant ONE_SQRT_PRICE_X96 = 0x1000000000000000000000000;
     uint160 private constant MAX_SQRT_PRICE_X96 = 1461446703485210103287273052203988822378723970342;
+
+    uint256 private constant POSITION_MRR_PIPS = 10_000; // 1% margin requirement
 
     Fungible internal transient stagedFungible;
     uint256 internal transient stagedFungibleBalance;
@@ -41,13 +45,13 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     Fungible internal immutable baseFungible;
     PoolKey internal poolKey;
     PoolId internal immutable poolId;
-    uint64 internal positionCount;
-    uint128 internal accruedInterest;
-    uint64 internal lastInterestDisbursementTimestamp;
-    uint128 internal baseAmountAvailable;
-    uint128 internal debtAmountOutstanding;
-    uint128 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
-    uint128 internal totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
+    uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
+    uint256 internal totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
+    uint256 internal accruedInterest;
+    uint256 internal lastInterestDisbursementTimestamp;
+    uint256 internal baseAmountAvailable;
+    uint256 internal debtAmountOutstanding;
+    uint256 internal positionCount;
     mapping(uint256 => Position) internal positions;
 
     constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
@@ -55,6 +59,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         DebtToken(name, symbol, Fungible.wrap(baseToken).decimals())
         RiskConfigs(_governor)
     {
+        // revert if Licredity address is not greater than baseToken address
         if (address(this) <= baseToken) {
             assembly ("memory-safe") {
                 mstore(0x00, 0xe6c4247b) // 'InvalidAddress()'
@@ -105,12 +110,15 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     /// @inheritdoc ILicredity
     function close(uint256 positionId) external {
         Position storage position = positions[positionId];
+
+        // revert if caller is not the position owner
         if (position.owner != msg.sender) {
             assembly ("memory-safe") {
                 mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
                 revert(0x1c, 0x04)
             }
         }
+        // revert if position is not empty
         if (!position.isEmpty()) {
             assembly ("memory-safe") {
                 mstore(0x00, 0x1acb203e) // 'PositionNotEmpty()'
@@ -128,7 +136,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
     /// @inheritdoc ILicredity
     function stageFungible(Fungible fungible) external {
-        stagedFungible = fungible;
+        assembly ("memory-safe") {
+            tstore(stagedFungible.slot, fungible)
+        }
+
         if (!fungible.isNative()) {
             stagedFungibleBalance = fungible.balanceOf(address(this));
         }
@@ -137,17 +148,18 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     /// @inheritdoc ILicredity
     function exchangeFungible(address recipient) external {
         Fungible fungible = stagedFungible;
+        uint256 _baseAmountAvailable = baseAmountAvailable;
+        uint256 _debtAmountOutstanding = debtAmountOutstanding;
+        uint256 amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+
         assembly ("memory-safe") {
+            // revert if staged fungible is not debt fungible
             if iszero(eq(fungible, address())) {
                 mstore(0x00, 0x93bbf24d) // 'NotDebtFungible()'
                 revert(0x1c, 0x04)
             }
-        }
 
-        uint128 _baseAmountAvailable = baseAmountAvailable;
-        uint128 _debtAmountOutstanding = debtAmountOutstanding;
-        uint256 amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
-        assembly ("memory-safe") {
+            // revert if amount received is not the staged amount outstanding
             if iszero(eq(amount, _debtAmountOutstanding)) {
                 mstore(0x00, 0xb2afc83e) // 'NotAmountOutstanding()'
                 revert(0x1c, 0x04)
@@ -155,8 +167,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
             // clear staged fungible and exchange amounts
             tstore(stagedFungible.slot, 0)
-            mstore(baseAmountAvailable.slot, 0)
-            mstore(debtAmountOutstanding.slot, 0)
+            sstore(baseAmountAvailable.slot, 0)
+            sstore(debtAmountOutstanding.slot, 0)
         }
 
         _burn(address(this), _debtAmountOutstanding);
@@ -172,28 +184,33 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
+        Fungible fungible = stagedFungible;
         Position storage position = positions[positionId];
-        if (position.owner == address(0)) {
+
+        // revert if caller is not the position owner
+        if (position.owner != msg.sender) {
             assembly ("memory-safe") {
-                mstore(0x00, 0xf7b3b391) // 'PositionDoesNotExist()'
+                mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
                 revert(0x1c, 0x04)
             }
         }
-        Fungible fungible = stagedFungible;
 
         uint256 amount;
         if (fungible.isNative()) {
             amount = msg.value;
         } else {
             assembly ("memory-safe") {
+                // revert if value received when the staged fungible is not native
                 if iszero(iszero(callvalue())) {
                     mstore(0x00, 0x19d245cf) // 'NonZeroNativeValue()'
                     revert(0x1c, 0x04)
                 }
             }
+
             amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
         }
 
+        // clear staged fungible
         assembly ("memory-safe") {
             tstore(stagedFungible.slot, 0)
         }
@@ -209,6 +226,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     /// @inheritdoc ILicredity
     function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount) external {
         Position storage position = positions[positionId];
+
+        // revert if caller is not the position owner
         if (position.owner != msg.sender) {
             assembly ("memory-safe") {
                 mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
@@ -226,7 +245,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
             log4(
                 0x00,
                 0x20,
-                0x3933597222c8b52f5ac7094fac2afa136f151b5d564892abe64509bdac1eef06,
+                0xfb3042bebfd7f55f21e673d861ca2919c54d953e3ac3e23576141079b10797d0,
                 positionId,
                 recipient,
                 fungible
@@ -236,6 +255,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
     /// @inheritdoc ILicredity
     function stageNonFungible(NonFungible nonFungible) external {
+        // revert if already owned by Licredity
         if (nonFungible.owner() == address(this)) {
             assembly ("memory-safe") {
                 mstore(0x00, 0x37cf3ba4) // 'NonFungibleAlreadyOwned()'
@@ -243,19 +263,25 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
             }
         }
 
-        stagedNonFungible = nonFungible;
+        assembly ("memory-safe") {
+            tstore(stagedNonFungible.slot, nonFungible)
+        }
     }
 
     /// @inheritdoc ILicredity
     function depositNonFungible(uint256 positionId) external {
+        NonFungible nonFungible = stagedNonFungible;
         Position storage position = positions[positionId];
-        if (position.owner == address(0)) {
+
+        // revert if caller is not the position owner
+        if (position.owner != msg.sender) {
             assembly ("memory-safe") {
-                mstore(0x00, 0xf7b3b391) // 'PositionDoesNotExist()'
+                mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
                 revert(0x1c, 0x04)
             }
         }
-        NonFungible nonFungible = stagedNonFungible;
+
+        // revert if staged non-fungible is not owned by Licredity
         if (nonFungible.owner() != address(this)) {
             assembly ("memory-safe") {
                 mstore(0x00, 0xc485032c) // 'NonFungibleNotOwned()'
@@ -263,6 +289,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
             }
         }
 
+        // clear staged non-fungible
         assembly ("memory-safe") {
             tstore(stagedNonFungible.slot, 0)
         }
@@ -271,7 +298,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         // emit DepositNonFungible(positionId, nonFungible);
         assembly ("memory-safe") {
             log3(
-                0x00, 0x00, 0x113d8217beb98f6a392770deea72be5d6d47842b1511e5c0f55e6607a6ffa4c3, positionId, nonFungible
+                0x00, 0x00, 0x2fcee665a957a4b410c1fb5fb3573a6cd08cfc98f2465898ea1ccfb32139208b, positionId, nonFungible
             )
         }
     }
@@ -279,6 +306,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     /// @inheritdoc ILicredity
     function withdrawNonFungible(uint256 positionId, address recipient, NonFungible nonFungible) external {
         Position storage position = positions[positionId];
+
+        // revert if caller is not the position owner
         if (position.owner != msg.sender) {
             assembly ("memory-safe") {
                 mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
@@ -288,6 +317,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
         Locker.register(bytes32(positionId));
         if (!position.removeNonFungible(nonFungible)) {
+            // revert if non-fungible is not in position
             assembly ("memory-safe") {
                 mstore(0x00, 0x1f353c1f) // 'NonFungibleNotInPosition()'
                 revert(0x1c, 0x04)
@@ -300,7 +330,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
             log4(
                 0x00,
                 0x00,
-                0x472a88e11786f436885e90e4a73c1555038dd47cb5035ccd1928cc974ad9d1bf,
+                0x05d4d965df19c2a37a2b5128c3f6738ac62a8351aefe3b9af9f535d46994684a,
                 positionId,
                 recipient,
                 nonFungible
@@ -324,12 +354,22 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         Locker.register(bytes32(positionId));
         _disburseInterest(true);
 
-        uint128 _totalDebtShare = totalDebtShare;
-        uint128 _totalDebtBalance = totalDebtBalance;
-        // assume delta never overflows uint128
-        amount = delta * _totalDebtBalance / _totalDebtShare;
-        totalDebtShare = (_totalDebtShare + delta).toUint128();
-        totalDebtBalance = (_totalDebtBalance + amount).toUint128();
+        uint256 _totalDebtShare = totalDebtShare;
+        uint256 _totalDebtBalance = totalDebtBalance;
+        amount = delta.fullMulDiv(_totalDebtBalance, _totalDebtShare);
+
+        assembly ("memory-safe") {
+            if gt(add(_totalDebtShare, delta), sload(debtLimit.slot)) {
+                mstore(0x00, 0xc3212f5c) // 'DebtLimitExceeded()'
+                revert(0x1c, 0x04)
+            }
+
+            // totalDebtShare = _totalDebtShare + delta;
+            sstore(totalDebtShare.slot, add(_totalDebtShare, delta))
+            // totalDebtBalance = _totalDebtBalance + amount;
+            sstore(totalDebtBalance.slot, add(_totalDebtBalance, amount))
+        }
+
         position.increaseDebtShare(delta);
         _mint(recipient, amount);
 
@@ -369,12 +409,17 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
         _disburseInterest(true);
 
-        uint128 _totalDebtShare = totalDebtShare;
-        uint128 _totalDebtBalance = totalDebtBalance;
-        // assume delta never overflows uint128
-        amount = delta * _totalDebtBalance / _totalDebtShare;
-        totalDebtShare = (_totalDebtShare - delta).toUint128();
-        totalDebtBalance = (_totalDebtBalance - amount).toUint128();
+        uint256 _totalDebtShare = totalDebtShare;
+        uint256 _totalDebtBalance = totalDebtBalance;
+        amount = delta.fullMulDivUp(_totalDebtBalance, _totalDebtShare);
+
+        assembly ("memory-safe") {
+            // totalDebtShare = _totalDebtShare - delta;
+            sstore(totalDebtShare.slot, sub(_totalDebtShare, delta))
+            // totalDebtBalance = _totalDebtBalance - amount;
+            sstore(totalDebtBalance.slot, sub(_totalDebtBalance, amount))
+        }
+
         position.decreaseDebtShare(delta);
 
         if (useBalance) {
@@ -441,12 +486,20 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
 
         if (value < debt) {
             uint256 topup = _deficitToTopup(debt - value);
-            uint256 newTotalDebtBalance = totalDebtBalance + topup;
-
             _mint(address(this), topup);
-            value += topup;
-            debt = position.debtShare * newTotalDebtBalance / totalDebtShare;
-            totalDebtBalance = newTotalDebtBalance.toUint128();
+
+            uint256 newTotalDebtBalance;
+            assembly ("memory-safe") {
+                // newTotalDebtBalance = totalDebtBalance + topup;
+                newTotalDebtBalance := add(sload(totalDebtBalance.slot), topup)
+
+                // totalDebtBalance = newTotalDebtBalance;
+                sstore(totalDebtBalance.slot, newTotalDebtBalance)
+
+                // value = value + topup;
+                value := add(value, topup)
+            }
+            debt = position.debtShare.fullMulDivUp(newTotalDebtBalance, totalDebtShare);
 
             position.addFungible(Fungible.wrap(address(this)), topup);
 
@@ -479,7 +532,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     }
 
     /// @inheritdoc BaseHooks
-    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal override returns (bytes4) {
+    function _beforeInitialize(address sender, PoolKey calldata, uint160) internal view override returns (bytes4) {
         assembly ("memory-safe") {
             if iszero(eq(sender, address())) {
                 mstore(0x00, 0x7a08c3ff) // 'NotLicredity()'
@@ -550,8 +603,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
                 IPoolManager.SwapParams memory params =
                     IPoolManager.SwapParams(false, -balanceDelta.amount1(), MAX_SQRT_PRICE_X96 - 1);
                 balanceDelta = poolManager.swap(poolKey, params, "");
-                uint128 baseAmount = uint128(balanceDelta.amount0());
-                uint128 debtAmount = uint128(-balanceDelta.amount1());
+                uint256 baseAmount = uint128(balanceDelta.amount0());
+                uint256 debtAmount = uint128(-balanceDelta.amount1());
 
                 poolManager.sync(Currency.wrap(address(this)));
                 _mint(address(poolManager), debtAmount);
@@ -578,6 +631,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         internal
         returns (uint256 value, uint256 marginRequirement, uint256 debt, bool isHealthy)
     {
+        debt = position.debtShare.fullMulDivUp(totalDebtBalance, totalDebtShare);
+        if (debt == 0) return (0, 0, 0, true);
+
         uint256 _value;
         uint256 _marginRequirement;
 
@@ -595,34 +651,48 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         value += _value;
         marginRequirement += _marginRequirement;
 
-        debt = uint256(position.debtShare) * totalDebtBalance / totalDebtShare;
-        isHealthy = value >= debt + marginRequirement && debt <= value - value * positionMrrPips / UNIT_PIPS;
+        isHealthy = value >= debt + marginRequirement && marginRequirement >= minMargin
+            && debt <= value - value.pipsMulUp(POSITION_MRR_PIPS);
     }
 
     /// @notice Disburses (or accrues) interest to active liquidity providers
     /// @param accrueOnly If true, only accrues interest without disbursing it
     function _disburseInterest(bool accrueOnly) internal {
-        uint256 elapsed = block.timestamp - lastInterestDisbursementTimestamp;
-        if (elapsed == 0) return;
+        uint256 elapsed;
+        assembly ("memory-safe") {
+            // uint256 elapsed = block.timestamp - lastInterestDisbursementTimestamp;
+            elapsed := sub(timestamp(), sload(lastInterestDisbursementTimestamp.slot))
 
-        uint128 _totalDebtBalance = totalDebtBalance;
+            // if (elapsed == 0) return;
+            if iszero(elapsed) { return(0x00, 0x00) }
+        }
+
+        uint256 _totalDebtBalance = totalDebtBalance;
         InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
-        // assume interest never overflows uint128
-        uint128 interest = uint128(interestRate.calculateInterest(_totalDebtBalance, elapsed));
+        uint256 interest = interestRate.calculateInterest(_totalDebtBalance, elapsed);
 
-        totalDebtBalance = _totalDebtBalance + interest;
-        // assume timestamp never overflows uint64
-        lastInterestDisbursementTimestamp = uint64(block.timestamp);
+        assembly ("memory-safe") {
+            // totalDebtBalance = _totalDebtBalance + interest;
+            sstore(totalDebtBalance.slot, add(_totalDebtBalance, interest))
+            // lastInterestDisbursementTimestamp = block.timestamp;
+            sstore(lastInterestDisbursementTimestamp.slot, timestamp())
+        }
 
         if (accrueOnly) {
-            accruedInterest += interest;
+            assembly ("memory-safe") {
+                // accruedInterest += interest;
+                sstore(accruedInterest.slot, add(sload(accruedInterest.slot), interest))
+            }
         } else {
-            interest += accruedInterest;
-            accruedInterest = 0;
+            assembly ("memory-safe") {
+                // interest += accruedInterest;
+                interest := add(interest, sload(accruedInterest.slot))
+                // accruedInterest = 0;
+                sstore(accruedInterest.slot, 0)
+            }
 
             if (protocolFeePips > 0 && protocolFeeRecipient != address(0)) {
-                // protocolFeePips < UNIT_PIPS
-                uint128 protocolFee = uint128(uint256(interest) * protocolFeePips / UNIT_PIPS);
+                uint256 protocolFee = interest.pipsMulUp(protocolFeePips);
                 interest -= protocolFee;
                 _mint(protocolFeeRecipient, protocolFee);
             }
@@ -638,13 +708,19 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
     /// @param deficit The deficit amount to convert
     /// @return topup The converted top-up amount
     function _deficitToTopup(uint256 deficit) internal pure returns (uint256 topup) {
-        topup = deficit * 2;
+        assembly ("memory-safe") {
+            // topup = deficit * 2;
+            topup := mul(deficit, 2)
+        }
     }
 
     /// @notice Converts a price with 18 decimals to an interest rate with 27 decimals
     /// @param price The price to convert
     /// @return interestRate The converted interest rate
     function _priceToInterestRate(uint256 price) internal pure returns (InterestRate interestRate) {
-        interestRate = InterestRate.wrap(price * 1e9);
+        assembly ("memory-safe") {
+            // interestRate = InterestRate.wrap((price - 1e18) * 1e9);
+            interestRate := mul(sub(price, 1000000000000000000), 1000000000)
+        }
     }
 }

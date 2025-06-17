@@ -13,6 +13,9 @@ using FungibleLibrary for Fungible global;
 /// @title FungibleLibrary
 /// @notice Library for managing fungibles
 library FungibleLibrary {
+    uint256 private constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
+    uint256 private constant TRANSFER_SELECTOR = 0xa9059cbb00000000000000000000000000000000000000000000000000000000;
+
     /// @notice Transfers amount of fungible to recipient
     /// @param self The fungible to transfer
     /// @param recipient The recipient of the transfer
@@ -22,6 +25,7 @@ library FungibleLibrary {
             assembly ("memory-safe") {
                 let success := call(gas(), recipient, amount, 0, 0, 0, 0)
 
+                // revert if the transfer failed
                 if iszero(success) {
                     mstore(0x00, 0xf4b3b1bc) // 'NativeTransferFailed()'
                     revert(0x1c, 0x04)
@@ -30,8 +34,8 @@ library FungibleLibrary {
         } else {
             assembly ("memory-safe") {
                 let fmp := mload(0x40)
-                mstore(fmp, 0xa9059cbb00000000000000000000000000000000000000000000000000000000) // "transfer(address,uint256)"
-                mstore(add(fmp, 0x04), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(fmp, TRANSFER_SELECTOR)
+                mstore(add(fmp, 0x04), and(recipient, ADDRESS_MASK))
                 mstore(add(fmp, 0x24), amount)
 
                 let success :=
@@ -44,6 +48,7 @@ library FungibleLibrary {
                 mstore(add(fmp, 0x04), 0)
                 mstore(add(fmp, 0x24), 0)
 
+                // revert if the transfer failed
                 if iszero(success) {
                     mstore(0x00, 0xf27f64e4) // 'ERC20TransferFailed()'
                     revert(0x1c, 0x04)

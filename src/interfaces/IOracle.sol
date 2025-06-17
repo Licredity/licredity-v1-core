@@ -9,7 +9,7 @@ import {NonFungible} from "../types/NonFungible.sol";
 interface IOracle {
     /// @notice Quotes the price of the base fungible in debt fungible
     /// @return uint256 The price of the base fungible in debt fungible
-    /// @dev Price has 18 decimals
+    /// @dev Price has 18 decimal places
     function quotePrice() external view returns (uint256);
 
     /// @notice Quotes the value and margin requirement for given fungibles
