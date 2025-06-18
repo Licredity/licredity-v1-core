@@ -24,13 +24,13 @@ library Locker {
             let length := tload(REGISTERED_ITEMS_SLOT)
             for { let i := 1 } iszero(gt(i, length)) { i := add(i, 1) } {
                 // calculate the transient mapping and array slots
-                let arraySlot := add(REGISTERED_ITEMS_SLOT, mul(0x20, i))
-                mstore(0x00, tload(arraySlot))
+                let itemSlot := add(REGISTERED_ITEMS_SLOT, mul(0x20, i))
+                mstore(0x00, tload(itemSlot))
                 mstore(0x20, REGISTERED_ITEMS_SLOT)
 
                 // clear the transient mapping and array slots
                 tstore(keccak256(0x00, 0x40), false)
-                tstore(arraySlot, 0)
+                tstore(itemSlot, 0)
             }
             // clear the transient array
             tstore(REGISTERED_ITEMS_SLOT, 0)

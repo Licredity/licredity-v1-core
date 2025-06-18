@@ -62,7 +62,6 @@ abstract contract RiskConfigs {
     /// @param _oracle The oracle
     function setOracle(address _oracle) external onlyGovernor {
         assembly ("memory-safe") {
-            // oracle = _oracle;
             sstore(oracle.slot, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff))
         }
     }
@@ -71,7 +70,6 @@ abstract contract RiskConfigs {
     /// @param _debtLimit The debt limit
     function setDebtLimit(uint256 _debtLimit) external onlyGovernor {
         assembly ("memory-safe") {
-            // debtLimit = _debtLimit;
             sstore(debtLimit.slot, _debtLimit)
         }
     }
@@ -80,7 +78,6 @@ abstract contract RiskConfigs {
     /// @param _minMargin The minimum margin
     function setMinMargin(uint256 _minMargin) external onlyGovernor {
         assembly ("memory-safe") {
-            // minMargin = _minMargin;
             sstore(minMargin.slot, _minMargin)
         }
     }
