@@ -359,7 +359,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         amount = delta.fullMulDiv(_totalDebtBalance, _totalDebtShare);
 
         assembly ("memory-safe") {
-            if gt(add(_totalDebtShare, delta), sload(debtLimit.slot)) {
+            if gt(add(_totalDebtBalance, amount), sload(debtLimit.slot)) {
                 mstore(0x00, 0xc3212f5c) // 'DebtLimitExceeded()'
                 revert(0x1c, 0x04)
             }

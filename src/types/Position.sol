@@ -47,8 +47,6 @@ library PositionLibrary {
         FungibleState state = self.fungibleStates[fungible];
 
         if (state.index() == 0) {
-            state = toFungibleState(self.fungibles.length, amount);
-
             // add a new fungible
             assembly ("memory-safe") {
                 let slot := add(self.slot, FUNGIBLES_OFFSET)
@@ -63,6 +61,8 @@ library PositionLibrary {
                 sstore(add(keccak256(0x00, 0x20), len), fungible)
                 sstore(slot, add(len, 1))
             }
+
+            state = toFungibleState(self.fungibles.length, amount);
         } else {
             state = toFungibleState(state.index(), state.balance() + amount); // overflow desired
         }
