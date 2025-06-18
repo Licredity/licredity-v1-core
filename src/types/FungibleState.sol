@@ -9,12 +9,12 @@ type FungibleState is bytes32;
 using FungibleStateLibrary for FungibleState global;
 
 /// @notice Converts the index and balance of a fungible into a fungible state
-/// @param index The index of the fungible
-/// @param _balance The balance of the fungible
+/// @param index The index of the fungible, must fit within 64 bits
+/// @param _balance The balance of the fungible, must fit within 128 bits
 /// @return state The fungible state representing the index and balance
 function toFungibleState(uint256 index, uint256 _balance) pure returns (FungibleState state) {
     assembly ("memory-safe") {
-        // revert if index is greater than 64 bits or balance is greater than 128 bits
+        // requires(index <= 0xffffffffffffffff && _balance <= 0xffffffffffffffffffffffffffffffff, Overflow());
         if or(gt(index, 0xffffffffffffffff), gt(_balance, 0xffffffffffffffffffffffffffffffff)) {
             mstore(0x00, 0x35278d12) // 'Overflow()'
             revert(0x1c, 0x04)
@@ -27,8 +27,6 @@ function toFungibleState(uint256 index, uint256 _balance) pure returns (Fungible
 /// @title FungibleStateLibrary
 /// @notice Library for managing fungible states
 library FungibleStateLibrary {
-    uint256 private constant MASK_128_BITS = 0xffffffffffffffffffffffffffffffff;
-
     /// @notice Gets the index of a fungible from its state
     /// @param self The fungible state to get the index from
     /// @return _index The index of the fungible
@@ -43,7 +41,7 @@ library FungibleStateLibrary {
     /// @return _balance The balance of the fungible
     function balance(FungibleState self) internal pure returns (uint256 _balance) {
         assembly ("memory-safe") {
-            _balance := and(self, MASK_128_BITS)
+            _balance := and(self, 0xffffffffffffffffffffffffffffffff)
         }
     }
 }
