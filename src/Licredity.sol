@@ -433,7 +433,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 0x40,
                 0xca8a3aa0f86329564c7b4a6d3471e8c5b49b4c589b773bc1f2fc83d1502ebb3f,
                 positionId,
-                add(recipient, 0xffffffffffffffffffffffffffffffffffffffff)
+                and(recipient, 0xffffffffffffffffffffffffffffffffffffffff)
             )
         }
     }
