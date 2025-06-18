@@ -167,7 +167,7 @@ contract LicredityUnlockPositionTest is Deployers {
         licredityRouter.depositFungible{value: 1 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 ether);
 
         uint256 debtDelta = amount.toShares(totalAssets, totalShares);
- 
+
         licredityRouterHelper.addDebt(positionId, debtDelta, address(licredity));
 
         (totalShares, totalAssets) = licredity.getTotalDebt();
@@ -180,19 +180,9 @@ contract LicredityUnlockPositionTest is Deployers {
         licredityRouter.decreaseDebtShare(positionId, decreaseDelta, true);
     }
 
-    function getDebtToken(address receiver, uint128 amount) public {
-        uint256 positionId = licredityRouter.open();
-
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 2 * amount}(positionId, Fungible.wrap(ChainInfo.NATIVE), 2 * amount);
-
-        uint256 debtDelta = amount.toShares(totalAssets, totalShares);
-        licredityRouterHelper.addDebt(positionId, debtDelta, receiver);
-    }
-
     function test_decreaseDebtShare_notUseBalance() public {
         uint128 decreaseAmount = 1 ether;
-        getDebtToken(address(this), decreaseAmount);
+        getDebtERC20(address(this), decreaseAmount);
 
         uint256 positionId = licredityRouter.open();
         uint128 amount = 99 ether;
