@@ -2,10 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
-import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
+import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
 
-contract DebtTokenMockTest is Test {
-    DebtTokenMock public token;
+contract BaseERC20MockTest is Test {
+    BaseERC20Mock public token;
 
     error InsufficientAllowance();
 
@@ -13,7 +13,7 @@ contract DebtTokenMockTest is Test {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() public {
-        token = new DebtTokenMock("CreditToken", "CT", 18);
+        token = new BaseERC20Mock("CreditToken", "CT", 18);
     }
 
     function test_metadata() public view {

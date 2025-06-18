@@ -5,14 +5,20 @@ import {Test} from "@forge-std/Test.sol";
 import {Licredity} from "src/Licredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
+import {ChainInfo} from "src/libraries/ChainInfo.sol";
 import {NonFungibleMock} from "test/mocks/NonFungibleMock.sol";
 import {OracleMock} from "test/mocks/OracleMock.sol";
-import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
+import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
+import {StateLibrary} from "./StateLibrary.sol";
+import {ShareMath} from "./ShareMath.sol";
 import {LicredityRouter} from "./LicredityRouter.sol";
 import {LicredityRouterHelper} from "./LicredityRouterHelper.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 
 contract Deployers is Test {
+    using ShareMath for uint128;
+    using StateLibrary for Licredity;
+
     IPoolManager public poolManager;
     address constant UNISWAP_V4 = address(0x000000000004444c5dc75cB358380D2e3dE08A90);
 
@@ -25,8 +31,8 @@ contract Deployers is Test {
     LicredityRouter public licredityRouter;
     LicredityRouterHelper public licredityRouterHelper;
 
-    function _newAsset(uint8 decimals) internal returns (DebtTokenMock) {
-        return new DebtTokenMock("Token", "T", decimals);
+    function _newAsset(uint8 decimals) internal returns (BaseERC20Mock) {
+        return new BaseERC20Mock("Token", "T", decimals);
     }
 
     function deployPoolManager() public {
@@ -70,5 +76,15 @@ contract Deployers is Test {
         assembly ("memory-safe") {
             nft := or(shl(96, nonFungibleMockAddress), tokenId)
         }
+    }
+
+    function getDebtERC20(address receiver, uint128 amount) public {
+        uint256 positionId = licredityRouter.open();
+
+        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        licredityRouter.depositFungible{value: 2 * amount}(positionId, Fungible.wrap(ChainInfo.NATIVE), 2 * amount);
+
+        uint256 debtDelta = amount.toShares(totalAssets, totalShares);
+        licredityRouterHelper.addDebt(positionId, debtDelta, receiver);
     }
 }
