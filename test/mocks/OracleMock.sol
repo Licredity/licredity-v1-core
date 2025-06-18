@@ -10,15 +10,15 @@ contract OracleMock is IOracle {
 
     uint256 public quotePrice;
     mapping(Fungible fungible => uint256 price) fungiblePrices;
-    mapping(Fungible fungible => uint16 mrrBps) fungibleMrrBps;
+    mapping(Fungible fungible => uint24 mrrBps) fungibleMrrBps;
     mapping(NonFungible nonFungible => uint256 price) nonFungibleValue;
-    mapping(NonFungible nonFungible => uint16 mrrBps) nonFungibleMrrBps;
+    mapping(NonFungible nonFungible => uint24 mrrBps) nonFungibleMrrBps;
 
     function setQuotePrice(uint256 quotePrice_) external {
         quotePrice = quotePrice_;
     }
 
-    function setFungibleConfig(Fungible fungible, uint256 price_, uint16 mrrBps_) external {
+    function setFungibleConfig(Fungible fungible, uint256 price_, uint24 mrrBps_) external {
         fungiblePrices[fungible] = price_;
         fungibleMrrBps[fungible] = mrrBps_;
     }

@@ -24,6 +24,8 @@ import {BaseHooks} from "./BaseHooks.sol";
 import {Extsload} from "./Extsload.sol";
 import {RiskConfigs} from "./RiskConfigs.sol";
 
+import {console} from "@forge-std/console.sol";
+
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
 contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Extsload, RiskConfigs {
@@ -256,6 +258,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // ensure position health post withdrawal
         Locker.register(bytes32(positionId));
+        _disburseInterest(true);
 
         position.removeFungible(fungible, amount);
         fungible.transfer(recipient, amount);
@@ -346,6 +349,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // ensure position health post withdrawal
         Locker.register(bytes32(positionId));
+        _disburseInterest(true);
 
         // require(position.removeNonFungible(nonFungible), NonFungibleNotInPosition());
         if (!position.removeNonFungible(nonFungible)) {
@@ -432,7 +436,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 0x40,
                 0xca8a3aa0f86329564c7b4a6d3471e8c5b49b4c589b773bc1f2fc83d1502ebb3f,
                 positionId,
-                add(recipient, 0xffffffffffffffffffffffffffffffffffffffff)
+                and(recipient, 0xffffffffffffffffffffffffffffffffffffffff)
             )
         }
     }

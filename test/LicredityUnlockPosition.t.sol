@@ -68,7 +68,7 @@ contract LicredityUnlockPositionTest is Deployers {
         uint256 delta = amount.toShares(totalAssets, totalShares);
 
         /// margin requirement = 1 ether * 0.1% = 0.01 ether
-        /// max debt = value - margin requirement = 1 ether - 0.001 ether = 0.99 ether
+        /// max debt = value - margin requirement = 1 ether - 0.01 ether = 0.99 ether
         if (amount <= 0.99 ether) {
             vm.expectEmit(true, true, false, true);
             emit IncreaseDebtShare(positionId, address(this), delta, amount);

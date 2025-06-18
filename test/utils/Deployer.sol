@@ -25,8 +25,6 @@ contract Deployers is Test {
     Licredity public licredity;
     NonFungibleMock public nonFungibleMock;
     OracleMock public oracleMock;
-    //     TestERC20 public fungibleMock;
-    //     TestERC20 public otherFungibleMock;
 
     LicredityRouter public licredityRouter;
     LicredityRouterHelper public licredityRouterHelper;

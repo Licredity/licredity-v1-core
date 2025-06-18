@@ -11,10 +11,14 @@ import {IERC721} from "@forge-std/interfaces/IERC721.sol";
 enum Actions {
     ADD_DEBT,
     WITHDRAW_FUNGIBLE,
-    WITHDRAW_NON_FUNGIBLE
+    WITHDRAW_NON_FUNGIBLE,
+    DEPOSIT_FUNGIBLE,
+    SEIZE
 }
 
 contract LicredityRouter is IUnlockCallback {
+    address transient owner;
+
     ILicredity public licredity;
 
     mapping(uint256 => address) public owners;
@@ -31,14 +35,18 @@ contract LicredityRouter is IUnlockCallback {
         licredity.close(positionId);
     }
 
-    function depositFungible(uint256 positionId, Fungible fungible, uint256 amount) external payable {
-        licredity.stageFungible(fungible);
+    function _depositFungible(address from, uint256 positionId, Fungible fungible, uint256 amount) internal {
         if (fungible.isNative()) {
-            licredity.depositFungible{value: msg.value}(positionId);
+            licredity.depositFungible{value: amount}(positionId);
         } else {
-            IERC20(Fungible.unwrap(fungible)).transferFrom(msg.sender, address(licredity), amount);
+            licredity.stageFungible(fungible);
+            IERC20(Fungible.unwrap(fungible)).transferFrom(from, address(licredity), amount);
             licredity.depositFungible(positionId);
         }
+    }
+
+    function depositFungible(uint256 positionId, Fungible fungible, uint256 amount) public payable {
+        _depositFungible(msg.sender, positionId, fungible, amount);
     }
 
     function depositNonFungible(uint256 positionId, NonFungible nonFungible) external {
@@ -56,6 +64,7 @@ contract LicredityRouter is IUnlockCallback {
     }
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        owner = msg.sender;
         (Actions[] memory actions, bytes[] memory params) = abi.decode(data, (Actions[], bytes[]));
         for (uint256 i = 0; i < actions.length; i++) {
             Actions action = actions[i];
@@ -67,6 +76,11 @@ contract LicredityRouter is IUnlockCallback {
                 _withdrawFungible(param);
             } else if (action == Actions.WITHDRAW_NON_FUNGIBLE) {
                 _withdrawNonFungible(param);
+            } else if (action == Actions.DEPOSIT_FUNGIBLE) {
+                (uint256 positionId, address fungible, uint256 amount) = abi.decode(param, (uint256, address, uint256));
+                _depositFungible(owner, positionId, Fungible.wrap(fungible), amount);
+            } else if (action == Actions.SEIZE) {
+                _seize(param);
             }
         }
         return "";
@@ -86,5 +100,10 @@ contract LicredityRouter is IUnlockCallback {
     function _withdrawNonFungible(bytes memory param) internal {
         (uint256 positionId, address recipient, bytes32 nonFungible) = abi.decode(param, (uint256, address, bytes32));
         licredity.withdrawNonFungible(positionId, recipient, NonFungible.wrap(nonFungible));
+    }
+
+    function _seize(bytes memory param) internal {
+        (uint256 positionId, address recipient) = abi.decode(param, (uint256, address));
+        licredity.seize(positionId, recipient);
     }
 }
