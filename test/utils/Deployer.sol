@@ -45,6 +45,7 @@ contract Deployers is Test {
         );
 
         licredity = Licredity(mockLicredity);
+        licredity.setDebtLimit(10000 ether);
     }
 
     function deployLicredityRouter() public {

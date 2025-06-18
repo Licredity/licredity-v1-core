@@ -5,6 +5,8 @@ import {IUnlockCallback} from "src/interfaces/IUnlockCallback.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
+import {IERC20} from "@forge-std/interfaces/IERC20.sol";
+import {IERC721} from "@forge-std/interfaces/IERC721.sol";
 
 enum Actions {
     ADD_DEBT,
@@ -29,10 +31,26 @@ contract LicredityRouter is IUnlockCallback {
         licredity.close(positionId);
     }
 
+    function depositFungible(uint256 positionId, Fungible fungible, uint256 amount) external payable {
+        licredity.stageFungible(fungible);
+        if (fungible.isNative()) {
+            licredity.depositFungible{value: msg.value}(positionId);
+        } else {
+            IERC20(Fungible.unwrap(fungible)).transferFrom(msg.sender, address(licredity), amount);
+            licredity.depositFungible(positionId);
+        }
+    }
+
+    function depositNonFungible(uint256 positionId, NonFungible nonFungible) external {
+        licredity.stageNonFungible(nonFungible);
+        nonFungible.transfer(address(licredity));
+        licredity.depositNonFungible(positionId);
+    }
+
     function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance) external {
         licredity.decreaseDebtShare(positionId, delta, useBalance);
     }
-    
+
     function executeActions(Actions[] memory actions, bytes[] memory params) external payable {
         licredity.unlock(abi.encode(actions, params));
     }
@@ -60,7 +78,8 @@ contract LicredityRouter is IUnlockCallback {
     }
 
     function _withdrawFungible(bytes memory param) internal {
-        (uint256 positionId, address recipient, address fungible, uint256 amount) = abi.decode(param, (uint256, address, address, uint256));
+        (uint256 positionId, address recipient, address fungible, uint256 amount) =
+            abi.decode(param, (uint256, address, address, uint256));
         licredity.withdrawFungible(positionId, recipient, Fungible.wrap(fungible), amount);
     }
 
