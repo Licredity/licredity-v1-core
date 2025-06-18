@@ -16,41 +16,41 @@ contract RiskConfigsTest is Test {
         riskConfigs = new RiskConfigsMock(address(this));
     }
 
-    function test_appointGovernor_notOwner() public {
+    function test_appointNextGovernor_notOwner() public {
         vm.startPrank(address(1));
         vm.expectRevert(NotGovernor.selector);
-        riskConfigs.appointGovernor(address(1));
+        riskConfigs.appointNextGovernor(address(1));
         vm.stopPrank();
     }
 
-    function test_appointGovernor(address[] calldata nextGovernors) public {
+    function test_appointNextGovernor(address[] calldata nextGovernors) public {
         vm.assume(nextGovernors.length > 1);
         for (uint256 i = 0; i < nextGovernors.length; i++) {
-            riskConfigs.appointGovernor(nextGovernors[i]);
+            riskConfigs.appointNextGovernor(nextGovernors[i]);
         }
 
         assertEq(riskConfigs.loadNextGovernor(), nextGovernors[nextGovernors.length - 1]);
     }
 
-    function test_confirmGovernor(address _governorAddr) public {
-        riskConfigs.appointGovernor(_governorAddr);
+    function test_confirmNextGovernor(address _governorAddr) public {
+        riskConfigs.appointNextGovernor(_governorAddr);
 
         vm.startPrank(_governorAddr);
-        riskConfigs.confirmGovernor();
+        riskConfigs.confirmNextGovernor();
         vm.stopPrank();
 
         assertEq(riskConfigs.loadGovernor(), _governorAddr);
         assertEq(riskConfigs.loadNextGovernor(), address(0));
     }
 
-    function test_confirmGovernor_notPending(address pendingAddr, address other) public {
+    function test_confirmNextGovernor_notPending(address pendingAddr, address other) public {
         vm.assume(pendingAddr != other);
 
-        riskConfigs.appointGovernor(pendingAddr);
+        riskConfigs.appointNextGovernor(pendingAddr);
 
         vm.startPrank(other);
         vm.expectRevert(NotNextGovernor.selector);
-        riskConfigs.confirmGovernor();
+        riskConfigs.confirmNextGovernor();
         vm.stopPrank();
     }
 
@@ -72,51 +72,26 @@ contract RiskConfigsTest is Test {
         assertEq(riskConfigs.loadProtocolFeeRecipient(), protocolFeeRecipients[protocolFeeRecipients.length - 1]);
     }
 
-    function test_setProtocolFeePips_invalid(uint24 _protocolFeePips) public {
-        uint24 protocolFeePips = uint24(bound(_protocolFeePips, 1_000_001, type(uint24).max));
+    function test_setProtocolFeePips_invalid(uint256 _protocolFeePips) public {
+        uint256 protocolFeePips = bound(_protocolFeePips, 62501, type(uint24).max);
         vm.expectRevert(InvalidProtocolFeePips.selector);
         riskConfigs.setProtocolFeePips(protocolFeePips);
     }
 
-    function test_setPositionMrrPips_invalid(uint24 _positionMrrPips) public {
-        uint24 positionMrrPips = uint24(bound(_positionMrrPips, 1_000_001, type(uint24).max));
-        vm.expectRevert(InvalidPositionMrrPips.selector);
-        riskConfigs.setPositionMrrPips(positionMrrPips);
+    function test_setProtocolFeePips(uint256 _protocolFeePips) public {
+        uint256 protocolFeePips = bound(_protocolFeePips, 0, 62500);
+        riskConfigs.setProtocolFeePips(protocolFeePips);
+
+        assertEq(riskConfigs.loadProtocolFeePips(), protocolFeePips);
     }
 
-    // function test_setProtocolFeePips() public {
-    //     // uint24 _protocolFeePips = 12947;
-    //     riskConfigs.setPositionMrrPips(1_000_000);
-    //     riskConfigs.setProtocolFeePips(129472);
+    function test_setMinMargin(uint256 _minMargin) public {
+        riskConfigs.setMinMargin(_minMargin);
+        assertEq(riskConfigs.loadMinMargin(), _minMargin);
+    }
 
-    //     assertEq(riskConfigs.loadProtocolFeePips(), 129472);
-    // }
-    function test_setProtocolFeeWithPips(
-        address[] calldata protocolFeeRecipients,
-        uint24[] calldata protocolFeePips,
-        uint24[] calldata positionMrrPips
-    ) public {
-        vm.assume(protocolFeeRecipients.length > 1);
-        vm.assume(protocolFeePips.length > 1);
-        vm.assume(positionMrrPips.length > 1);
-
-        for (uint256 i = 0; i < protocolFeeRecipients.length; i++) {
-            riskConfigs.setProtocolFeeRecipient(protocolFeeRecipients[i]);
-            assertEq(riskConfigs.loadProtocolFeeRecipient(), protocolFeeRecipients[i]);
-        }
-
-        for (uint256 i = 0; i < protocolFeePips.length; i++) {
-            if (protocolFeePips[i] < 1_000_001) {
-                riskConfigs.setProtocolFeePips(protocolFeePips[i]);
-                assertEq(riskConfigs.loadProtocolFeePips(), protocolFeePips[i]);
-            }
-        }
-
-        for (uint256 i = 0; i < positionMrrPips.length; i++) {
-            if (positionMrrPips[i] < 1_000_001) {
-                riskConfigs.setPositionMrrPips(positionMrrPips[i]);
-                assertEq(riskConfigs.loadPositionMrrPips(), positionMrrPips[i]);
-            }
-        }
+    function test_setDebtLimit(uint256 _debtLimit) public {
+        riskConfigs.setDebtLimit(_debtLimit);
+        assertEq(riskConfigs.loadDebtLimit(), _debtLimit);
     }
 }
