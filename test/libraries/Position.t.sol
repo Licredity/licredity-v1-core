@@ -7,8 +7,13 @@ import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {PositionDB} from "test/utils/PositionFuzzDB.sol";
 
+import {console} from "@forge-std/console.sol";
+
 contract PositionTest is Test {
     Position public position;
+
+    error FungibleLimitReached();
+    error NonFungibleLimitReached();
 
     function test_setOwner(address[] calldata owners) public {
         vm.assume(owners.length > 0);
@@ -25,6 +30,15 @@ contract PositionTest is Test {
         assertEq(Fungible.unwrap(position.fungibles[0]), Fungible.unwrap(fungible));
         assertEq(position.fungibleStates[fungible].index(), 1);
         assertEq(position.fungibleStates[fungible].balance(), amount);
+    }
+
+    function test_addFungible_dup(Fungible fungible) public {
+        position.addFungible(fungible, 1 ether);
+        position.addFungible(fungible, 1.5 ether);
+
+        assertEq(position.fungibles.length, 1);
+        assertEq(position.fungibleStates[fungible].index(), 1);
+        assertEq(position.fungibleStates[fungible].balance(), 2.5 ether);
     }
 
     function initFungibles(Fungible[] calldata fungibles, uint128[] calldata amounts, PositionDB db)
@@ -58,6 +72,7 @@ contract PositionTest is Test {
     {
         vm.assume(fungibles.length <= amounts.length);
         vm.assume(fungibles.length > 0);
+        vm.assume(fungibles.length <= 128);
 
         assertTrue(position.isEmpty());
         uint256 boundIndex = bound(index, 0, fungibles.length - 1);
@@ -71,12 +86,49 @@ contract PositionTest is Test {
         uint256 beforeSelectedFungibleBalance = position.fungibleStates[selectedFungible].balance();
         if (beforeSelectedFungibleBalance + uint256(amount) <= type(uint128).max) {
             position.addFungible(selectedFungible, amount);
-
             assertEq(position.fungibles.length, fungibleLength);
             assertEq(position.fungibleStates[selectedFungible].balance(), db.fungibleBalance(selectedFungible) + amount);
         }
 
         assertFalse(position.isEmpty());
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
+    function test_addFungible_overLimit(Fungible[] calldata fungibles, uint128[] calldata amounts) public {
+        vm.assume(fungibles.length <= amounts.length);
+        vm.assume(fungibles.length > 0);
+
+        PositionDB db = new PositionDB();
+        uint256 fungibleLength = 0;
+
+        for (uint256 i = 0; i < fungibles.length; i++) {
+            Fungible fungible = fungibles[i];
+            uint160 addAmount = amounts[i];
+
+            uint256 beforeAmount = position.fungibleStates[fungible].balance();
+
+            if (beforeAmount + addAmount <= type(uint128).max) {
+                if (fungibleLength < 128) {
+                    position.addFungible(fungible, addAmount);
+                    db.addFungibleBalance(fungible, addAmount);
+
+                    if (!db.isUsedFungible(fungible)) {
+                        fungibleLength = fungibleLength + 1;
+                        // console.log("fungibleLength: ", fungibleLength);
+                        db.addUsedFungible(fungible);
+
+                        assertEq(position.fungibles.length, fungibleLength);
+                        assertEq(position.fungibleStates[fungible].balance(), addAmount);
+                    }
+                } else {
+                    if (!db.isUsedFungible(fungible)) {
+                        vm.expectRevert(FungibleLimitReached.selector);
+                        position.addFungible(fungible, addAmount);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
@@ -95,6 +147,8 @@ contract PositionTest is Test {
     ) public {
         vm.assume(fungibles.length <= amounts.length);
         vm.assume(fungibles.length > 0);
+        vm.assume(fungibles.length <= 128);
+
         uint256 boundIndex = bound(index, 0, fungibles.length - 1);
 
         PositionDB db = new PositionDB();
@@ -123,66 +177,79 @@ contract PositionTest is Test {
         assertTrue(position.isEmpty());
     }
 
-    // function test_addNonFungible(NonFungible[] memory nonFungibles) public {
-    //     for (uint256 i = 0; i < nonFungibles.length; i++) {
-    //         position.addNonFungible(nonFungibles[i]);
-    //     }
+    /// forge-config: default.allow_internal_expect_revert = true
+    function test_addNonFungible(NonFungible[] memory nonFungibles) public {
+        vm.assume(nonFungibles.length > 0);
 
-    //     assertEq(position.nonFungibles.length, nonFungibles.length);
+        if (nonFungibles.length >= 128) {
+            for (uint256 i = 0; i < 128; i++) {
+                position.addNonFungible(nonFungibles[i]);
+            }
+            // console.log("Larger 0");
+            vm.expectRevert(NonFungibleLimitReached.selector);
+            position.addNonFungible(nonFungibles[127]);
+            // console.log("Larger 1");
+        } else {
+            for (uint256 i = 0; i < nonFungibles.length; i++) {
+                position.addNonFungible(nonFungibles[i]);
+            }
 
-    //     for (uint256 i = 0; i < nonFungibles.length; i++) {
-    //         assertEq(NonFungible.unwrap(position.nonFungibles[i]), NonFungible.unwrap(nonFungibles[i]));
-    //     }
-    // }
+            assertEq(position.nonFungibles.length, nonFungibles.length);
 
-    //     function test_removeNullNonFungible() public {
-    //         bool isRemoved = position.removeNonFungible(NonFungible.wrap(0));
-    //         assertFalse(isRemoved);
-    //         assertEq(position.nonFungibles.length, 0);
-    //     }
+            for (uint256 i = 0; i < nonFungibles.length; i++) {
+                assertEq(NonFungible.unwrap(position.nonFungibles[i]), NonFungible.unwrap(nonFungibles[i]));
+            }
+        }
+    }
 
-    //     function test_removeNonFungible(NonFungible[] memory nonFungibles, uint16 index) public {
-    //         vm.assume(nonFungibles.length > 0);
+    function test_removeNullNonFungible() public {
+        bool isRemoved = position.removeNonFungible(NonFungible.wrap(0));
+        assertFalse(isRemoved);
+        assertEq(position.nonFungibles.length, 0);
+    }
 
-    //         PositionDB db = new PositionDB();
-    //         uint256 nonFungibleLength;
+    function test_removeNonFungible(NonFungible[] memory nonFungibles, uint16 index) public {
+        vm.assume(nonFungibles.length > 0);
+        vm.assume(nonFungibles.length < 128);
+        PositionDB db = new PositionDB();
+        uint256 nonFungibleLength;
 
-    //         for (uint256 i = 0; i < nonFungibles.length; i++) {
-    //             NonFungible nonFungible = nonFungibles[i];
-    //             if (!db.isUsedNonFungible(nonFungible)) {
-    //                 position.addNonFungible(nonFungible);
-    //                 db.addUsedNonFungible(nonFungible);
-    //                 nonFungibleLength += 1;
-    //             }
-    //         }
+        for (uint256 i = 0; i < nonFungibles.length; i++) {
+            NonFungible nonFungible = nonFungibles[i];
+            if (!db.isUsedNonFungible(nonFungible)) {
+                position.addNonFungible(nonFungible);
+                db.addUsedNonFungible(nonFungible);
+                nonFungibleLength += 1;
+            }
+        }
 
-    //         assertEq(position.nonFungibles.length, nonFungibleLength);
-    //         // assertGe(position.nonFungibles.length, deleteIndex);
-    //         uint256 deleteIndex = bound(index, 0, nonFungibleLength - 1);
-    //         NonFungible selectNonFungible = position.nonFungibles[deleteIndex];
+        assertEq(position.nonFungibles.length, nonFungibleLength);
+        // assertGe(position.nonFungibles.length, deleteIndex);
+        uint256 deleteIndex = bound(index, 0, nonFungibleLength - 1);
+        NonFungible selectNonFungible = position.nonFungibles[deleteIndex];
 
-    //         bool isRemoved = position.removeNonFungible(selectNonFungible);
-    //         assertTrue(isRemoved);
-    //         assertEq(position.nonFungibles.length, nonFungibleLength - 1);
+        bool isRemoved = position.removeNonFungible(selectNonFungible);
+        assertTrue(isRemoved);
+        assertEq(position.nonFungibles.length, nonFungibleLength - 1);
 
-    //         if (deleteIndex != nonFungibleLength - 1) {
-    //             assertEq(
-    //                 NonFungible.unwrap(position.nonFungibles[deleteIndex]),
-    //                 NonFungible.unwrap(db.usedNonFungibles(nonFungibleLength - 1))
-    //             );
-    //         }
+        if (deleteIndex != nonFungibleLength - 1) {
+            assertEq(
+                NonFungible.unwrap(position.nonFungibles[deleteIndex]),
+                NonFungible.unwrap(db.usedNonFungibles(nonFungibleLength - 1))
+            );
+        }
 
-    //         for (uint256 i = 0; i < nonFungibleLength - 1; i++) {
-    //             if (i != deleteIndex) {
-    //                 assertEq(NonFungible.unwrap(position.nonFungibles[i]), NonFungible.unwrap(db.usedNonFungibles(i)));
-    //             }
-    //         }
-    //     }
+        for (uint256 i = 0; i < nonFungibleLength - 1; i++) {
+            if (i != deleteIndex) {
+                assertEq(NonFungible.unwrap(position.nonFungibles[i]), NonFungible.unwrap(db.usedNonFungibles(i)));
+            }
+        }
+    }
 
-    //     function test_addRemoveDebtShare(uint256 addShare, uint256 removeShare) public {
-    //         vm.assume(addShare >= removeShare);
-    //         position.addDebtShare(addShare);
-    //         position.removeDebtShare(removeShare);
-    //         assertEq(position.debtShare, addShare - removeShare);
-    //     }
+    function test_addRemoveDebtShare(uint256 addShare, uint256 removeShare) public {
+        vm.assume(addShare >= removeShare);
+        position.increaseDebtShare(addShare);
+        position.decreaseDebtShare(removeShare);
+        assertEq(position.debtShare, addShare - removeShare);
+    }
 }
