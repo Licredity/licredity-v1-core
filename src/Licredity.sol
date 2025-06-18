@@ -219,7 +219,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         // emit DepositFungible(positionId, fungible, amount);
         assembly ("memory-safe") {
             mstore(0x00, amount)
-            log3(0x00, 0x20, 0x0e02681f4373fa55c60df5d9889b62e8adfe3253bc50a7dd512607e6327e90c6, positionId, fungible)
+            log3(0x00, 0x20, 0x035870714bdad9af06468d642c6278777f9a7342ca6c1855dd76f1795f2e495c, positionId, fungible)
         }
     }
 
@@ -359,7 +359,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
         amount = delta.fullMulDiv(_totalDebtBalance, _totalDebtShare);
 
         assembly ("memory-safe") {
-            if gt(add(_totalDebtShare, delta), sload(debtLimit.slot)) {
+            if gt(add(_totalDebtBalance, amount), sload(debtLimit.slot)) {
                 mstore(0x00, 0xc3212f5c) // 'DebtLimitExceeded()'
                 revert(0x1c, 0x04)
             }
@@ -382,7 +382,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseHooks, DebtToken, Ex
                 log3(
                     0x00,
                     0x20,
-                    0x0e02681f4373fa55c60df5d9889b62e8adfe3253bc50a7dd512607e6327e90c6,
+                    0x035870714bdad9af06468d642c6278777f9a7342ca6c1855dd76f1795f2e495c,
                     positionId,
                     address()
                 )

@@ -1,45 +1,71 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.20;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.20;
 
-// import {IUnlockCallback} from "src/interfaces/IUnlockCallback.sol";
-// import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {IUnlockCallback} from "src/interfaces/IUnlockCallback.sol";
+import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {Fungible} from "src/types/Fungible.sol";
+import {NonFungible} from "src/types/NonFungible.sol";
 
-// enum Actions {
-//     ADD_DEBT
-// }
+enum Actions {
+    ADD_DEBT,
+    WITHDRAW_FUNGIBLE,
+    WITHDRAW_NON_FUNGIBLE
+}
 
-// contract LicredityRouter is IUnlockCallback {
-//     ILicredity public licredity;
+contract LicredityRouter is IUnlockCallback {
+    ILicredity public licredity;
 
-//     mapping(uint256 => address) public owners;
+    mapping(uint256 => address) public owners;
 
-//     constructor(ILicredity _licredity) {
-//         licredity = _licredity;
-//     }
+    constructor(ILicredity _licredity) {
+        licredity = _licredity;
+    }
 
-//     function open() external returns (uint256 positionId) {
-//         positionId = licredity.open();
-//     }
+    function open() external returns (uint256 positionId) {
+        positionId = licredity.open();
+    }
 
-//     function executeActions(Actions[] memory actions, bytes[] memory params) external payable {
-//         licredity.unlock(abi.encode(actions, params));
-//     }
+    function close(uint256 positionId) external {
+        licredity.close(positionId);
+    }
 
-//     function unlockCallback(bytes calldata data) external returns (bytes memory) {
-//         (Actions[] memory actions, bytes[] memory params) = abi.decode(data, (Actions[], bytes[]));
-//         for (uint256 i = 0; i < actions.length; i++) {
-//             Actions action = actions[i];
-//             bytes memory param = params[i];
+    function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance) external {
+        licredity.decreaseDebtShare(positionId, delta, useBalance);
+    }
+    
+    function executeActions(Actions[] memory actions, bytes[] memory params) external payable {
+        licredity.unlock(abi.encode(actions, params));
+    }
 
-//             if (action == Actions.ADD_DEBT) {
-//                 _addDebt(param);
-//             }
-//         }
-//         return "";
-//     }
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        (Actions[] memory actions, bytes[] memory params) = abi.decode(data, (Actions[], bytes[]));
+        for (uint256 i = 0; i < actions.length; i++) {
+            Actions action = actions[i];
+            bytes memory param = params[i];
 
-//     function _addDebt(bytes memory param) internal {
-//         (uint256 positionId, uint256 share, address recipient) = abi.decode(param, (uint256, uint256, address));
-//         licredity.addDebt(positionId, share, recipient);
-//     }
-// }
+            if (action == Actions.ADD_DEBT) {
+                _addDebt(param);
+            } else if (action == Actions.WITHDRAW_FUNGIBLE) {
+                _withdrawFungible(param);
+            } else if (action == Actions.WITHDRAW_NON_FUNGIBLE) {
+                _withdrawNonFungible(param);
+            }
+        }
+        return "";
+    }
+
+    function _addDebt(bytes memory param) internal {
+        (uint256 positionId, uint256 delta, address recipient) = abi.decode(param, (uint256, uint256, address));
+        licredity.increaseDebtShare(positionId, delta, recipient);
+    }
+
+    function _withdrawFungible(bytes memory param) internal {
+        (uint256 positionId, address recipient, address fungible, uint256 amount) = abi.decode(param, (uint256, address, address, uint256));
+        licredity.withdrawFungible(positionId, recipient, Fungible.wrap(fungible), amount);
+    }
+
+    function _withdrawNonFungible(bytes memory param) internal {
+        (uint256 positionId, address recipient, bytes32 nonFungible) = abi.decode(param, (uint256, address, bytes32));
+        licredity.withdrawNonFungible(positionId, recipient, NonFungible.wrap(nonFungible));
+    }
+}

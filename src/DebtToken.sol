@@ -91,7 +91,7 @@ abstract contract DebtToken is IERC20 {
                 }
 
                 // update allowance if not infinite
-                if iszero(eq(_allowance, sub(0, 1))) { mstore(allowanceSlot, sub(_allowance, amount)) }
+                if iszero(eq(_allowance, sub(0, 1))) { sstore(allowanceSlot, sub(_allowance, amount)) }
             }
         }
 
@@ -148,7 +148,7 @@ abstract contract DebtToken is IERC20 {
             // burn
             if iszero(to) {
                 // underflow not possible
-                mstore(totalSupply.slot, sub(sload(totalSupply.slot), amount))
+                sstore(totalSupply.slot, sub(sload(totalSupply.slot), amount))
             }
 
             // transfer
@@ -159,7 +159,7 @@ abstract contract DebtToken is IERC20 {
                 let balanceSlot := add(keccak256(0x00, 0x40), BALANCE_OFFSET)
 
                 // overflow not possible
-                mstore(balanceSlot, add(sload(balanceSlot), amount))
+                sstore(balanceSlot, add(sload(balanceSlot), amount))
             }
 
             // emit Transfer(from, to, amount);

@@ -3,10 +3,11 @@ pragma solidity >=0.8.0;
 
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
+import {IExtsload} from "../interfaces/IExtsload.sol";
 
 /// @title ILicredity
 /// @notice Interface for the Licredity contract
-interface ILicredity {
+interface ILicredity is IExtsload {
     /// @notice Unlocks the Licredity contract
     /// @param data The data to be passed to the unlock callback
     /// @return result The result returned from the unlock callback
