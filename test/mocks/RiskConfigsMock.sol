@@ -22,11 +22,15 @@ contract RiskConfigsMock is RiskConfigs {
         return protocolFeeRecipient;
     }
 
-    function loadProtocolFeePips() external view returns (uint24) {
+    function loadProtocolFeePips() external view returns (uint256) {
         return protocolFeePips;
     }
 
-    function loadPositionMrrPips() external view returns (uint24) {
-        return positionMrrPips;
+    function loadDebtLimit() external view returns (uint256) {
+        return debtLimit;
+    }
+
+    function loadMinMargin() external view returns (uint256) {
+        return minMargin;
     }
 }
