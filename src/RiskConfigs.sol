@@ -38,7 +38,6 @@ abstract contract RiskConfigs {
     /// @param _nextGovernor The next governor
     function appointNextGovernor(address _nextGovernor) external onlyGovernor {
         assembly ("memory-safe") {
-            // nextGovernor = _nextGovernor;
             sstore(nextGovernor.slot, and(_nextGovernor, 0xffffffffffffffffffffffffffffffffffffffff))
         }
     }
