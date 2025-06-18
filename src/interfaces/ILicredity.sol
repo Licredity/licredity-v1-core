@@ -3,10 +3,99 @@ pragma solidity >=0.8.0;
 
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
+import {IExtsload} from "../interfaces/IExtsload.sol";
 
 /// @title ILicredity
 /// @notice Interface for the Licredity contract
-interface ILicredity {
+interface ILicredity is IExtsload {
+    //////////////////////////////
+    //        Errors            //
+    //////////////////////////////
+
+    error PositionDoesNotExist();
+    error NotPositionOwner();
+    error PositionIsUnhealthy();
+    error PositionIsHealthy();
+    error PositionNotEmpty();
+    error NonFungibleAlreadyOwned();
+    error NonFungibleNotOwned();
+    error NonFungibleNotInPosition();
+    error MaxFungiblesExceeded();
+    error MaxNonFungiblesExceeded();
+    error NotDebtFungible();
+    error NotAmountOutstanding();
+    error NonZeroNativeValue();
+    error DebtLimitExceeded();
+
+    //////////////////////////////
+    //        Events            //
+    //////////////////////////////
+
+    /// @notice Emitted when a position has been opened
+    /// @param positionId The ID of the position
+    /// @param owner The owner of the position
+    event OpenPosition(uint256 indexed positionId, address indexed owner);
+
+    /// @notice Emitted when a position has been closed
+    /// @param positionId The ID of the position
+    event ClosePosition(uint256 indexed positionId);
+
+    /// @notice Emitted when a debt-for-base exchange has occurred
+    /// @param recipient The recipient of the base fungible
+    /// @param debtAmountIn The amount of debt fungible exchanged
+    /// @param baseAmountOut The amount of base fungible received
+    event Exchange(address indexed recipient, uint256 debtAmountIn, uint256 baseAmountOut);
+
+    /// @notice Emitted when a fungible has been deposited into a position
+    /// @param positionId The ID of the position
+    /// @param fungible The fungible deposited
+    /// @param amount The amount of fungible deposited
+    event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
+
+    /// @notice Emitted when a fungible has been withdrawn from a position
+    /// @param positionId The ID of the position
+    /// @param recipient The recipient of the withdrawal
+    /// @param fungible The fungible withdrawn
+    /// @param amount The amount of fungible withdrawn
+    event WithdrawFungible(
+        uint256 indexed positionId, address indexed recipient, Fungible indexed fungible, uint256 amount
+    );
+
+    /// @notice Emitted when a non-fungible has been deposited into a position
+    /// @param positionId The ID of the position
+    /// @param nonFungible The non-fungible deposited
+    event DepositNonFungible(uint256 indexed positionId, NonFungible indexed nonFungible);
+
+    /// @notice Emitted when a non-fungible has been withdrawn from a position
+    /// @param positionId The ID of the position
+    /// @param recipient The recipient of the withdrawal
+    /// @param nonFungible The non-fungible withdrawn
+    event WithdrawNonFungible(uint256 indexed positionId, address indexed recipient, NonFungible indexed nonFungible);
+
+    /// @notice Emitted when the debt share in a position has been increased
+    /// @param positionId The ID of the position
+    /// @param recipient The recipient of the debt fungible
+    /// @param delta The delta of debt shares increased by
+    /// @param amount The amount of debt fungible received
+    event IncreaseDebtShare(uint256 indexed positionId, address indexed recipient, uint256 delta, uint256 amount);
+
+    /// @notice Emitted when the debt share in a position has been decreased
+    /// @param positionId The ID of the position
+    /// @param delta The delta of debt shares decreased by
+    /// @param amount The amount of debt fungible given back
+    /// @param useBalance Whether to use the balance of debt fungible in the position
+    event DecreaseDebtShare(uint256 indexed positionId, uint256 delta, uint256 amount, bool useBalance);
+
+    /// @notice Emitted when a position has been seized
+    /// @param positionId The ID of the position
+    /// @param recipient The recipient of the position
+    /// @param shortfall The amount of debt fungible needed to bring the position back to health
+    event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 shortfall);
+
+    //////////////////////////////
+    //        Functions         //
+    //////////////////////////////
+
     /// @notice Unlocks the Licredity contract
     /// @param data The data to be passed to the unlock callback
     /// @return result The result returned from the unlock callback
@@ -71,6 +160,6 @@ interface ILicredity {
     /// @notice Seizes an unhealthy position
     /// @param positionId The ID of the position to seize
     /// @param recipient The recipient of the seized position
-    /// @return shortfall The amount of debt fungible required to make the position healthy
+    /// @return shortfall The amount of debt fungible needed to bring the position back to health
     function seize(uint256 positionId, address recipient) external returns (uint256 shortfall);
 }

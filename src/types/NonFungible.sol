@@ -5,7 +5,7 @@ import {IERC721} from "@forge-std/interfaces/IERC721.sol";
 
 /// @title NonFungible
 /// @notice Represents a non-fungible
-/// @dev 160 bits token address | 32 bits empty | 64 bits token id
+/// @dev 160 bits token | 32 bits empty | 64 bits ID
 type NonFungible is bytes32;
 
 using NonFungibleLibrary for NonFungible global;
@@ -13,8 +13,6 @@ using NonFungibleLibrary for NonFungible global;
 /// @title NonFungibleLibrary
 /// @notice Library for managing non-fungibles
 library NonFungibleLibrary {
-    uint256 private constant MASK_64_BITS = 0xffffffffffffffff;
-
     /// @notice Transfers a non-fungible to recipient
     /// @param self The non-fungible to transfer
     /// @param recipient The recipient of the transfer
@@ -24,7 +22,7 @@ library NonFungibleLibrary {
 
     /// @notice Gets the owner of a non-fungible
     /// @param self The non-fungible to get the owner of
-    /// @return The owner of the non-fungible
+    /// @return address The owner of the non-fungible
     function owner(NonFungible self) internal view returns (address) {
         return IERC721(self.token()).ownerOf(self.id());
     }
@@ -43,7 +41,7 @@ library NonFungibleLibrary {
     /// @return _id The ID of the non-fungible
     function id(NonFungible self) internal pure returns (uint256 _id) {
         assembly ("memory-safe") {
-            _id := and(self, MASK_64_BITS)
+            _id := and(self, 0xffffffffffffffff)
         }
     }
 }
