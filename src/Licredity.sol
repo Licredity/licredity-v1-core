@@ -732,14 +732,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     function _disburseInterest(bool accrueOnly) internal {
-        uint256 elapsed;
-        assembly ("memory-safe") {
-            // uint256 elapsed = block.timestamp - lastInterestDisbursementTimestamp;
-            elapsed := sub(timestamp(), sload(lastInterestDisbursementTimestamp.slot))
-
-            // if (elapsed == 0) return;
-            if iszero(elapsed) { return(0x00, 0x00) }
-        }
+        uint256 elapsed = block.timestamp - lastInterestDisbursementTimestamp;
+        if (elapsed == 0) return;
 
         uint256 _totalDebtBalance = totalDebtBalance; // gas saving
         InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
