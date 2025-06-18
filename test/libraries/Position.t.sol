@@ -72,7 +72,6 @@ contract PositionTest is Test {
     {
         vm.assume(fungibles.length <= amounts.length);
         vm.assume(fungibles.length > 0);
-        vm.assume(fungibles.length <= 128);
 
         assertTrue(position.isEmpty());
         uint256 boundIndex = bound(index, 0, fungibles.length - 1);
@@ -108,24 +107,16 @@ contract PositionTest is Test {
             uint256 beforeAmount = position.fungibleStates[fungible].balance();
 
             if (beforeAmount + addAmount <= type(uint128).max) {
-                if (fungibleLength < 128) {
-                    position.addFungible(fungible, addAmount);
-                    db.addFungibleBalance(fungible, addAmount);
+                position.addFungible(fungible, addAmount);
+                db.addFungibleBalance(fungible, addAmount);
 
-                    if (!db.isUsedFungible(fungible)) {
-                        fungibleLength = fungibleLength + 1;
-                        // console.log("fungibleLength: ", fungibleLength);
-                        db.addUsedFungible(fungible);
+                if (!db.isUsedFungible(fungible)) {
+                    fungibleLength = fungibleLength + 1;
+                    // console.log("fungibleLength: ", fungibleLength);
+                    db.addUsedFungible(fungible);
 
-                        assertEq(position.fungibles.length, fungibleLength);
-                        assertEq(position.fungibleStates[fungible].balance(), addAmount);
-                    }
-                } else {
-                    if (!db.isUsedFungible(fungible)) {
-                        vm.expectRevert(FungibleLimitReached.selector);
-                        position.addFungible(fungible, addAmount);
-                        break;
-                    }
+                    assertEq(position.fungibles.length, fungibleLength);
+                    assertEq(position.fungibleStates[fungible].balance(), addAmount);
                 }
             }
         }
@@ -147,7 +138,6 @@ contract PositionTest is Test {
     ) public {
         vm.assume(fungibles.length <= amounts.length);
         vm.assume(fungibles.length > 0);
-        vm.assume(fungibles.length <= 128);
 
         uint256 boundIndex = bound(index, 0, fungibles.length - 1);
 
@@ -181,24 +171,14 @@ contract PositionTest is Test {
     function test_addNonFungible(NonFungible[] memory nonFungibles) public {
         vm.assume(nonFungibles.length > 0);
 
-        if (nonFungibles.length >= 128) {
-            for (uint256 i = 0; i < 128; i++) {
-                position.addNonFungible(nonFungibles[i]);
-            }
-            // console.log("Larger 0");
-            vm.expectRevert(NonFungibleLimitReached.selector);
-            position.addNonFungible(nonFungibles[127]);
-            // console.log("Larger 1");
-        } else {
-            for (uint256 i = 0; i < nonFungibles.length; i++) {
-                position.addNonFungible(nonFungibles[i]);
-            }
+        for (uint256 i = 0; i < nonFungibles.length; i++) {
+            position.addNonFungible(nonFungibles[i]);
+        }
 
-            assertEq(position.nonFungibles.length, nonFungibles.length);
+        assertEq(position.nonFungibles.length, nonFungibles.length);
 
-            for (uint256 i = 0; i < nonFungibles.length; i++) {
-                assertEq(NonFungible.unwrap(position.nonFungibles[i]), NonFungible.unwrap(nonFungibles[i]));
-            }
+        for (uint256 i = 0; i < nonFungibles.length; i++) {
+            assertEq(NonFungible.unwrap(position.nonFungibles[i]), NonFungible.unwrap(nonFungibles[i]));
         }
     }
 
@@ -210,7 +190,6 @@ contract PositionTest is Test {
 
     function test_removeNonFungible(NonFungible[] memory nonFungibles, uint16 index) public {
         vm.assume(nonFungibles.length > 0);
-        vm.assume(nonFungibles.length < 128);
         PositionDB db = new PositionDB();
         uint256 nonFungibleLength;
 
