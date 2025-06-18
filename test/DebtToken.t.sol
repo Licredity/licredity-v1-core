@@ -7,6 +7,8 @@ import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
 contract DebtTokenMockTest is Test {
     DebtTokenMock public token;
 
+    error InsufficientAllowance();
+
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
@@ -98,6 +100,7 @@ contract DebtTokenMockTest is Test {
         vm.assume(from != address(0));
         vm.assume(to != address(0));
         vm.assume(spender != address(0));
+        vm.assume(spender != from);
 
         vm.assume(mintAmount >= amount);
         vm.assume(approveAmount >= amount);
@@ -122,5 +125,25 @@ contract DebtTokenMockTest is Test {
         } else {
             assertEq(token.allowance(from, spender), type(uint256).max);
         }
+    }
+
+    function test_transferFrom_InsufficientAllowance(address from, address to, address spender, uint256 amount)
+        public
+    {
+        vm.assume(from != address(0));
+        vm.assume(to != address(0));
+        vm.assume(spender != address(0));
+        vm.assume(spender != from);
+        vm.assume(amount < type(uint256).max - 1);
+
+        uint256 transferAmount = bound(amount, amount + 1, type(uint256).max);
+
+        token.mint(from, transferAmount);
+        vm.prank(from);
+        token.approve(spender, amount);
+
+        vm.prank(spender);
+        vm.expectRevert(InsufficientAllowance.selector);
+        token.transferFrom(from, to, transferAmount);
     }
 }
