@@ -150,7 +150,7 @@ contract LicredityUnlockPositionTest is Deployers {
 
     function test_decreaseDebtShare_notExistPosition() public {
         vm.expectRevert(PositionDoesNotExist.selector);
-        licredity.decreaseDebtShare(1, 0, true);
+        licredity.decreaseDebtShare(1, 0, false);
     }
 
     function test_decreaseDebtShare_useBalance_NotPositionOwner() public {
