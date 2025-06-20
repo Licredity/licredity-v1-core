@@ -23,7 +23,7 @@ contract LicreditySeizeTest is Deployers {
         uint256 debt,
         uint256 marginRequirement,
         uint256 topup
-    );    
+    );
     event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
 
     BaseERC20Mock public token;

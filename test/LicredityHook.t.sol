@@ -55,7 +55,7 @@ contract LicredityHookTest is Deployers {
             IPoolManager.ModifyLiquidityParams({tickLower: -2, tickUpper: 2, liquidityDelta: 10001 ether, salt: ""})
         );
 
-        uniswapV4RouterHelper.swap(
+        uniswapV4RouterHelper.zeroForOneSwap(
             user,
             poolKey,
             IPoolManager.SwapParams({
@@ -80,7 +80,7 @@ contract LicredityHookTest is Deployers {
 
         int256 amountSpecified = -int256(uint256(bound(uint256(swapAmount), 1, 1.0002 ether)));
         uint256 hookEtherBefore = address(licredity).balance;
-        uniswapV4RouterHelper.swap(
+        uniswapV4RouterHelper.zeroForOneSwap(
             user,
             poolKey,
             IPoolManager.SwapParams({
@@ -149,17 +149,69 @@ contract LicredityHookTest is Deployers {
         assertEq(debtAmountOutstanding, 0);
     }
 
-    // function test_beforeAddLiquidity() public {
-    //     // Add debt
-    //     getDebtERC20(address(this), 1.1 ether);
-    //     skip(1000);
+    function test_beforeAddLiquidity() public {
+        // Add debt
+        vm.deal(address(uniswapV4Router), 2.1 ether);
+        getDebtERC20(address(this), 1.1 ether);
+        IERC20(address(licredity)).approve(address(uniswapV4Router), 1.1 ether);
+        
+        skip(1000);
 
-    //     vm.expectEmit(true, true, false, false);
-    //     emit Transfer(address(0), address(UNISWAP_V4), 0);
-    //     uniswapV4RouterHelper.addLiquidity(
-    //         address(this),
-    //         poolKey,
-    //         IPoolManager.ModifyLiquidityParams({tickLower: -2, tickUpper: 2, liquidityDelta: 10001 ether, salt: ""})
-    //     );
-    // }
+        uniswapV4RouterHelper.addLiquidity(
+            address(this),
+            poolKey,
+            IPoolManager.ModifyLiquidityParams({tickLower: -2, tickUpper: 2, liquidityDelta: 10001 ether, salt: ""})
+        );
+    }
+
+    function test_beforeAddLiquidity_mintInterest() public {
+        // Add debt
+        vm.deal(address(uniswapV4Router), 2.1 ether);
+        getDebtERC20(address(this), 2.1 ether);
+        IERC20(address(licredity)).approve(address(uniswapV4Router), 2.1 ether);
+
+        uniswapV4RouterHelper.addLiquidity(
+            address(this),
+            poolKey,
+            IPoolManager.ModifyLiquidityParams({tickLower: -2, tickUpper: 2, liquidityDelta: 10001 ether, salt: ""})
+        );
+
+        oracleMock.setQuotePrice(1.01 ether);
+
+        skip(1000);
+
+        vm.expectEmit(true, true, false, false, address(licredity));
+        emit Transfer(address(0), UNISWAP_V4, 0);
+        uniswapV4RouterHelper.addLiquidity(
+            address(this),
+            poolKey,
+            IPoolManager.ModifyLiquidityParams({tickLower: -1, tickUpper: 1, liquidityDelta: 100 ether, salt: ""})
+        );
+    }
+
+    function test_removeLiquidity() public {
+        // Add debt
+        vm.deal(address(uniswapV4Router), 2.1 ether);
+        getDebtERC20(address(this), 2.1 ether);
+        IERC20(address(licredity)).approve(address(uniswapV4Router), 2.1 ether);
+
+        uniswapV4RouterHelper.addLiquidity(
+            address(this),
+            poolKey,
+            IPoolManager.ModifyLiquidityParams({tickLower: -2, tickUpper: 2, liquidityDelta: 10001 ether, salt: ""})
+        );
+
+        oracleMock.setQuotePrice(1.01 ether);
+
+        skip(1000);
+        vm.expectEmit(true, true, false, false, address(licredity));
+        emit Transfer(address(0), UNISWAP_V4, 0);
+
+        uniswapV4RouterHelper.removeLiquidity(
+            address(this),
+            poolKey,
+            IPoolManager.ModifyLiquidityParams({tickLower: -2, tickUpper: 2, liquidityDelta: -100 ether, salt: ""})
+        );
+    }
+    receive() external payable {}
 }
