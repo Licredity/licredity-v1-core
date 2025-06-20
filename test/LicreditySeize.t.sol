@@ -16,7 +16,14 @@ contract LicreditySeizeTest is Deployers {
     error PositionDoesNotExist();
     error PositionIsHealthy();
 
-    event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 shortfall);
+    event SeizePosition(
+        uint256 indexed positionId,
+        address indexed recipient,
+        uint256 value,
+        uint256 debt,
+        uint256 marginRequirement,
+        uint256 topup
+    );    
     event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
 
     BaseERC20Mock public token;
@@ -73,7 +80,7 @@ contract LicreditySeizeTest is Deployers {
         // params[1] = abi.encode(positionId, Fungible.wrap(address(token)), 20 ether);
 
         vm.expectEmit(true, true, false, true);
-        emit SeizePosition(positionId, address(licredityRouter), 0.045 ether);
+        emit SeizePosition(positionId, address(licredityRouter), 0.95 ether, 0.9 ether, 0.095 ether, 0);
 
         licredityRouter.executeActions{value: 0.2 ether}(actions, params);
     }
