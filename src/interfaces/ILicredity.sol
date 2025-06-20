@@ -89,8 +89,18 @@ interface ILicredity is IExtsload {
     /// @notice Emitted when a position has been seized
     /// @param positionId The ID of the position
     /// @param recipient The recipient of the position
-    /// @param shortfall The amount of debt fungible needed to bring the position back to health
-    event SeizePosition(uint256 indexed positionId, address indexed recipient, uint256 shortfall);
+    /// @param value The value of the position post-seizure
+    /// @param debt The debt of the position, post-seizure
+    /// @param marginRequirement The margin requirement of the position
+    /// @param topup The amount of debt fungible added to the position
+    event SeizePosition(
+        uint256 indexed positionId,
+        address indexed recipient,
+        uint256 value,
+        uint256 debt,
+        uint256 marginRequirement,
+        uint256 topup
+    );
 
     //////////////////////////////
     //        Functions         //
