@@ -28,8 +28,6 @@ contract LicredityUnlockPositionTest is Deployers {
     );
     event WithdrawNonFungible(uint256 indexed positionId, address indexed recipient, NonFungible indexed nonFungible);
 
-    address public user = address(0xE585379156909287F8aA034B2F4b1Cb88aa3d29D);
-
     function setUp() public {
         deployETHLicredityWithUniswapV4();
         deployNonFungibleMock();

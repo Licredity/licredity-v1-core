@@ -13,6 +13,8 @@ import {StateLibrary} from "./StateLibrary.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {LicredityRouter} from "./LicredityRouter.sol";
 import {LicredityRouterHelper} from "./LicredityRouterHelper.sol";
+import {V4MiniRouter} from "./UniswapV4MiniRouter.sol";
+import {V4RouterHelper} from "./UniswapV4MiniRouterHelper.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 
 contract Deployers is Test {
@@ -20,7 +22,8 @@ contract Deployers is Test {
     using StateLibrary for Licredity;
 
     IPoolManager public poolManager;
-    address constant UNISWAP_V4 = address(0x000000000004444c5dc75cB358380D2e3dE08A90);
+    address public constant UNISWAP_V4 = address(0x000000000004444c5dc75cB358380D2e3dE08A90);
+    address public constant user = address(0xE585379156909287F8aA034B2F4b1Cb88aa3d29D);
 
     Licredity public licredity;
     NonFungibleMock public nonFungibleMock;
@@ -28,6 +31,9 @@ contract Deployers is Test {
 
     LicredityRouter public licredityRouter;
     LicredityRouterHelper public licredityRouterHelper;
+
+    V4MiniRouter public uniswapV4Router;
+    V4RouterHelper public uniswapV4RouterHelper;
 
     function _newAsset(uint8 decimals) internal returns (BaseERC20Mock) {
         return new BaseERC20Mock("Token", "T", decimals);
@@ -41,7 +47,7 @@ contract Deployers is Test {
     function deployETHLicredityWithUniswapV4() public {
         deployPoolManager();
 
-        address mockLicredity = address(0xFb46d30c9B3ACc61d714D167179748FD01E09aC0);
+        address payable mockLicredity = payable(address(0xFb46d30c9B3ACc61d714D167179748FD01E09aC0));
 
         vm.label(mockLicredity, "Licredity");
         deployCodeTo(
@@ -55,6 +61,11 @@ contract Deployers is Test {
     function deployLicredityRouter() public {
         licredityRouter = new LicredityRouter(licredity);
         licredityRouterHelper = new LicredityRouterHelper(licredityRouter);
+    }
+
+    function deployUniswapV4Router() public {
+        uniswapV4Router = new V4MiniRouter(UNISWAP_V4);
+        uniswapV4RouterHelper = new V4RouterHelper(uniswapV4Router);
     }
 
     function deployNonFungibleMock() public {

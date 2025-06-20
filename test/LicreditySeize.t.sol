@@ -97,7 +97,7 @@ contract LicreditySeizeTest is Deployers {
         /// Set token price to 0.5 ether, value = 0.5 ether, debt = 0.9 ether
         oracleMock.setFungibleConfig(Fungible.wrap(address(token)), 0.5 ether, 100_000);
 
-        (,uint256 totalDebtBefore) = licredity.getTotalDebt();
+        (, uint256 totalDebtBefore) = licredity.getTotalDebt();
 
         Actions[] memory actions = new Actions[](2);
         bytes[] memory params = new bytes[](2);
@@ -107,13 +107,13 @@ contract LicreditySeizeTest is Deployers {
 
         actions[1] = Actions.DEPOSIT_FUNGIBLE;
         params[1] = abi.encode(positionId, Fungible.wrap(address(0)), 0.451 ether);
-        
+
         vm.expectEmit(true, true, false, true);
         emit DepositFungible(positionId, Fungible.wrap(address(licredity)), 0.8 ether);
 
         licredityRouter.executeActions{value: 0.451 ether}(actions, params);
 
-        (,uint256 totalDebtAfter) = licredity.getTotalDebt();
+        (, uint256 totalDebtAfter) = licredity.getTotalDebt();
 
         assertEq(totalDebtAfter - totalDebtBefore, 0.8 ether); // deficit = 0.4 ether * 2 = 0.8 ether
     }
