@@ -538,10 +538,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
         }
 
-        // if the position is underwater, top it up with 2x the deficit to encourage seizure
+        uint256 topup;
+        // if the position is underwater, top it up to encourage seizure
         // this represents a bad debt to the protocol, and is socialized among all debt holders
         if (value < debt) {
-            uint256 topup = _deficitToTopup(debt - value);
+            topup = _deficitToTopup(debt - value);
 
             _mint(address(this), topup);
             position.addFungible(Fungible.wrap(address(this)), topup);
@@ -578,16 +579,26 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         // calculate shortfall, the amount needed to bring the position back to health
         shortfall = value < debt + marginRequirement ? debt + marginRequirement - value : 0;
 
-        // emit SeizePosition(positionId, recipient, shortfall);
+        // emit SeizePosition(positionId, recipient, value, debt, marginRequirement, topup);
         assembly ("memory-safe") {
-            mstore(0x00, shortfall)
+            let fmp := mload(0x40)
+            mstore(fmp, value)
+            mstore(add(fmp, 0x20), debt)
+            mstore(add(fmp, 0x40), marginRequirement)
+            mstore(add(fmp, 0x60), topup)
+
             log3(
-                0x00,
-                0x20,
-                0xae2c51bfd88f5e1b54fd8b5ea1462bced8560c8023cb61996472ae22237ed1e2,
+                fmp,
+                0x80,
+                0xe4ead9e85a25cb8008cef34c4d0baa3da1bf7bdd99b1c8f40f9d2423969606a4,
                 positionId,
                 and(recipient, 0xffffffffffffffffffffffffffffffffffffffff)
             )
+
+            mstore(fmp, 0)
+            mstore(add(fmp, 0x20), 0)
+            mstore(add(fmp, 0x40), 0)
+            mstore(add(fmp, 0x60), 0)
         }
     }
 
@@ -669,9 +680,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             // mint non-interest-bearing debt fungible to revert the effect of the current swap
             // anyone can remove these additional fungible tokens by exchanging them for base fungible collected
             if (sqrtPriceX96 <= ONE_SQRT_PRICE_X96) {
-                // back run swap to revert the effect of the current swap
+                // back run swap to revert the effect of the current swap, using exactOut to account for fees
                 IPoolManager.SwapParams memory params =
-                    IPoolManager.SwapParams(false, -balanceDelta.amount1(), MAX_SQRT_PRICE_X96 - 1);
+                    IPoolManager.SwapParams(false, -balanceDelta.amount0(), MAX_SQRT_PRICE_X96 - 1);
                 balanceDelta = poolManager.swap(poolKey, params, "");
 
                 // store amounts eligible for exchange
@@ -776,6 +787,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     function _deficitToTopup(uint256 deficit) internal pure returns (uint256 topup) {
+        // top up with 2x the deficit
         assembly ("memory-safe") {
             // topup = deficit * 2;
             topup := mul(deficit, 2)
@@ -784,9 +796,19 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     function _priceToInterestRate(uint256 price) internal pure returns (InterestRate interestRate) {
         assembly ("memory-safe") {
-            // price has 18 decimals, and interest has 27 decimals
-            // interestRate = InterestRate.wrap((price - 1e18) * 1e9);
-            interestRate := mul(sub(price, 1000000000000000000), 1000000000)
+            if lt(price, 1000000000000000000) {
+                // if price falls below 1, force 0% interest rate until it recovers
+                // defensive programming, should never happen
+                interestRate := 0
+            }
+
+            if not(lt(price, 1000000000000000000)) {
+                // price has 18 decimals, and interest has 27 decimals
+                // interestRate = InterestRate.wrap((price - 1e18) * 1e9);
+                interestRate := mul(sub(price, 1000000000000000000), 1000000000)
+            }
         }
     }
+
+    receive() external payable {}
 }
