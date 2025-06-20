@@ -20,7 +20,7 @@ abstract contract BaseHooks is IHooks {
     function _onlyPoolManager() internal view {
         IPoolManager _poolManager = poolManager;
         assembly ("memory-safe") {
-            // revert if the caller is not the pool manager
+            // require(msg.sender == address(_poolManager), NotPoolManager());
             if iszero(eq(caller(), _poolManager)) {
                 mstore(0x00, 0xae18210a) // 'NotPoolManager()'
                 revert(0x1c, 0x04)
@@ -41,10 +41,12 @@ abstract contract BaseHooks is IHooks {
         return _beforeInitialize(sender, key, sqrtPriceX96);
     }
 
+    /// @notice internal virtual function to implement the beforeInitialize hook
     function _beforeInitialize(address, PoolKey calldata, uint160) internal virtual returns (bytes4);
 
     /// @inheritdoc IHooks
     function afterInitialize(address, PoolKey calldata, uint160, int24) external pure returns (bytes4) {
+        // revert(HookNotImplemented());
         assembly ("memory-safe") {
             mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
             revert(0x1c, 0x04)
@@ -61,6 +63,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeAddLiquidity(sender, key, params, hookData);
     }
 
+    /// @notice internal virtual function to implement the beforeAddLiquidity hook
     function _beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
         internal
         virtual
@@ -76,6 +79,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeRemoveLiquidity(sender, key, params, hookData);
     }
 
+    /// @notice internal virtual function to implement the beforeRemoveLiquidity hook
     function _beforeRemoveLiquidity(
         address,
         PoolKey calldata,
@@ -92,6 +96,7 @@ abstract contract BaseHooks is IHooks {
         BalanceDelta,
         bytes calldata
     ) external pure returns (bytes4, BalanceDelta) {
+        // revert(HookNotImplemented());
         assembly ("memory-safe") {
             mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
             revert(0x1c, 0x04)
@@ -107,6 +112,7 @@ abstract contract BaseHooks is IHooks {
         BalanceDelta,
         bytes calldata
     ) external pure returns (bytes4, BalanceDelta) {
+        // revert(HookNotImplemented());
         assembly ("memory-safe") {
             mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
             revert(0x1c, 0x04)
@@ -123,6 +129,7 @@ abstract contract BaseHooks is IHooks {
         return _beforeSwap(sender, key, params, hookData);
     }
 
+    /// @notice internal virtual function to implement the beforeSwap hook
     function _beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
         internal
         virtual
@@ -139,6 +146,7 @@ abstract contract BaseHooks is IHooks {
         return _afterSwap(sender, key, params, delta, hookData);
     }
 
+    /// @notice internal virtual function to implement the afterSwap hook
     function _afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
         internal
         virtual
@@ -146,6 +154,7 @@ abstract contract BaseHooks is IHooks {
 
     /// @inheritdoc IHooks
     function beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+        // revert(HookNotImplemented());
         assembly ("memory-safe") {
             mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
             revert(0x1c, 0x04)
@@ -154,6 +163,7 @@ abstract contract BaseHooks is IHooks {
 
     /// @inheritdoc IHooks
     function afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+        // revert(HookNotImplemented());
         assembly ("memory-safe") {
             mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
             revert(0x1c, 0x04)

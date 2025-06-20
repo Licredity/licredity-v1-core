@@ -24,8 +24,8 @@ library InterestRateLibrary {
     /// @param y The second interest rate
     /// @return z The product of the two interest rates
     function mul(InterestRate x, InterestRate y) internal pure returns (InterestRate z) {
-        // to avoid overflow, x <= (type(uint256).max - HALF_RAY) / y
         assembly {
+            // to avoid overflow, x <= (type(uint256).max - HALF_RAY) / y
             if iszero(or(iszero(y), iszero(gt(x, div(sub(not(0), HALF_RAY), y))))) {
                 mstore(0x00, 0x35278d12) // 'Overflow()'
                 revert(0x1c, 0x04)
@@ -39,12 +39,8 @@ library InterestRateLibrary {
     /// @param rate The interest rate
     /// @param principal The principal amount
     /// @param elapsed The time elapsed in seconds
-    /// @return interest The interest accrued
-    function calculateInterest(InterestRate rate, uint256 principal, uint256 elapsed)
-        internal
-        pure
-        returns (uint256 interest)
-    {
+    /// @return uint256 The interest accrued
+    function calculateInterest(InterestRate rate, uint256 principal, uint256 elapsed) internal pure returns (uint256) {
         uint256 expMinusOne;
         uint256 expMinusTwo;
         uint256 basePowerTwo;
@@ -60,6 +56,6 @@ library InterestRateLibrary {
         uint256 secondTerm = basePowerTwo.fullMulDiv(elapsed * expMinusOne, 2);
         uint256 thirdTerm = basePowerThree.fullMulDiv(elapsed * expMinusOne * expMinusTwo, 6);
 
-        interest = principal.fullMulDiv(firstTerm + secondTerm + thirdTerm, RAY);
+        return principal.fullMulDivUp(firstTerm + secondTerm + thirdTerm, RAY);
     }
 }

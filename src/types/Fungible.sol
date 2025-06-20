@@ -13,9 +13,6 @@ using FungibleLibrary for Fungible global;
 /// @title FungibleLibrary
 /// @notice Library for managing fungibles
 library FungibleLibrary {
-    uint256 private constant ADDRESS_MASK = 0x00ffffffffffffffffffffffffffffffffffffffff;
-    uint256 private constant TRANSFER_SELECTOR = 0xa9059cbb00000000000000000000000000000000000000000000000000000000;
-
     /// @notice Transfers amount of fungible to recipient
     /// @param self The fungible to transfer
     /// @param recipient The recipient of the transfer
@@ -34,8 +31,8 @@ library FungibleLibrary {
         } else {
             assembly ("memory-safe") {
                 let fmp := mload(0x40)
-                mstore(fmp, TRANSFER_SELECTOR)
-                mstore(add(fmp, 0x04), and(recipient, ADDRESS_MASK))
+                mstore(fmp, 0xa9059cbb00000000000000000000000000000000000000000000000000000000) // 'transfer(address,uint256)'
+                mstore(add(fmp, 0x04), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff))
                 mstore(add(fmp, 0x24), amount)
 
                 let success :=
@@ -72,9 +69,9 @@ library FungibleLibrary {
         return self.isNative() ? ChainInfo.NATIVE_DECIMALS : IERC20(Fungible.unwrap(self)).decimals();
     }
 
-    /// @notice Checks whether a fungible is native to the chain
+    /// @notice Checks whether a fungible is the native fungible
     /// @param self The fungible to check
-    /// @return bool True if the fungible is native, false otherwise
+    /// @return bool True if the fungible is the native fungible, false otherwise
     function isNative(Fungible self) internal pure returns (bool) {
         return Fungible.unwrap(self) == ChainInfo.NATIVE;
     }
