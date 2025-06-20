@@ -12,7 +12,7 @@ contract LicredityInitalizeTest is Deployers {
         deployPoolManager();
     }
 
-    function test_initalize_debtTokenLtBaseToken() public {
+    function test_initalize_BaseERC20LtBaseToken() public {
         address baseToken = address(_newAsset(18));
         address deployAddress = address(uint160(uint160(baseToken) - 1));
 

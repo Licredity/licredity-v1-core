@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Deployers} from "./utils/Deployer.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
-import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
+import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
 // import {StateLibrary} from "src/libraries/StateLibrary.sol";
 // import {Licredity} from "src/Licredity.sol";
 
@@ -24,7 +24,7 @@ contract LicredityPositionTest is Deployers {
     event DepositNonFungible(uint256 indexed positionId, NonFungible indexed nonFungible);
 
     Fungible public fungible;
-    DebtTokenMock public token;
+    BaseERC20Mock public token;
 
     function setUp() public {
         deployETHLicredityWithUniswapV4();
@@ -96,10 +96,8 @@ contract LicredityPositionTest is Deployers {
         licredity.close(1);
     }
 
-    // TODO: close position when not zero debt share
-
     function test_depositFungibleNullPosition() public {
-        vm.expectRevert(PositionDoesNotExist.selector);
+        vm.expectRevert(NotPositionOwner.selector);
         licredity.depositFungible(1);
     }
 
@@ -127,7 +125,6 @@ contract LicredityPositionTest is Deployers {
 
     function test_depositFungible() public {
         token.mint(address(this), 10 ether);
-        token.mint(address(licredity), 15 ether);
 
         uint256 positionId = licredity.open();
 
@@ -158,7 +155,7 @@ contract LicredityPositionTest is Deployers {
     }
 
     function test_depositNonFungibleNullPosition() public {
-        vm.expectRevert(PositionDoesNotExist.selector);
+        vm.expectRevert(NotPositionOwner.selector);
         licredity.depositNonFungible(1);
     }
 

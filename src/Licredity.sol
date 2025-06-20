@@ -766,18 +766,21 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 sstore(accruedInterest.slot, 0)
             }
 
-            // collect protocol fee if applicable
-            if (protocolFeePips > 0 && protocolFeeRecipient != address(0)) {
-                uint256 protocolFee = interest.pipsMulUp(protocolFeePips);
-                interest -= protocolFee;
-                _mint(protocolFeeRecipient, protocolFee);
+            if (interest != 0) {
+                // collect protocol fee if applicable
+                if (protocolFeePips > 0 && protocolFeeRecipient != address(0)) {
+                    uint256 protocolFee = interest.pipsMulUp(protocolFeePips);
+                    interest -= protocolFee;
+                    _mint(protocolFeeRecipient, protocolFee);
+                }
+
+                // donate interest to active liquidity
+                poolManager.donate(poolKey, 0, interest, "");
+                poolManager.sync(Currency.wrap(address(this)));
+                _mint(address(poolManager), interest);
+                poolManager.settle();
             }
 
-            // donate interest to active liquidity
-            poolManager.donate(poolKey, 0, interest, "");
-            poolManager.sync(Currency.wrap(address(this)));
-            _mint(address(poolManager), interest);
-            poolManager.settle();
         } else {
             assembly ("memory-safe") {
                 // accruedInterest += interest; // overflow not possible
