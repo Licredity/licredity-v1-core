@@ -5,17 +5,26 @@ import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {FungibleState} from "src/types/FungibleState.sol";
 
 library StateLibrary {
-    uint256 public constant TOTAL_DEBT_OFFSET = 13;
-    uint256 public constant TOTAL_SHARES_MASK = 0xffffffffffffffffffffffffffffffff;
-    uint256 public constant POSITIONS_OFFSET = 14;
+    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 14;
+    uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 15;
+    uint256 public constant POSITIONS_OFFSET = 21;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
 
-    function getTotalDebt(ILicredity manager) internal view returns (uint128 totalShares, uint128 totalAssets) {
-        bytes32 totalDebtSlotValue = manager.extsload(bytes32(TOTAL_DEBT_OFFSET));
-        assembly ("memory-safe") {
-            totalShares := and(TOTAL_SHARES_MASK, totalDebtSlotValue)
-            totalAssets := shr(128, totalDebtSlotValue)
-        }
+    uint256 public constant BASE_AMOUNT_AVAILABLE_OFFSET = 18;
+    uint256 public constant DEBT_AMOUNT_OUTSTANDING_OFFSET = 19;
+
+    function getExchangeAmount(ILicredity manager)
+        internal
+        view
+        returns (uint256 baseAmountAvailable, uint256 debtAmountOutstanding)
+    {
+        baseAmountAvailable = uint256(manager.extsload(bytes32(BASE_AMOUNT_AVAILABLE_OFFSET)));
+        debtAmountOutstanding = uint256(manager.extsload(bytes32(DEBT_AMOUNT_OUTSTANDING_OFFSET)));
+    }
+
+    function getTotalDebt(ILicredity manager) internal view returns (uint256 totalShares, uint256 totalAssets) {
+        totalShares = uint256(manager.extsload(bytes32(TOTAL_DEBT_SHARE_OFFSET)));
+        totalAssets = uint256(manager.extsload(bytes32(TOTAL_DEBT_BALANCE_OFFSET)));
     }
 
     function getPositionFungiblesBalance(ILicredity manager, uint256 positionId, address token)

@@ -40,4 +40,14 @@ contract LicredityRouterHelper {
 
         router.executeActions(actions, params);
     }
+
+    function seize(uint256 positionId, address recipient) external {
+        Actions[] memory actions = new Actions[](1);
+        bytes[] memory params = new bytes[](1);
+
+        actions[0] = Actions.SEIZE;
+        params[0] = abi.encode(positionId, recipient);
+
+        router.executeActions(actions, params);
+    }
 }

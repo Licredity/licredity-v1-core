@@ -5,22 +5,22 @@ import {Test} from "@forge-std/Test.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {ChainInfo} from "src/libraries/ChainInfo.sol";
-import {DebtTokenMock} from "test/mocks/DebtTokenMock.sol";
+import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
 
 contract FungibleTest is Test {
     error NativeTransferFailed();
 
-    DebtTokenMock public token;
+    BaseERC20Mock public token;
     Fungible public constant NATIVE = Fungible.wrap(address(0));
     Fungible public fungible;
 
     function setUp() public {
-        token = new DebtTokenMock("Token", "T", 18);
+        token = new BaseERC20Mock("Token", "T", 18);
         fungible = Fungible.wrap(address(token));
     }
 
     function _newAsset(uint8 decimals) internal returns (Fungible) {
-        token = new DebtTokenMock("Token", "T", decimals);
+        token = new BaseERC20Mock("Token", "T", decimals);
         return Fungible.wrap(address(token));
     }
 
