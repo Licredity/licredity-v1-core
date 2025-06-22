@@ -758,7 +758,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         totalDebtBalance = _totalDebtBalance + interest;
         lastInterestCollectionTimestamp = block.timestamp;
 
-        if (distribute) {
+        if (distribute && poolManager.getLiquidity(poolId) > 0) {
             assembly ("memory-safe") {
                 // interest += accruedInterest; // overflow not possible
                 interest := add(interest, sload(accruedInterest.slot))
