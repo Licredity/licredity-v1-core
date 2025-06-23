@@ -8,24 +8,24 @@ import {BeforeSwapDelta} from "@uniswap-v4-core/types/BeforeSwapDelta.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 
 /// @title BaseHooks
-/// @notice Abstract implementation of the IHooks interface
+/// @notice Abstract implementation of Uniswap V4 hooks
 abstract contract BaseHooks is IHooks {
-    /// @notice Thrown when the caller is not the pool manager
-    error NotPoolManager();
-    /// @notice Thrown when the hook is not implemented
-    error HookNotImplemented();
+    IPoolManager internal immutable poolManager;
 
-    /// @notice The pool manager contract
-    IPoolManager public immutable poolManager;
-
-    /// @notice Modifier for functions that can only be called by the pool manager
     modifier onlyPoolManager() {
         _onlyPoolManager();
         _;
     }
 
     function _onlyPoolManager() internal view {
-        require(msg.sender == address(poolManager), NotPoolManager());
+        IPoolManager _poolManager = poolManager;
+        assembly ("memory-safe") {
+            // require(msg.sender == address(_poolManager), NotPoolManager());
+            if iszero(eq(caller(), _poolManager)) {
+                mstore(0x00, 0xae18210a) // 'NotPoolManager()'
+                revert(0x1c, 0x04)
+            }
+        }
     }
 
     constructor(address _poolManager) {
@@ -41,23 +41,16 @@ abstract contract BaseHooks is IHooks {
         return _beforeInitialize(sender, key, sqrtPriceX96);
     }
 
-    /// @notice internal function to implement the beforeInitialize hook
-    function _beforeInitialize(address, PoolKey calldata, uint160) internal virtual returns (bytes4) {
-        revert HookNotImplemented();
-    }
+    /// @notice internal virtual function to implement the beforeInitialize hook
+    function _beforeInitialize(address, PoolKey calldata, uint160) internal virtual returns (bytes4);
 
     /// @inheritdoc IHooks
-    function afterInitialize(address sender, PoolKey calldata key, uint160 sqrtPriceX96, int24 tick)
-        external
-        onlyPoolManager
-        returns (bytes4)
-    {
-        return _afterInitialize(sender, key, sqrtPriceX96, tick);
-    }
-
-    /// @notice internal function to implement the afterInitialize hook
-    function _afterInitialize(address, PoolKey calldata, uint160, int24) internal virtual returns (bytes4) {
-        revert HookNotImplemented();
+    function afterInitialize(address, PoolKey calldata, uint160, int24) external pure returns (bytes4) {
+        // revert(HookNotImplemented());
+        assembly ("memory-safe") {
+            mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
+            revert(0x1c, 0x04)
+        }
     }
 
     /// @inheritdoc IHooks
@@ -70,14 +63,11 @@ abstract contract BaseHooks is IHooks {
         return _beforeAddLiquidity(sender, key, params, hookData);
     }
 
-    /// @notice internal function to implement the beforeAddLiquidity hook
+    /// @notice internal virtual function to implement the beforeAddLiquidity hook
     function _beforeAddLiquidity(address, PoolKey calldata, IPoolManager.ModifyLiquidityParams calldata, bytes calldata)
         internal
         virtual
-        returns (bytes4)
-    {
-        revert HookNotImplemented();
-    }
+        returns (bytes4);
 
     /// @inheritdoc IHooks
     function beforeRemoveLiquidity(
@@ -89,62 +79,44 @@ abstract contract BaseHooks is IHooks {
         return _beforeRemoveLiquidity(sender, key, params, hookData);
     }
 
-    /// @notice internal function to implement the beforeRemoveLiquidity hook
+    /// @notice internal virtual function to implement the beforeRemoveLiquidity hook
     function _beforeRemoveLiquidity(
         address,
         PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata,
         bytes calldata
-    ) internal virtual returns (bytes4) {
-        revert HookNotImplemented();
-    }
+    ) internal virtual returns (bytes4);
 
     /// @inheritdoc IHooks
     function afterAddLiquidity(
-        address sender,
-        PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata params,
-        BalanceDelta delta,
-        BalanceDelta feesAccrued,
-        bytes calldata hookData
-    ) external onlyPoolManager returns (bytes4, BalanceDelta) {
-        return _afterAddLiquidity(sender, key, params, delta, feesAccrued, hookData);
-    }
-
-    /// @notice internal function to implement the afterAddLiquidity hook
-    function _afterAddLiquidity(
         address,
         PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata,
         BalanceDelta,
         BalanceDelta,
         bytes calldata
-    ) internal virtual returns (bytes4, BalanceDelta) {
-        revert HookNotImplemented();
+    ) external pure returns (bytes4, BalanceDelta) {
+        // revert(HookNotImplemented());
+        assembly ("memory-safe") {
+            mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
+            revert(0x1c, 0x04)
+        }
     }
 
     /// @inheritdoc IHooks
     function afterRemoveLiquidity(
-        address sender,
-        PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata params,
-        BalanceDelta delta,
-        BalanceDelta feesAccrued,
-        bytes calldata hookData
-    ) external onlyPoolManager returns (bytes4, BalanceDelta) {
-        return _afterRemoveLiquidity(sender, key, params, delta, feesAccrued, hookData);
-    }
-
-    /// @notice internal function to implement the afterRemoveLiquidity hook
-    function _afterRemoveLiquidity(
         address,
         PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata,
         BalanceDelta,
         BalanceDelta,
         bytes calldata
-    ) internal virtual returns (bytes4, BalanceDelta) {
-        revert HookNotImplemented();
+    ) external pure returns (bytes4, BalanceDelta) {
+        // revert(HookNotImplemented());
+        assembly ("memory-safe") {
+            mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
+            revert(0x1c, 0x04)
+        }
     }
 
     /// @inheritdoc IHooks
@@ -157,14 +129,11 @@ abstract contract BaseHooks is IHooks {
         return _beforeSwap(sender, key, params, hookData);
     }
 
-    /// @notice internal function to implement the beforeSwap hook
+    /// @notice internal virtual function to implement the beforeSwap hook
     function _beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata)
         internal
         virtual
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
-        revert HookNotImplemented();
-    }
+        returns (bytes4, BeforeSwapDelta, uint24);
 
     /// @inheritdoc IHooks
     function afterSwap(
@@ -177,52 +146,27 @@ abstract contract BaseHooks is IHooks {
         return _afterSwap(sender, key, params, delta, hookData);
     }
 
-    /// @notice internal function to implement the afterSwap hook
+    /// @notice internal virtual function to implement the afterSwap hook
     function _afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
         internal
         virtual
-        returns (bytes4, int128)
-    {
-        revert HookNotImplemented();
+        returns (bytes4, int128);
+
+    /// @inheritdoc IHooks
+    function beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+        // revert(HookNotImplemented());
+        assembly ("memory-safe") {
+            mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
+            revert(0x1c, 0x04)
+        }
     }
 
     /// @inheritdoc IHooks
-    function beforeDonate(
-        address sender,
-        PoolKey calldata key,
-        uint256 amount0,
-        uint256 amount1,
-        bytes calldata hookData
-    ) external onlyPoolManager returns (bytes4) {
-        return _beforeDonate(sender, key, amount0, amount1, hookData);
-    }
-
-    /// @notice internal function to implement the beforeDonate hook
-    function _beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        internal
-        virtual
-        returns (bytes4)
-    {
-        revert HookNotImplemented();
-    }
-
-    /// @inheritdoc IHooks
-    function afterDonate(
-        address sender,
-        PoolKey calldata key,
-        uint256 amount0,
-        uint256 amount1,
-        bytes calldata hookData
-    ) external onlyPoolManager returns (bytes4) {
-        return _afterDonate(sender, key, amount0, amount1, hookData);
-    }
-
-    /// @notice internal function to implement the afterDonate hook
-    function _afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        internal
-        virtual
-        returns (bytes4)
-    {
-        revert HookNotImplemented();
+    function afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+        // revert(HookNotImplemented());
+        assembly ("memory-safe") {
+            mstore(0x00, 0x0a85dc29) // 'HookNotImplemented()'
+            revert(0x1c, 0x04)
+        }
     }
 }

@@ -7,28 +7,28 @@ import {NonFungible} from "../types/NonFungible.sol";
 /// @title IOracle
 /// @notice Interface for the oracle contracts
 interface IOracle {
-    /// @notice Gets the price of the base fungible in debt fungible terms
-    /// @return uint256 The price of the base fungible in debt fungible terms
+    /// @notice Quotes the price of base fungible in debt fungible
+    /// @return uint256 The price of base fungible in debt fungible
+    /// @dev Price has 18 decimal places
     function quotePrice() external view returns (uint256);
 
-    /// @notice Function to get the value and margin requirement, in debt token terms, of fungibles
-    /// @param tokens The fungible tokens to quote
-    /// @param amounts The amounts of fungible to quote
-    /// @return value The value of the fungible in debt token terms
-    /// @return marginRequirement The margin requirement in debt token terms
-    function quoteFungibles(address[] memory tokens, uint256[] memory amounts)
+    /// @notice Quotes the value and margin requirement for given fungibles in debt fungible
+    /// @param fungibles The fungibles to quote
+    /// @param amounts The amounts of fungibles to quote
+    /// @return value The total value of the fungibles in debt fungible
+    /// @return marginRequirement The total margin requirement of the fungibles in debt fungible
+    function quoteFungibles(Fungible[] memory fungibles, uint256[] memory amounts)
         external
         returns (uint256 value, uint256 marginRequirement);
 
-    /// @notice Function to get the value and margin requirement, in debt token terms, of non-fungibles
-    /// @param tokens The non-fungible tokens to quote
-    /// @param ids The IDs of the non-fungible to quote
-    /// @return value The value of the non-fungible in debt token terms
-    /// @return marginRequirement The margin requirement in debt token terms
-    function quoteNonFungibles(address[] memory tokens, uint256[] memory ids)
+    /// @notice Quotes the value and margin requirement for given non-fungibles in debt fungible
+    /// @param nonFungibles The non-fungibles to quote
+    /// @return value The total value of the non-fungibles in debt fungible
+    /// @return marginRequirement The total margin requirement of the non-fungibles in debt fungible
+    function quoteNonFungibles(NonFungible[] memory nonFungibles)
         external
         returns (uint256 value, uint256 marginRequirement);
 
-    /// @notice Function to notify the oracle of a price update
+    /// @notice Triggers a price update (base fungible in debt fungible)
     function update() external;
 }

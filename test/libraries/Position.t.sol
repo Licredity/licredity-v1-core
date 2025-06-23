@@ -7,15 +7,23 @@ import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {PositionDB} from "test/utils/PositionFuzzDB.sol";
 
+import {console} from "@forge-std/console.sol";
+
 contract PositionTest is Test {
     Position public position;
 
-    function test_setOwner(address owner) public {
-        position.setOwner(owner);
-        assertEq(position.owner, owner);
+    error FungibleLimitReached();
+    error NonFungibleLimitReached();
+
+    function test_setOwner(address[] calldata owners) public {
+        vm.assume(owners.length > 0);
+        for (uint256 i = 0; i < owners.length; i++) {
+            position.setOwner(owners[i]);
+        }
+        assertEq(position.owner, owners[owners.length - 1]);
     }
 
-    function test_addFungible_init(Fungible fungible, uint192 amount) public {
+    function test_addFungible_init(Fungible fungible, uint128 amount) public {
         position.addFungible(fungible, amount);
 
         assertEq(position.fungibles.length, 1);
@@ -24,7 +32,16 @@ contract PositionTest is Test {
         assertEq(position.fungibleStates[fungible].balance(), amount);
     }
 
-    function initFungibles(Fungible[] calldata fungibles, uint160[] calldata amounts, PositionDB db)
+    function test_addFungible_dup(Fungible fungible) public {
+        position.addFungible(fungible, 1 ether);
+        position.addFungible(fungible, 1.5 ether);
+
+        assertEq(position.fungibles.length, 1);
+        assertEq(position.fungibleStates[fungible].index(), 1);
+        assertEq(position.fungibleStates[fungible].balance(), 2.5 ether);
+    }
+
+    function initFungibles(Fungible[] calldata fungibles, uint128[] calldata amounts, PositionDB db)
         public
         returns (uint256 fungibleLength)
     {
@@ -32,26 +49,31 @@ contract PositionTest is Test {
             Fungible fungible = fungibles[i];
             uint160 addAmount = amounts[i];
 
-            position.addFungible(fungible, addAmount);
-            db.addFungibleBalance(fungible, addAmount);
+            uint256 beforeAmount = position.fungibleStates[fungible].balance();
 
-            if (!db.isUsedFungible(fungible)) {
-                fungibleLength += 1;
+            if (beforeAmount + addAmount <= type(uint128).max) {
+                position.addFungible(fungible, addAmount);
+                db.addFungibleBalance(fungible, addAmount);
 
-                db.addUsedFungible(fungible);
+                if (!db.isUsedFungible(fungible)) {
+                    fungibleLength += 1;
 
-                assertEq(position.fungibles.length, fungibleLength);
-                assertEq(position.fungibleStates[fungible].balance(), addAmount);
+                    db.addUsedFungible(fungible);
+
+                    assertEq(position.fungibles.length, fungibleLength);
+                    assertEq(position.fungibleStates[fungible].balance(), addAmount);
+                }
             }
         }
     }
 
-    function test_addFungible(Fungible[] calldata fungibles, uint160[] calldata amounts, uint16 index, uint32 amount)
+    function test_addFungible(Fungible[] calldata fungibles, uint128[] calldata amounts, uint16 index, uint32 amount)
         public
     {
         vm.assume(fungibles.length <= amounts.length);
         vm.assume(fungibles.length > 0);
 
+        assertTrue(position.isEmpty());
         uint256 boundIndex = bound(index, 0, fungibles.length - 1);
 
         PositionDB db = new PositionDB();
@@ -59,10 +81,45 @@ contract PositionTest is Test {
         uint256 fungibleLength = initFungibles(fungibles, amounts, db);
 
         Fungible selectedFungible = fungibles[boundIndex];
-        position.addFungible(selectedFungible, amount);
 
-        assertEq(position.fungibles.length, fungibleLength);
-        assertEq(position.fungibleStates[selectedFungible].balance(), db.fungibleBalance(selectedFungible) + amount);
+        uint256 beforeSelectedFungibleBalance = position.fungibleStates[selectedFungible].balance();
+        if (beforeSelectedFungibleBalance + uint256(amount) <= type(uint128).max) {
+            position.addFungible(selectedFungible, amount);
+            assertEq(position.fungibles.length, fungibleLength);
+            assertEq(position.fungibleStates[selectedFungible].balance(), db.fungibleBalance(selectedFungible) + amount);
+        }
+
+        assertFalse(position.isEmpty());
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
+    function test_addFungible_overLimit(Fungible[] calldata fungibles, uint128[] calldata amounts) public {
+        vm.assume(fungibles.length <= amounts.length);
+        vm.assume(fungibles.length > 0);
+
+        PositionDB db = new PositionDB();
+        uint256 fungibleLength = 0;
+
+        for (uint256 i = 0; i < fungibles.length; i++) {
+            Fungible fungible = fungibles[i];
+            uint160 addAmount = amounts[i];
+
+            uint256 beforeAmount = position.fungibleStates[fungible].balance();
+
+            if (beforeAmount + addAmount <= type(uint128).max) {
+                position.addFungible(fungible, addAmount);
+                db.addFungibleBalance(fungible, addAmount);
+
+                if (!db.isUsedFungible(fungible)) {
+                    fungibleLength = fungibleLength + 1;
+                    // console.log("fungibleLength: ", fungibleLength);
+                    db.addUsedFungible(fungible);
+
+                    assertEq(position.fungibles.length, fungibleLength);
+                    assertEq(position.fungibleStates[fungible].balance(), addAmount);
+                }
+            }
+        }
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
@@ -75,12 +132,13 @@ contract PositionTest is Test {
 
     function test_removeFungible(
         Fungible[] calldata fungibles,
-        uint160[] calldata amounts,
+        uint128[] calldata amounts,
         uint16 index,
         uint256 removeAmount
     ) public {
         vm.assume(fungibles.length <= amounts.length);
         vm.assume(fungibles.length > 0);
+
         uint256 boundIndex = bound(index, 0, fungibles.length - 1);
 
         PositionDB db = new PositionDB();
@@ -101,7 +159,18 @@ contract PositionTest is Test {
         }
     }
 
+    function test_isEmpty_debtShare() public {
+        position.debtShare = 1;
+        assertFalse(position.isEmpty());
+
+        position.debtShare = 0;
+        assertTrue(position.isEmpty());
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
     function test_addNonFungible(NonFungible[] memory nonFungibles) public {
+        vm.assume(nonFungibles.length > 0);
+
         for (uint256 i = 0; i < nonFungibles.length; i++) {
             position.addNonFungible(nonFungibles[i]);
         }
@@ -121,7 +190,6 @@ contract PositionTest is Test {
 
     function test_removeNonFungible(NonFungible[] memory nonFungibles, uint16 index) public {
         vm.assume(nonFungibles.length > 0);
-
         PositionDB db = new PositionDB();
         uint256 nonFungibleLength;
 
@@ -159,8 +227,8 @@ contract PositionTest is Test {
 
     function test_addRemoveDebtShare(uint256 addShare, uint256 removeShare) public {
         vm.assume(addShare >= removeShare);
-        position.addDebtShare(addShare);
-        position.removeDebtShare(removeShare);
+        position.increaseDebtShare(addShare);
+        position.decreaseDebtShare(removeShare);
         assertEq(position.debtShare, addShare - removeShare);
     }
 }

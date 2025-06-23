@@ -3,14 +3,13 @@ pragma solidity ^0.8.0;
 
 import {IExtsload} from "./interfaces/IExtsload.sol";
 
-/// @notice Enables public storage access for efficient state retrieval by external contracts.
-/// https://eips.ethereum.org/EIPS/eip-2330#rationale
+/// @title Extsload
+/// @notice Abstract implementation of external storage load
 abstract contract Extsload is IExtsload {
     /// @inheritdoc IExtsload
-    function extsload(bytes32 slot) external view returns (bytes32) {
+    function extsload(bytes32 slot) external view returns (bytes32 value) {
         assembly ("memory-safe") {
-            mstore(0, sload(slot))
-            return(0, 0x20)
+            value := sload(slot)
         }
     }
 

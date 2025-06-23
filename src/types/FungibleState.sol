@@ -1,35 +1,47 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.0;
 
-/// @dev A 'uint64' index and a 'uint192' balance, packed into a single 'bytes32' value
+/// @title FungibleState
+/// @notice Represents the state of a fungible
+/// @dev 64 bits index | 64 bits empty | 128 bits balance
 type FungibleState is bytes32;
 
 using FungibleStateLibrary for FungibleState global;
 
-function toFungibleState(uint64 index, uint192 _balance) pure returns (FungibleState state) {
+/// @notice Converts the index and balance of a fungible into a fungible state
+/// @param index The index of the fungible, must fit within 64 bits
+/// @param _balance The balance of the fungible, must fit within 128 bits
+/// @return state The fungible state representing the index and balance
+function toFungibleState(uint256 index, uint256 _balance) pure returns (FungibleState state) {
     assembly ("memory-safe") {
-        state := or(shl(192, index), and(_balance, 0xffffffffffffffffffffffffffffffffffffffffffffffff))
+        // requires(index <= 0xffffffffffffffff && _balance <= 0xffffffffffffffffffffffffffffffff, Overflow());
+        if or(gt(index, 0xffffffffffffffff), gt(_balance, 0xffffffffffffffffffffffffffffffff)) {
+            mstore(0x00, 0x35278d12) // 'Overflow()'
+            revert(0x1c, 0x04)
+        }
+
+        state := or(shl(192, index), _balance)
     }
 }
 
 /// @title FungibleStateLibrary
 /// @notice Library for managing fungible states
 library FungibleStateLibrary {
-    /// @notice Get the index part of the fungible state
-    /// @param self The fungible state to get the index part of
-    /// @return _index The index part of the fungible state
-    function index(FungibleState self) internal pure returns (uint64 _index) {
+    /// @notice Gets the index of a fungible from its state
+    /// @param self The fungible state to get the index from
+    /// @return _index The index of the fungible
+    function index(FungibleState self) internal pure returns (uint256 _index) {
         assembly ("memory-safe") {
             _index := shr(192, self)
         }
     }
 
-    /// @notice Get the balance part of the fungible state
-    /// @param self The fungible state to get the balance part of
-    /// @return _balance The balance part of the fungible state
-    function balance(FungibleState self) internal pure returns (uint192 _balance) {
+    /// @notice Gets the balance of a fungible from its state
+    /// @param self The fungible state to get the balance from
+    /// @return _balance The balance of the fungible
+    function balance(FungibleState self) internal pure returns (uint256 _balance) {
         assembly ("memory-safe") {
-            _balance := and(self, 0xffffffffffffffffffffffffffffffffffffffffffffffff)
+            _balance := and(self, 0xffffffffffffffffffffffffffffffff)
         }
     }
 }

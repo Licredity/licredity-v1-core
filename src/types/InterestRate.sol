@@ -1,28 +1,45 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity ^0.8.0;
 
-import {Math} from "../libraries/Math.sol";
+import {FullMath} from "../libraries/FullMath.sol";
 
-/// @notice Interest rate in Ray
+/// @title InterestRate
+/// @notice Represents a interest rate
+/// @dev Interest rate has 27 decimal places (a ray)
 type InterestRate is uint256;
 
 using InterestRateLibrary for InterestRate global;
 
+/// @title InterestRateLibrary
+/// @notice Library for managing interest rates
 library InterestRateLibrary {
-    uint256 constant SECONDS_PER_YEAR = 365 days;
-    uint256 constant RAY = 1e27;
-    uint256 constant HALF_RAY = 0.5e27;
+    using FullMath for uint256;
 
-    /// @dev Returns the product of two rays rounded up to the nearest ray
-    function rayMul(uint256 a, uint256 b) internal pure returns (uint256 c) {
-        // to avoid overflow, a <= (type(uint256).max - HALF_RAY) / b
+    uint256 private constant SECONDS_PER_YEAR = 365 days;
+    uint256 private constant RAY = 1e27;
+    uint256 private constant HALF_RAY = 0.5e27;
+
+    /// @notice Multiplies two interest rates, "normal" rouding (half up)
+    /// @param x The first interest rate
+    /// @param y The second interest rate
+    /// @return z The product of the two interest rates
+    function mul(InterestRate x, InterestRate y) internal pure returns (InterestRate z) {
         assembly {
-            if iszero(or(iszero(b), iszero(gt(a, div(sub(not(0), HALF_RAY), b))))) { revert(0, 0) }
+            // to avoid overflow, x <= (type(uint256).max - HALF_RAY) / y
+            if iszero(or(iszero(y), iszero(gt(x, div(sub(not(0), HALF_RAY), y))))) {
+                mstore(0x00, 0x35278d12) // 'Overflow()'
+                revert(0x1c, 0x04)
+            }
 
-            c := div(add(mul(a, b), HALF_RAY), RAY)
+            z := div(add(mul(x, y), HALF_RAY), RAY)
         }
     }
 
+    /// @notice Calculates the interest accrued over a period of time
+    /// @param rate The interest rate
+    /// @param principal The principal amount
+    /// @param elapsed The time elapsed in seconds
+    /// @return uint256 The interest accrued
     function calculateInterest(InterestRate rate, uint256 principal, uint256 elapsed) internal pure returns (uint256) {
         uint256 expMinusOne;
         uint256 expMinusTwo;
@@ -30,25 +47,15 @@ library InterestRateLibrary {
         uint256 basePowerThree;
         unchecked {
             expMinusOne = elapsed - 1;
-
             expMinusTwo = elapsed > 2 ? elapsed - 2 : 0;
-
-            basePowerTwo =
-                rayMul(InterestRate.unwrap(rate), InterestRate.unwrap(rate)) / (SECONDS_PER_YEAR * SECONDS_PER_YEAR);
-            basePowerThree = rayMul(basePowerTwo, InterestRate.unwrap(rate)) / SECONDS_PER_YEAR;
-        }
-        uint256 secondTerm = elapsed * expMinusOne * basePowerTwo;
-        unchecked {
-            secondTerm /= 2;
-        }
-        uint256 thirdTerm = elapsed * expMinusOne * expMinusTwo * basePowerThree;
-        unchecked {
-            thirdTerm /= 6;
+            basePowerTwo = InterestRate.unwrap(mul(rate, rate)) / (SECONDS_PER_YEAR * SECONDS_PER_YEAR);
+            basePowerThree = InterestRate.unwrap(mul(InterestRate.wrap(basePowerTwo), rate)) / SECONDS_PER_YEAR;
         }
 
-        uint256 compoundRate =
-            Math.fullMulDivUp(InterestRate.unwrap(rate), elapsed, SECONDS_PER_YEAR) + secondTerm + thirdTerm;
+        uint256 firstTerm = InterestRate.unwrap(rate).fullMulDiv(elapsed, SECONDS_PER_YEAR);
+        uint256 secondTerm = basePowerTwo.fullMulDiv(elapsed * expMinusOne, 2);
+        uint256 thirdTerm = basePowerThree.fullMulDiv(elapsed * expMinusOne * expMinusTwo, 6);
 
-        return Math.fullMulDivUp(principal, compoundRate, RAY);
+        return principal.fullMulDivUp(firstTerm + secondTerm + thirdTerm, RAY);
     }
 }

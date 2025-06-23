@@ -6,8 +6,9 @@ import {RiskConfigsMock} from "./mocks/RiskConfigsMock.sol";
 
 contract RiskConfigsTest is Test {
     error NotGovernor();
-    error NotPendingGovernor();
-    error InvalidPositionMrrBps();
+    error NotNextGovernor();
+    error InvalidProtocolFeePips();
+    error InvalidPositionMrrPips();
 
     RiskConfigsMock public riskConfigs;
 
@@ -15,76 +16,82 @@ contract RiskConfigsTest is Test {
         riskConfigs = new RiskConfigsMock(address(this));
     }
 
-    function test_appointGovernor_notOwner() public {
+    function test_appointNextGovernor_notOwner() public {
         vm.startPrank(address(1));
         vm.expectRevert(NotGovernor.selector);
-        riskConfigs.appointGovernor(address(1));
+        riskConfigs.appointNextGovernor(address(1));
         vm.stopPrank();
     }
 
-    function test_appointGovernor_appointGovernor(address pendingGovernor) public {
-        riskConfigs.appointGovernor(pendingGovernor);
+    function test_appointNextGovernor(address[] calldata nextGovernors) public {
+        vm.assume(nextGovernors.length > 1);
+        for (uint256 i = 0; i < nextGovernors.length; i++) {
+            riskConfigs.appointNextGovernor(nextGovernors[i]);
+        }
 
-        assertEq(riskConfigs.loadPendingGovernor(), pendingGovernor);
+        assertEq(riskConfigs.loadNextGovernor(), nextGovernors[nextGovernors.length - 1]);
     }
 
-    function test_confirmGovernor(address _governorAddr) public {
-        riskConfigs.appointGovernor(_governorAddr);
+    function test_confirmNextGovernor(address _governorAddr) public {
+        riskConfigs.appointNextGovernor(_governorAddr);
 
         vm.startPrank(_governorAddr);
-        riskConfigs.confirmGovernor();
+        riskConfigs.confirmNextGovernor();
         vm.stopPrank();
 
         assertEq(riskConfigs.loadGovernor(), _governorAddr);
-        assertEq(riskConfigs.loadPendingGovernor(), address(0));
+        assertEq(riskConfigs.loadNextGovernor(), address(0));
     }
 
-    function test_confirmGovernor_notPending(address pendingAddr, address other) public {
+    function test_confirmNextGovernor_notPending(address pendingAddr, address other) public {
         vm.assume(pendingAddr != other);
 
-        riskConfigs.appointGovernor(pendingAddr);
+        riskConfigs.appointNextGovernor(pendingAddr);
 
         vm.startPrank(other);
-        vm.expectRevert(NotPendingGovernor.selector);
-        riskConfigs.confirmGovernor();
+        vm.expectRevert(NotNextGovernor.selector);
+        riskConfigs.confirmNextGovernor();
         vm.stopPrank();
     }
 
-    function test_setOracle(address _oracle) public {
-        riskConfigs.setOracle(_oracle);
-
-        assertEq(riskConfigs.loadOracle(), _oracle);
-    }
-
-    function test_setPositionMrrBps_invalid(uint16 _positionMrrBps) public {
-        uint16 positionMrrBps = uint16(bound(_positionMrrBps, 10001, type(uint16).max));
-        vm.expectRevert(InvalidPositionMrrBps.selector);
-        riskConfigs.setPositionMrrBps(positionMrrBps);
-    }
-
-    function test_setPositionMrrBps_valid(uint16 _positionMrrBps) public {
-        uint16 positionMrrBps = uint16(bound(_positionMrrBps, 0, 10000));
-
-        riskConfigs.setPositionMrrBps(positionMrrBps);
-
-        assertEq(riskConfigs.loadPositionMrrBps(), positionMrrBps);
-    }
-
-    /// forge-config: default.fuzz.runs = 1000
-    function test_setOracleAndPositionMrrBps(address[] calldata _oracle, uint16[] calldata _positionMrrBps) public {
-        vm.assume(_oracle.length > 1);
-        vm.assume(_positionMrrBps.length > 1);
-        for (uint256 i = 0; i < _oracle.length; i++) {
-            riskConfigs.setOracle(_oracle[i]);
-        }
-        assertEq(riskConfigs.loadOracle(), _oracle[_oracle.length - 1]);
-
-        uint16 positionMrrBps;
-        for (uint256 j = 0; j < _positionMrrBps.length; j++) {
-            positionMrrBps = uint16(bound(_positionMrrBps[j], 0, 10000));
-            riskConfigs.setPositionMrrBps(positionMrrBps);
+    function test_setOracle(address[] calldata oracles) public {
+        vm.assume(oracles.length > 1);
+        for (uint256 i = 0; i < oracles.length; i++) {
+            riskConfigs.setOracle(oracles[i]);
         }
 
-        assertEq(riskConfigs.loadPositionMrrBps(), positionMrrBps);
+        assertEq(riskConfigs.loadOracle(), oracles[oracles.length - 1]);
+    }
+
+    function test_setProtocolFeeRecipient(address[] calldata protocolFeeRecipients) public {
+        vm.assume(protocolFeeRecipients.length > 1);
+        for (uint256 i = 0; i < protocolFeeRecipients.length; i++) {
+            riskConfigs.setProtocolFeeRecipient(protocolFeeRecipients[i]);
+        }
+
+        assertEq(riskConfigs.loadProtocolFeeRecipient(), protocolFeeRecipients[protocolFeeRecipients.length - 1]);
+    }
+
+    function test_setProtocolFeePips_invalid(uint256 _protocolFeePips) public {
+        uint256 protocolFeePips = bound(_protocolFeePips, 62501, type(uint24).max);
+        vm.expectRevert(InvalidProtocolFeePips.selector);
+        riskConfigs.setProtocolFeePips(protocolFeePips);
+    }
+
+    function test_setProtocolFeePips(uint256 _protocolFeePips) public {
+        uint256 protocolFeePips = bound(_protocolFeePips, 0, 62500);
+        riskConfigs.setProtocolFeePips(protocolFeePips);
+
+        assertEq(riskConfigs.loadProtocolFeePips(), protocolFeePips);
+    }
+
+    function test_setMinMargin(uint256 _minMargin) public {
+        riskConfigs.setMinMargin(_minMargin);
+        assertEq(riskConfigs.loadMinMargin(), _minMargin);
+    }
+
+    function test_setDebtLimit(uint256 _debtLimit) public {
+        riskConfigs.setDebtLimit(_debtLimit);
+        assertEq(riskConfigs.loadDebtLimit(), _debtLimit);
     }
 }
