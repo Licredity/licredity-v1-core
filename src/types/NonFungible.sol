@@ -8,7 +8,12 @@ import {IERC721} from "@forge-std/interfaces/IERC721.sol";
 /// @dev 160 bits token | 32 bits empty | 64 bits ID
 type NonFungible is bytes32;
 
+using {equals as ==} for NonFungible global;
 using NonFungibleLibrary for NonFungible global;
+
+function equals(NonFungible self, NonFungible other) pure returns (bool) {
+    return NonFungible.unwrap(self) == NonFungible.unwrap(other);
+}
 
 /// @title NonFungibleLibrary
 /// @notice Library for managing non-fungibles

@@ -8,7 +8,12 @@ import {ChainInfo} from "../libraries/ChainInfo.sol";
 /// @notice Represents a fungible
 type Fungible is address;
 
+using {equals as ==} for Fungible global;
 using FungibleLibrary for Fungible global;
+
+function equals(Fungible self, Fungible other) pure returns (bool) {
+    return Fungible.unwrap(self) == Fungible.unwrap(other);
+}
 
 /// @title FungibleLibrary
 /// @notice Library for managing fungibles
