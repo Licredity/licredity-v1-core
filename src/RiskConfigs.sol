@@ -2,11 +2,12 @@
 pragma solidity ^0.8.0;
 
 import {IOracle} from "./interfaces/IOracle.sol";
+import {IRiskConfigs} from "./interfaces/IRiskConfigs.sol";
 import {PipsMath} from "./libraries/PipsMath.sol";
 
 /// @title RiskConfigs
 /// @notice Abstract implementation of risk configurations
-abstract contract RiskConfigs {
+abstract contract RiskConfigs is IRiskConfigs {
     address internal governor;
     address internal nextGovernor;
     IOracle internal oracle;
@@ -39,6 +40,9 @@ abstract contract RiskConfigs {
     function appointNextGovernor(address _nextGovernor) external onlyGovernor {
         assembly ("memory-safe") {
             sstore(nextGovernor.slot, and(_nextGovernor, 0xffffffffffffffffffffffffffffffffffffffff))
+
+            // emit AppointNextGovernor(_nextGovernor);
+            log2(0x00, 0x00, 0x192874f7d03868e0e27e79172ef01f27e1200fd3a5b08d7b3986fbe037125ee8, _nextGovernor)
         }
     }
 
@@ -51,9 +55,14 @@ abstract contract RiskConfigs {
                 revert(0x1c, 0x04)
             }
 
+            let lastGovernor := sload(governor.slot)
+
             // transfer governor role to the next governor and clear nextGovernor
             sstore(governor.slot, caller())
             sstore(nextGovernor.slot, 0x00)
+
+            // emit ConfirmNextGovernor(lastGovernor, caller());
+            log3(0x00, 0x00, 0x7c33d066bdd1139ec2077fef5825172051fa827c50f89af128ae878e44e44632, lastGovernor, caller())
         }
     }
 
@@ -62,6 +71,9 @@ abstract contract RiskConfigs {
     function setOracle(address _oracle) external onlyGovernor {
         assembly ("memory-safe") {
             sstore(oracle.slot, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff))
+
+            // emit SetOracle(_oracle);
+            log2(0x00, 0x00, 0xd3b5d1e0ffaeff528910f3663f0adace7694ab8241d58e17a91351ced2e08031, _oracle)
         }
     }
 
@@ -70,6 +82,10 @@ abstract contract RiskConfigs {
     function setDebtLimit(uint256 _debtLimit) external onlyGovernor {
         assembly ("memory-safe") {
             sstore(debtLimit.slot, _debtLimit)
+
+            // emit SetDebtLimit(_debtLimit);
+            mstore(0x00, _debtLimit)
+            log1(0x00, 0x20, 0xe0f0b7b6b88dbfa7d2d8d71a265ff500ccbafdb56c820e058b9a4c66d007c312)
         }
     }
 
@@ -78,6 +94,10 @@ abstract contract RiskConfigs {
     function setMinMargin(uint256 _minMargin) external onlyGovernor {
         assembly ("memory-safe") {
             sstore(minMargin.slot, _minMargin)
+
+            // emit SetMinMargin(_minMargin);
+            mstore(0x00, _minMargin)
+            log1(0x00, 0x20, 0x49ec42791c6fc287661930b06d5ae845a2bc030c0edc63db175b4e4092458d5b)
         }
     }
 
@@ -95,6 +115,10 @@ abstract contract RiskConfigs {
 
             // protocolFeePips = _protocolFeePips;
             sstore(protocolFeePips.slot, _protocolFeePips)
+
+            // emit SetProtocolFeePips(_protocolFeePips);
+            mstore(0x00, _protocolFeePips)
+            log1(0x00, 0x20, 0xb1a0d772ecb38fe2a9733de958330f541c1e2b510ff5089a41ba494078f90c48)
         }
     }
 
@@ -104,6 +128,9 @@ abstract contract RiskConfigs {
         assembly ("memory-safe") {
             // protocolFeeRecipient = _protocolFeeRecipient;
             sstore(protocolFeeRecipient.slot, and(_protocolFeeRecipient, 0xffffffffffffffffffffffffffffffffffffffff))
+
+            // emit SetProtocolFeeRecipient(_protocolFeeRecipient);
+            log2(0x00, 0x00, 0x0adecf76fa869b35236c53f76ec37546457966d5848d8be34a4508acdd51f7c3, _protocolFeeRecipient)
         }
     }
 }
