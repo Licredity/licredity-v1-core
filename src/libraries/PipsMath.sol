@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.0;
 
 /// @title PipsMath
 /// @notice Library for performing math operations in pips (1 / 1_000_000)
