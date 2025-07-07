@@ -45,6 +45,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     NonFungible internal transient stagedNonFungible;
 
     Fungible internal immutable baseFungible;
+    Fungible internal immutable debtFungible;
     PoolId internal immutable poolId;
     PoolKey internal poolKey;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
@@ -69,8 +70,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
         }
 
+        // set base and debt fungibles
         baseFungible = Fungible.wrap(baseToken);
+        debtFungible = Fungible.wrap(address(this));
 
+        // set pool key and id, initialize the hooked pool
         poolKey =
             PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
         poolId = poolKey.toId();
@@ -410,9 +414,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // if newly minted debt fungible is meant to be held in the position
         if (recipient == address(this)) {
-            position.addFungible(Fungible.wrap(address(this)), amount);
+            position.addFungible(debtFungible, amount);
 
-            // emit DepositFungible(positionId, Fungible.wrap(address(this)), amount);
+            // emit DepositFungible(positionId, debtFungible, amount);
             assembly ("memory-safe") {
                 mstore(0x00, amount)
                 log3(
@@ -464,10 +468,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 }
             }
 
-            position.removeFungible(Fungible.wrap(address(this)), amount);
+            position.removeFungible(debtFungible, amount);
             _burn(address(this), amount);
 
-            // emit WithdrawFungible(positionId, address(0), Fungible.wrap(address(this)), amount);
+            // emit WithdrawFungible(positionId, address(0), debtFungible, amount);
             assembly ("memory-safe") {
                 mstore(0x00, amount)
                 log4(
@@ -545,7 +549,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             topup = _deficitToTopup(debt - value);
 
             _mint(address(this), topup);
-            position.addFungible(Fungible.wrap(address(this)), topup);
+            position.addFungible(debtFungible, topup);
 
             // update total debt balance, and position's value and debt
             uint256 newTotalDebtBalance;
@@ -561,7 +565,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
             debt = position.debtShare.fullMulDivUp(newTotalDebtBalance, totalDebtShare);
 
-            // emit DepositFungible(positionId, Fungible.wrap(address(this)), topup);
+            // emit DepositFungible(positionId, debtFungible, topup);
             assembly ("memory-safe") {
                 mstore(0x00, topup)
                 log3(
@@ -600,6 +604,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             mstore(add(fmp, 0x40), 0)
             mstore(add(fmp, 0x60), 0)
         }
+    }
+
+    /// @inheritdoc IERC721TokenReceiver
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     /// @inheritdoc BaseHooks
@@ -705,11 +714,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         return (this.afterSwap.selector, 0);
     }
 
-    /// @inheritdoc IERC721TokenReceiver
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
     function _appraisePosition(Position storage position)
         internal
         returns (uint256 value, uint256 marginRequirement, uint256 debt, bool isHealthy)
@@ -780,7 +784,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 _mint(address(poolManager), interest);
                 poolManager.settle();
             }
-
         } else {
             assembly ("memory-safe") {
                 // accruedInterest += interest; // overflow not possible

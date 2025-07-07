@@ -86,7 +86,9 @@ abstract contract BaseERC20 is IERC20 {
                 }
 
                 // update allowance if not infinite
-                if iszero(eq(_allowance, sub(0, 1))) { sstore(allowanceSlot, sub(_allowance, amount)) }
+                if iszero(eq(_allowance, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)) {
+                    sstore(allowanceSlot, sub(_allowance, amount))
+                }
             }
         }
 
@@ -98,8 +100,10 @@ abstract contract BaseERC20 is IERC20 {
     /// @inheritdoc IERC20
     function balanceOf(address owner) public view returns (uint256 _balance) {
         assembly ("memory-safe") {
+            owner := and(owner, 0xffffffffffffffffffffffffffffffffffffffff)
+
             // _balance = ownerData[owner].balance;
-            mstore(0x00, and(owner, 0xffffffffffffffffffffffffffffffffffffffff))
+            mstore(0x00, owner)
             mstore(0x20, ownerData.slot)
             _balance := sload(add(keccak256(0x00, 0x40), BALANCE_OFFSET))
         }
