@@ -71,10 +71,16 @@ library PositionLibrary {
     /// @param self The position to remove fungible from
     /// @param fungible The fungible to remove
     /// @param amount The amount of fungible to remove
-    function removeFungible(Position storage self, Fungible fungible, uint256 amount) internal {
+    /// @return isRemoved True if the non-fungible was removed, false otherwise
+    function removeFungible(Position storage self, Fungible fungible, uint256 amount)
+        internal
+        returns (bool isRemoved)
+    {
         FungibleState state = self.fungibleStates[fungible];
         uint256 index = state.index();
         uint256 newBalance = state.balance() - amount;
+
+        if (index == 0) return false; // fungible not found
 
         if (newBalance != 0) {
             state = toFungibleState(index, newBalance);
@@ -101,6 +107,8 @@ library PositionLibrary {
             mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
             sstore(keccak256(0x00, 0x40), state)
         }
+
+        isRemoved = true;
     }
 
     /// @notice Adds a non-fungible to a position
