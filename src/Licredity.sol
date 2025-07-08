@@ -45,9 +45,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 internal transient stagedFungibleBalance;
     NonFungible internal transient stagedNonFungible;
 
-    Fungible internal immutable baseFungible;
-    Fungible internal immutable debtFungible;
-    PoolId internal immutable poolId;
+    Fungible internal baseFungible;
+    Fungible internal debtFungible;
+    PoolId internal poolId;
     PoolKey internal poolKey;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty

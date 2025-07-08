@@ -5,13 +5,13 @@ import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {FungibleState} from "src/types/FungibleState.sol";
 
 library StateLibrary {
-    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 13;
-    uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 14;
-    uint256 public constant POSITIONS_OFFSET = 20;
+    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 16;
+    uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 17;
+    uint256 public constant POSITIONS_OFFSET = 23;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
 
-    uint256 public constant BASE_AMOUNT_AVAILABLE_OFFSET = 17;
-    uint256 public constant DEBT_AMOUNT_OUTSTANDING_OFFSET = 18;
+    uint256 public constant BASE_AMOUNT_AVAILABLE_OFFSET = 20;
+    uint256 public constant DEBT_AMOUNT_OUTSTANDING_OFFSET = 21;
 
     function getExchangeAmount(ILicredity manager)
         internal
