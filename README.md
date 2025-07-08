@@ -109,7 +109,7 @@ Positions must maintain health across three dimensions:
 
 **Opening a Position**
 
-```java
+```solidity
 // 1. Open new position
 uint256 positionId = licredity.open();
 
@@ -126,7 +126,7 @@ licredity.unlock(abi.encodeCall(LicredityRouter.increaseDebtShare, (positionId, 
 
 Operations that could make positions unhealthy require the unlock pattern:
 
-```java
+```solidity
 licredity.unlock(encodedCalldata); // Performs operations + health checks
 ```
 
@@ -149,7 +149,7 @@ Enhanced Yields
 
 **Seizing Positions**
 
-```java
+```solidity
 // Monitor positions and seize unhealthy ones
 uint256 shortfall = licredity.seize(positionId, recipient);
 ```
@@ -174,7 +174,7 @@ test/
 
 ### Running Tests
 
-```java
+```solidity
 # All tests
 forge test
 
@@ -231,7 +231,7 @@ Uses EIP-1153 transient storage for temporary state:
 ### Known Considerations
 
 - Oracle Dependency: Relies on external price oracles
-- MEV Resistance: Uses TWAP pricing to prevent manipulation
+- MEV Resistance: Uses EMA pricing to prevent manipulation
 - Bad Debt Handling: Socializes underwater position losses
 - Emergency Controls: Governance can adjust risk parameters
 
@@ -251,7 +251,7 @@ The protocol integrates with:
 
 ### For Integrators
 
-```java
+```solidity
 // Basic integration example
 interface ILicredity {
     function open() external returns (uint256 positionId);
