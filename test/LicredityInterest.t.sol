@@ -36,6 +36,10 @@ contract LicredityInterestTest is Deployers {
         (, uint256 afterTotalAssets) = licredity.getTotalDebt();
 
         uint256 rate = (price - 1e18) * 1e9;
+        if (rate > 1e27) {
+            rate = 1e27;
+        }
+        
         uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(rate, elapsed);
 
         uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, RAY);

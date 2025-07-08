@@ -122,12 +122,10 @@ contract PositionTest is Test {
         }
     }
 
-    /// forge-config: default.allow_internal_expect_revert = true
     function test_removeNullFungible() public {
-        vm.expectRevert();
-        position.removeFungible(Fungible.wrap(address(0)), 0);
+        bool isRemoved = position.removeFungible(Fungible.wrap(address(0)), 0);
 
-        assertEq(position.fungibles.length, 0);
+        assertFalse(isRemoved);
     }
 
     function test_removeFungible(
