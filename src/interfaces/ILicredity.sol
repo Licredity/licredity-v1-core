@@ -3,11 +3,12 @@ pragma solidity ^0.8.0;
 
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
-import {IExtsload} from "../interfaces/IExtsload.sol";
+import {IExtsload} from "./IExtsload.sol";
+import {IRiskConfigs} from "./IRiskConfigs.sol";
 
 /// @title ILicredity
 /// @notice Interface for the Licredity contract
-interface ILicredity is IExtsload {
+interface ILicredity is IExtsload, IRiskConfigs {
     //////////////////////////////
     //        Errors            //
     //////////////////////////////
