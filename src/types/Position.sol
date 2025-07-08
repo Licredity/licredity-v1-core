@@ -80,35 +80,37 @@ library PositionLibrary {
         uint256 index = state.index();
         uint256 newBalance = state.balance() - amount;
 
-        if (index == 0) return false; // fungible not found
+        if (index != 0) {
+            if (newBalance != 0) {
+                state = toFungibleState(index, newBalance);
+            } else {
+                state = FungibleState.wrap(0);
 
-        if (newBalance != 0) {
-            state = toFungibleState(index, newBalance);
-        } else {
-            state = FungibleState.wrap(0);
+                // remove a fungible from the fungibles array
+                assembly ("memory-safe") {
+                    let slot := add(self.slot, FUNGIBLES_OFFSET)
+                    let len := sload(slot)
+                    mstore(0x00, slot)
+                    let dataSlot := keccak256(0x00, 0x20)
 
-            // remove a fungible from the fungibles array
-            assembly ("memory-safe") {
-                let slot := add(self.slot, FUNGIBLES_OFFSET)
-                let len := sload(slot)
-                mstore(0x00, slot)
-                let dataSlot := keccak256(0x00, 0x20)
+                    if iszero(eq(index, len)) {
+                        sstore(add(dataSlot, sub(index, 1)), sload(add(dataSlot, sub(len, 1))))
+                    }
 
-                if iszero(eq(index, len)) { sstore(add(dataSlot, sub(index, 1)), sload(add(dataSlot, sub(len, 1)))) }
-
-                sstore(add(dataSlot, sub(len, 1)), 0)
-                sstore(slot, sub(len, 1))
+                    sstore(add(dataSlot, sub(len, 1)), 0)
+                    sstore(slot, sub(len, 1))
+                }
             }
-        }
 
-        // update fungible state
-        assembly ("memory-safe") {
-            mstore(0x00, fungible)
-            mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
-            sstore(keccak256(0x00, 0x40), state)
-        }
+            // update fungible state
+            assembly ("memory-safe") {
+                mstore(0x00, fungible)
+                mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
+                sstore(keccak256(0x00, 0x40), state)
+            }
 
-        isRemoved = true;
+            isRemoved = true;
+        }
     }
 
     /// @notice Adds a non-fungible to a position
