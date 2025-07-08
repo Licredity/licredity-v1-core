@@ -19,7 +19,7 @@ abstract contract BaseERC20 is IERC20 {
     /// @inheritdoc IERC20
     string public symbol;
     /// @inheritdoc IERC20
-    uint8 public immutable decimals;
+    uint8 public decimals;
     /// @inheritdoc IERC20
     uint256 public totalSupply;
 
