@@ -39,7 +39,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 private constant POSITION_MRR_PIPS = 10_000; // 1% margin requirement
     uint256 private constant MAX_FUNGIBLES = 128; // maximum number of fungibles per position
     uint256 private constant MAX_NON_FUNGIBLES = 128; // maximum number of non-fungibles per position
-    uint256 private constant MAX_INTEREST_RATE = 365e25; // maximum interest rate (300% per year)
+    uint256 private constant MAX_INTEREST_RATE = 365e27; // maximum interest rate (365% per year)
 
     Fungible internal transient stagedFungible;
     uint256 internal transient stagedFungibleBalance;
