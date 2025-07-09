@@ -35,8 +35,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         governor = _governor;
     }
 
-    /// @notice Appoints the next governor
-    /// @param _nextGovernor The next governor
+    /// @inheritdoc IRiskConfigs
     function appointNextGovernor(address _nextGovernor) external onlyGovernor {
         assembly ("memory-safe") {
             _nextGovernor := and(_nextGovernor, 0xffffffffffffffffffffffffffffffffffffffff)
@@ -49,7 +48,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Confirms the new governor
+    /// @inheritdoc IRiskConfigs
     function confirmNextGovernor() external {
         assembly ("memory-safe") {
             // require(msg.sender == nextGovernor, NotNextGovernor());
@@ -72,8 +71,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the oracle
-    /// @param _oracle The oracle
+    /// @inheritdoc IRiskConfigs
     function setOracle(address _oracle) external onlyGovernor {
         assembly ("memory-safe") {
             _oracle := and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff)
@@ -86,8 +84,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the debt limit
-    /// @param _debtLimit The debt limit
+    /// @inheritdoc IRiskConfigs
     function setDebtLimit(uint256 _debtLimit) external onlyGovernor {
         assembly ("memory-safe") {
             // debtLimit = _debtLimit;
@@ -99,8 +96,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the minimum margin
-    /// @param _minMargin The minimum margin
+    /// @inheritdoc IRiskConfigs
     function setMinMargin(uint256 _minMargin) external onlyGovernor {
         assembly ("memory-safe") {
             // minMargin = _minMargin;
@@ -112,8 +108,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the protocol fee in pips
-    /// @param _protocolFeePips The protocol fee in pips
+    /// @inheritdoc IRiskConfigs
     function setProtocolFeePips(uint256 _protocolFeePips) external onlyGovernor {
         uint256 uintPips = PipsMath.UNIT_PIPS;
 
@@ -136,8 +131,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the protocol fee recipient
-    /// @param _protocolFeeRecipient The protocol fee recipient
+    /// @inheritdoc IRiskConfigs
     function setProtocolFeeRecipient(address _protocolFeeRecipient) external onlyGovernor {
         assembly ("memory-safe") {
             _protocolFeeRecipient := and(_protocolFeeRecipient, 0xffffffffffffffffffffffffffffffffffffffff)
