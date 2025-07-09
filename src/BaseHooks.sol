@@ -10,7 +10,7 @@ import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 /// @title BaseHooks
 /// @notice Abstract implementation of Uniswap V4 hooks
 abstract contract BaseHooks is IHooks {
-    IPoolManager internal immutable poolManager;
+    IPoolManager internal poolManager;
 
     modifier onlyPoolManager() {
         _onlyPoolManager();

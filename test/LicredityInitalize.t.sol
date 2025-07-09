@@ -24,7 +24,7 @@ contract LicredityInitalizeTest is Deployers {
         deployETHLicredityWithUniswapV4();
         assertEq(licredity.decimals(), 18);
 
-        bytes32 governorValue = vm.load(address(licredity), bytes32(uint256(4)));
+        bytes32 governorValue = vm.load(address(licredity), bytes32(uint256(6)));
         address governor;
         assembly ("memory-safe") {
             governor := governorValue

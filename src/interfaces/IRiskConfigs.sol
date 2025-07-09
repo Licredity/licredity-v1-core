@@ -32,4 +32,38 @@ interface IRiskConfigs {
     /// @notice Emitted when the protocol fee recipient is set
     /// @param protocolFeeRecipient The new protocol fee recipient
     event SetProtocolFeeRecipient(address indexed protocolFeeRecipient);
+
+    /// @notice Appoints the next governor
+    /// @param nextGovernor The next governor
+    /// @dev Can only be called by the current governor
+    function appointNextGovernor(address nextGovernor) external;
+
+    /// @notice Confirms the new governor
+    /// @dev Can only be called by the next governor
+    function confirmNextGovernor() external;
+
+    /// @notice Sets the oracle
+    /// @param oracle The oracle
+    /// @dev Can only be called by the current governor
+    function setOracle(address oracle) external;
+
+    /// @notice Sets the debt limit
+    /// @param debtLimit The debt limit
+    /// @dev Can only be called by the current governor
+    function setDebtLimit(uint256 debtLimit) external;
+
+    /// @notice Sets the minimum margin
+    /// @param minMargin The minimum margin
+    /// @dev Can only be called by the current governor
+    function setMinMargin(uint256 minMargin) external;
+
+    /// @notice Sets the protocol fee in pips
+    /// @param protocolFeePips The protocol fee in pips
+    /// @dev Can only be called by the current governor
+    function setProtocolFeePips(uint256 protocolFeePips) external;
+
+    /// @notice Sets the protocol fee recipient
+    /// @param protocolFeeRecipient The protocol fee recipient
+    /// @dev Can only be called by the current governor
+    function setProtocolFeeRecipient(address protocolFeeRecipient) external;
 }

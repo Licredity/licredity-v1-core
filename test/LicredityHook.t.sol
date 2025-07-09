@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Deployers} from "./utils/Deployer.sol";
+import {StateLibrary as LicredityStateLibrary} from "./utils/StateLibrary.sol";
 import {Licredity} from "src/Licredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
@@ -14,6 +15,7 @@ import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
 
 contract LicredityHookTest is Deployers {
     using StateLibrary for IPoolManager;
+    using LicredityStateLibrary for Licredity;
 
     error NotDebtFungible();
     error NotAmountOutstanding();
@@ -36,11 +38,6 @@ contract LicredityHookTest is Deployers {
         poolKey = PoolKey(
             Currency.wrap(address(0)), Currency.wrap(address(licredity)), FEE, TICK_SPACING, IHooks(address(licredity))
         );
-    }
-
-    function getExchangeAmount() public view returns (uint256 baseAmountAvailable, uint256 debtAmountOutstanding) {
-        baseAmountAvailable = uint256(vm.load(address(licredity), bytes32(uint256(18))));
-        debtAmountOutstanding = uint256(vm.load(address(licredity), bytes32(uint256(19))));
     }
 
     function swapForExchange(int256 amountSpecified) public {
@@ -97,7 +94,7 @@ contract LicredityHookTest is Deployers {
 
         uint256 userDebtAmount = IERC20(address(licredity)).balanceOf(address(user));
 
-        (uint256 baseAmountAvailable, uint256 debtAmountOutstanding) = getExchangeAmount();
+        (uint256 baseAmountAvailable, uint256 debtAmountOutstanding) = licredity.getExchangeAmount();
         assertApproxEqAbsDecimal(baseAmountAvailable, uint256(-amountSpecified), 0.0001 ether, 18);
         assertApproxEqAbsDecimal(debtAmountOutstanding, uint256(userDebtAmount), 0.00021 ether, 18);
     }
@@ -118,7 +115,7 @@ contract LicredityHookTest is Deployers {
 
         getDebtERC20(address(this), 1 ether);
 
-        (, uint256 debtAmountOutstanding) = getExchangeAmount();
+        (, uint256 debtAmountOutstanding) = licredity.getExchangeAmount();
         licredity.stageFungible(Fungible.wrap(address(licredity)));
         IERC20(address(licredity)).transfer(address(licredity), debtAmountOutstanding - 1);
         vm.expectRevert(NotAmountOutstanding.selector);
@@ -130,7 +127,7 @@ contract LicredityHookTest is Deployers {
 
         getDebtERC20(address(this), 1 ether);
 
-        (uint256 baseAmountAvailable, uint256 debtAmountOutstanding) = getExchangeAmount();
+        (uint256 baseAmountAvailable, uint256 debtAmountOutstanding) = licredity.getExchangeAmount();
         licredity.stageFungible(Fungible.wrap(address(licredity)));
         IERC20(address(licredity)).transfer(address(licredity), debtAmountOutstanding);
 
@@ -144,7 +141,7 @@ contract LicredityHookTest is Deployers {
 
         assertEq(afterUserBalance - beforeUserBalance, baseAmountAvailable);
 
-        (baseAmountAvailable, debtAmountOutstanding) = getExchangeAmount();
+        (baseAmountAvailable, debtAmountOutstanding) = licredity.getExchangeAmount();
         assertEq(baseAmountAvailable, 0);
         assertEq(debtAmountOutstanding, 0);
     }

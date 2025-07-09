@@ -9,8 +9,7 @@ contract LockerTest is Test {
     error AlreadyUnlocked();
     error NotUnlocked();
 
-    bytes32 private constant UNLOCKED_SLOT = 0xc090fc4683624cfc3884e9d8de5eca132f2d0ec062aff75d43c0465d5ceeab23;
-    bytes32 private constant REGISTERED_ITEMS_SLOT = 0x200b7f4f488b59c5fce2ca35008c3bf548ce04262fab17c5838c90724a17a1fa;
+    bytes32 private constant LOCKER_SLOT = 0x0e87e1788ebd9ed6a7e63c70a374cd3283e41cad601d21fbe27863899ed4a708;
 
     mapping(bytes32 => bool) private isRegisteredItems;
     bytes32[] private registeredItems;
@@ -21,8 +20,8 @@ contract LockerTest is Test {
 
         Locker.unlock();
         assembly {
-            unlocked := tload(UNLOCKED_SLOT)
-            count := tload(REGISTERED_ITEMS_SLOT)
+            unlocked := and(tload(LOCKER_SLOT), 0x01)
+            count := shr(224, tload(LOCKER_SLOT))
         }
         assertTrue(unlocked);
         assertEq(count, 0);
@@ -40,7 +39,7 @@ contract LockerTest is Test {
         Locker.lock();
         bool unlocked;
         assembly {
-            unlocked := tload(UNLOCKED_SLOT)
+            unlocked := and(tload(LOCKER_SLOT), 0x01)
         }
         assertFalse(unlocked);
     }

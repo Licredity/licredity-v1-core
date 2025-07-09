@@ -39,8 +39,12 @@ library InterestRateLibrary {
     /// @param rate The interest rate
     /// @param principal The principal amount
     /// @param elapsed The time elapsed in seconds
-    /// @return uint256 The interest accrued
-    function calculateInterest(InterestRate rate, uint256 principal, uint256 elapsed) internal pure returns (uint256) {
+    /// @return interest The interest accrued
+    function calculateInterest(InterestRate rate, uint256 principal, uint256 elapsed)
+        internal
+        pure
+        returns (uint256 interest)
+    {
         uint256 expMinusOne;
         uint256 expMinusTwo;
         uint256 basePowerTwo;
@@ -56,6 +60,6 @@ library InterestRateLibrary {
         uint256 secondTerm = basePowerTwo.fullMulDiv(elapsed * expMinusOne, 2);
         uint256 thirdTerm = basePowerThree.fullMulDiv(elapsed * expMinusOne * expMinusTwo, 6);
 
-        return principal.fullMulDivUp(firstTerm + secondTerm + thirdTerm, RAY);
+        interest = principal.fullMulDivUp(firstTerm + secondTerm + thirdTerm, RAY);
     }
 }

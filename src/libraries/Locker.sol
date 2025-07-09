@@ -4,78 +4,80 @@ pragma solidity =0.8.30;
 /// @title Locker
 /// @notice Library for managing locker operations
 library Locker {
-    // bytes32(uint256(keccak256("Unlocked")) - 1)
-    bytes32 private constant UNLOCKED_SLOT = 0xc090fc4683624cfc3884e9d8de5eca132f2d0ec062aff75d43c0465d5ceeab23;
-
-    // bytes32(uint256(keccak256("RegisteredItems")) - 1)
-    bytes32 private constant REGISTERED_ITEMS_SLOT = 0x200b7f4f488b59c5fce2ca35008c3bf548ce04262fab17c5838c90724a17a1fa;
+    // bytes32(uint256(keccak256("Locker")) - 1)
+    // 32 bits count | 223 bits empty | 1 bit unlocked
+    bytes32 private constant LOCKER_SLOT = 0x0e87e1788ebd9ed6a7e63c70a374cd3283e41cad601d21fbe27863899ed4a708;
 
     /// @notice Unlocks the locker and clears registered items
     function unlock() internal {
         assembly ("memory-safe") {
-            // revert if already unlocked
-            if iszero(iszero(tload(UNLOCKED_SLOT))) {
+            let locker := tload(LOCKER_SLOT)
+
+            // requires locker to be locked
+            if iszero(iszero(and(locker, 0x01))) {
                 mstore(0x00, 0x5090d6c6) // 'AlreadyUnlocked()'
                 revert(0x1c, 0x04)
             }
 
             // clear each registered item
-            let length := tload(REGISTERED_ITEMS_SLOT)
-            for { let i := 1 } iszero(gt(i, length)) { i := add(i, 1) } {
-                // calculate the transient mapping and array slots
-                let itemSlot := add(REGISTERED_ITEMS_SLOT, mul(0x20, i))
-                mstore(0x00, tload(itemSlot))
-                mstore(0x20, REGISTERED_ITEMS_SLOT)
+            let count := shr(224, locker)
+            mstore(0x20, LOCKER_SLOT)
+            for { let i := 1 } iszero(gt(i, count)) { i := add(i, 1) } {
+                let itemSlot := add(LOCKER_SLOT, mul(0x20, i))
 
-                // clear the transient mapping and array slots
+                // set item's registered slot to false and remove it from the registered items array
+                mstore(0x00, tload(itemSlot))
                 tstore(keccak256(0x00, 0x40), false)
                 tstore(itemSlot, 0)
             }
-            // clear the transient array
-            tstore(REGISTERED_ITEMS_SLOT, 0)
 
-            // set the locker to unlocked
-            tstore(UNLOCKED_SLOT, true)
+            // clear count and unlock the locker
+            tstore(LOCKER_SLOT, 0x01)
         }
     }
 
     /// @notice Locks the locker
     function lock() internal {
         assembly ("memory-safe") {
-            // revert if already locked
-            if iszero(tload(UNLOCKED_SLOT)) {
+            let locker := tload(LOCKER_SLOT)
+
+            // requires locker to be unlocked
+            if iszero(and(locker, 0x01)) {
                 mstore(0x00, 0x5f0ccd7c) // 'AlreadyLocked()'
                 revert(0x1c, 0x04)
             }
 
             // set the locker to locked
-            tstore(UNLOCKED_SLOT, false)
+            tstore(LOCKER_SLOT, and(locker, 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe))
         }
     }
 
     /// @notice Registers an item in the locker
+    /// @param item The item to register
     function register(bytes32 item) internal {
         assembly ("memory-safe") {
-            // revert if not unlocked
-            if iszero(tload(UNLOCKED_SLOT)) {
+            let locker := tload(LOCKER_SLOT)
+
+            // requires locker to be unlocked
+            if iszero(and(locker, 0x01)) {
                 mstore(0x00, 0xfa680065) // 'NotUnlocked()'
                 revert(0x1c, 0x04)
             }
 
-            // calulate the transient mapping slot
+            // calculate item's registered slot
             mstore(0x00, item)
-            mstore(0x20, REGISTERED_ITEMS_SLOT)
-            let mappingSlot := keccak256(0x00, 0x40)
+            mstore(0x20, LOCKER_SLOT)
+            let registeredSlot := keccak256(0x00, 0x40)
 
             // only register the item if it is not already registered
-            if iszero(tload(mappingSlot)) {
-                // set transient mapping slot
-                tstore(mappingSlot, true)
+            if iszero(tload(registeredSlot)) {
+                // set the registered slot to true
+                tstore(registeredSlot, true)
 
-                // set transient array slot and grow the array
-                let newLength := add(tload(REGISTERED_ITEMS_SLOT), 1)
-                tstore(add(REGISTERED_ITEMS_SLOT, mul(0x20, newLength)), item)
-                tstore(REGISTERED_ITEMS_SLOT, newLength)
+                // add item to the registered items array and increment count
+                let count := add(shr(224, locker), 1)
+                tstore(add(LOCKER_SLOT, mul(count, 0x20)), item)
+                tstore(LOCKER_SLOT, or(shl(224, count), 0x01))
             }
         }
     }
@@ -83,19 +85,19 @@ library Locker {
     /// @notice Gets the registered items in the locker
     function registeredItems() internal view returns (bytes32[] memory items) {
         assembly ("memory-safe") {
-            let length := tload(REGISTERED_ITEMS_SLOT)
+            let count := shr(224, tload(LOCKER_SLOT))
             items := mload(0x40)
+            mstore(items, count)
 
-            // copy arry from transient storage to memory
-            mstore(items, length)
+            // copy array from transient storage to memory
             let i := 1
-            for {} iszero(gt(i, length)) { i := add(i, 1) } {
-                let offset := mul(0x20, i)
-                mstore(add(items, offset), tload(add(REGISTERED_ITEMS_SLOT, offset)))
+            for {} iszero(gt(i, count)) { i := add(i, 1) } {
+                let offset := mul(i, 0x20)
+                mstore(add(items, offset), tload(add(LOCKER_SLOT, offset)))
             }
 
-            // update free memory pointer (i = length + 1)
-            mstore(0x40, add(items, mul(0x20, i)))
+            // update free memory pointer
+            mstore(0x40, add(items, mul(i, 0x20)))
         }
     }
 }

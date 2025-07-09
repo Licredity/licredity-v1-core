@@ -39,13 +39,15 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 private constant POSITION_MRR_PIPS = 10_000; // 1% margin requirement
     uint256 private constant MAX_FUNGIBLES = 128; // maximum number of fungibles per position
     uint256 private constant MAX_NON_FUNGIBLES = 128; // maximum number of non-fungibles per position
+    uint256 private constant MAX_INTEREST_RATE = 3.65e27; // maximum interest rate (365% per year)
 
     Fungible internal transient stagedFungible;
     uint256 internal transient stagedFungibleBalance;
     NonFungible internal transient stagedNonFungible;
 
-    Fungible internal immutable baseFungible;
-    PoolId internal immutable poolId;
+    Fungible internal baseFungible;
+    Fungible internal debtFungible;
+    PoolId internal poolId;
     PoolKey internal poolKey;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
@@ -69,8 +71,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
         }
 
+        // set base and debt fungibles
         baseFungible = Fungible.wrap(baseToken);
+        debtFungible = Fungible.wrap(address(this));
 
+        // set pool key and id, initialize the hooked pool
         poolKey =
             PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
         poolId = poolKey.toId();
@@ -81,11 +86,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     function unlock(bytes calldata data) external returns (bytes memory result) {
         Locker.unlock();
 
+        // accrue interest and update total debt balance
+        _collectInterest(false);
+
         // callback to message sender, which must implement IUnlockCallback
         result = IUnlockCallback(msg.sender).unlockCallback(data);
-
-        // update total debt balance before appraising positions
-        _collectInterest(false);
 
         // ensure that every registered position is healthy
         bytes32[] memory items = Locker.registeredItems();
@@ -260,7 +265,13 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         // ensure position health post withdrawal
         Locker.register(bytes32(positionId));
 
-        position.removeFungible(fungible, amount);
+        // require(position.removeFungible(nonFungible), FungibleNotInPosition());
+        if (!position.removeFungible(fungible, amount)) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0xf546a276) // 'FungibleNotInPosition()'
+                revert(0x1c, 0x04)
+            }
+        }
         fungible.transfer(recipient, amount);
 
         // emit WithdrawFungible(positionId, recipient, fungible, amount);
@@ -389,8 +400,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // ensure position health post debt share increase
         Locker.register(bytes32(positionId));
-        // collect interest on total debt balance before it is used and updated
-        _collectInterest(false);
 
         uint256 _totalDebtShare = totalDebtShare; // gas saving
         uint256 _totalDebtBalance = totalDebtBalance; // gas saving
@@ -410,9 +419,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // if newly minted debt fungible is meant to be held in the position
         if (recipient == address(this)) {
-            position.addFungible(Fungible.wrap(address(this)), amount);
+            position.addFungible(debtFungible, amount);
 
-            // emit DepositFungible(positionId, Fungible.wrap(address(this)), amount);
+            // emit DepositFungible(positionId, debtFungible, amount);
             assembly ("memory-safe") {
                 mstore(0x00, amount)
                 log3(
@@ -446,9 +455,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance) external returns (uint256 amount) {
         Position storage position = positions[positionId];
 
-        // collect interest on total debt balance before it is used and updated
-        _collectInterest(false);
-
         uint256 _totalDebtShare = totalDebtShare; // gas saving
         uint256 _totalDebtBalance = totalDebtBalance; // gas saving
         // amount of debt fungible to be burned
@@ -464,10 +470,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 }
             }
 
-            position.removeFungible(Fungible.wrap(address(this)), amount);
+            position.removeFungible(debtFungible, amount);
             _burn(address(this), amount);
 
-            // emit WithdrawFungible(positionId, address(0), Fungible.wrap(address(this)), amount);
+            // emit WithdrawFungible(positionId, address(0), debtFungible, amount);
             assembly ("memory-safe") {
                 mstore(0x00, amount)
                 log4(
@@ -525,8 +531,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // ensure position health post seizure
         Locker.register(bytes32(positionId));
-        // update total debt balance, which in turn updates position's debt
-        _collectInterest(false);
 
         (uint256 value, uint256 marginRequirement, uint256 debt, bool isHealthy) = _appraisePosition(position);
 
@@ -545,7 +549,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             topup = _deficitToTopup(debt - value);
 
             _mint(address(this), topup);
-            position.addFungible(Fungible.wrap(address(this)), topup);
+            position.addFungible(debtFungible, topup);
 
             // update total debt balance, and position's value and debt
             uint256 newTotalDebtBalance;
@@ -561,7 +565,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
             debt = position.debtShare.fullMulDivUp(newTotalDebtBalance, totalDebtShare);
 
-            // emit DepositFungible(positionId, Fungible.wrap(address(this)), topup);
+            // emit DepositFungible(positionId, debtFungible, topup);
             assembly ("memory-safe") {
                 mstore(0x00, topup)
                 log3(
@@ -600,6 +604,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             mstore(add(fmp, 0x40), 0)
             mstore(add(fmp, 0x60), 0)
         }
+    }
+
+    /// @inheritdoc IERC721TokenReceiver
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     /// @inheritdoc BaseHooks
@@ -705,11 +714,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         return (this.afterSwap.selector, 0);
     }
 
-    /// @inheritdoc IERC721TokenReceiver
-    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return this.onERC721Received.selector;
-    }
-
     function _appraisePosition(Position storage position)
         internal
         returns (uint256 value, uint256 marginRequirement, uint256 debt, bool isHealthy)
@@ -749,14 +753,17 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     function _collectInterest(bool distribute) internal {
         uint256 elapsed = block.timestamp - lastInterestCollectionTimestamp;
-        if (elapsed == 0) return;
+        if (elapsed == 0 && !distribute) return;
 
-        uint256 _totalDebtBalance = totalDebtBalance; // gas saving
-        InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
-        uint256 interest = interestRate.calculateInterest(_totalDebtBalance, elapsed);
+        uint256 interest;
+        if (elapsed > 0) {
+            uint256 _totalDebtBalance = totalDebtBalance; // gas saving
+            InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
+            interest = interestRate.calculateInterest(_totalDebtBalance, elapsed);
 
-        totalDebtBalance = _totalDebtBalance + interest;
-        lastInterestCollectionTimestamp = block.timestamp;
+            totalDebtBalance = _totalDebtBalance + interest;
+            lastInterestCollectionTimestamp = block.timestamp;
+        }
 
         if (distribute && poolManager.getLiquidity(poolId) > 0) {
             assembly ("memory-safe") {
@@ -780,7 +787,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 _mint(address(poolManager), interest);
                 poolManager.settle();
             }
-
         } else {
             assembly ("memory-safe") {
                 // accruedInterest += interest; // overflow not possible
@@ -809,6 +815,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 // price has 18 decimals, and interest has 27 decimals
                 // interestRate = InterestRate.wrap((price - 1e18) * 1e9);
                 interestRate := mul(sub(price, 1000000000000000000), 1000000000)
+
+                if gt(interestRate, MAX_INTEREST_RATE) { interestRate := MAX_INTEREST_RATE }
             }
         }
     }

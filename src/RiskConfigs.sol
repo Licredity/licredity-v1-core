@@ -13,7 +13,7 @@ abstract contract RiskConfigs is IRiskConfigs {
     IOracle internal oracle;
     uint256 internal debtLimit; // global debt limit in debt fungible
     uint256 internal minMargin; // minimum margin in an indebted position
-    uint256 internal protocolFeePips;
+    uint24 internal protocolFeePips;
     address internal protocolFeeRecipient;
 
     modifier onlyGovernor() {
@@ -22,7 +22,7 @@ abstract contract RiskConfigs is IRiskConfigs {
     }
 
     function _onlyGovernor() internal view {
-        // require(caller() == governor, NotGovernor());
+        // require(msg.sender == governor, NotGovernor());
         assembly ("memory-safe") {
             if iszero(eq(caller(), sload(governor.slot))) {
                 mstore(0x00, 0xee3675d4) // 'NotGovernor()'
@@ -35,52 +35,59 @@ abstract contract RiskConfigs is IRiskConfigs {
         governor = _governor;
     }
 
-    /// @notice Appoints the next governor
-    /// @param _nextGovernor The next governor
+    /// @inheritdoc IRiskConfigs
     function appointNextGovernor(address _nextGovernor) external onlyGovernor {
         assembly ("memory-safe") {
-            sstore(nextGovernor.slot, and(_nextGovernor, 0xffffffffffffffffffffffffffffffffffffffff))
+            _nextGovernor := and(_nextGovernor, 0xffffffffffffffffffffffffffffffffffffffff)
+
+            // nextGovernor = _nextGovernor;
+            sstore(nextGovernor.slot, _nextGovernor)
 
             // emit AppointNextGovernor(_nextGovernor);
             log2(0x00, 0x00, 0x192874f7d03868e0e27e79172ef01f27e1200fd3a5b08d7b3986fbe037125ee8, _nextGovernor)
         }
     }
 
-    /// @notice Confirms the new governor
+    /// @inheritdoc IRiskConfigs
     function confirmNextGovernor() external {
         assembly ("memory-safe") {
-            // require(caller() == nextGovernor, NotNextGovernor());
+            // require(msg.sender == nextGovernor, NotNextGovernor());
             if iszero(eq(caller(), sload(nextGovernor.slot))) {
                 mstore(0x00, 0x7dc8c6f8) // 'NotNextGovernor()'
                 revert(0x1c, 0x04)
             }
 
+            // address lastGovernor = governor;
             let lastGovernor := sload(governor.slot)
 
             // transfer governor role to the next governor and clear nextGovernor
+            // governor = msg.sender;
+            // delete nextGovernor;
             sstore(governor.slot, caller())
             sstore(nextGovernor.slot, 0x00)
 
-            // emit ConfirmNextGovernor(lastGovernor, caller());
+            // emit ConfirmNextGovernor(lastGovernor, msg.sender);
             log3(0x00, 0x00, 0x7c33d066bdd1139ec2077fef5825172051fa827c50f89af128ae878e44e44632, lastGovernor, caller())
         }
     }
 
-    /// @notice Sets the oracle
-    /// @param _oracle The oracle
+    /// @inheritdoc IRiskConfigs
     function setOracle(address _oracle) external onlyGovernor {
         assembly ("memory-safe") {
-            sstore(oracle.slot, and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff))
+            _oracle := and(_oracle, 0xffffffffffffffffffffffffffffffffffffffff)
+
+            // oracle = _oracle;
+            sstore(oracle.slot, _oracle)
 
             // emit SetOracle(_oracle);
             log2(0x00, 0x00, 0xd3b5d1e0ffaeff528910f3663f0adace7694ab8241d58e17a91351ced2e08031, _oracle)
         }
     }
 
-    /// @notice Sets the debt limit
-    /// @param _debtLimit The debt limit
+    /// @inheritdoc IRiskConfigs
     function setDebtLimit(uint256 _debtLimit) external onlyGovernor {
         assembly ("memory-safe") {
+            // debtLimit = _debtLimit;
             sstore(debtLimit.slot, _debtLimit)
 
             // emit SetDebtLimit(_debtLimit);
@@ -89,10 +96,10 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the minimum margin
-    /// @param _minMargin The minimum margin
+    /// @inheritdoc IRiskConfigs
     function setMinMargin(uint256 _minMargin) external onlyGovernor {
         assembly ("memory-safe") {
+            // minMargin = _minMargin;
             sstore(minMargin.slot, _minMargin)
 
             // emit SetMinMargin(_minMargin);
@@ -101,8 +108,7 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the protocol fee in pips
-    /// @param _protocolFeePips The protocol fee in pips
+    /// @inheritdoc IRiskConfigs
     function setProtocolFeePips(uint256 _protocolFeePips) external onlyGovernor {
         uint256 uintPips = PipsMath.UNIT_PIPS;
 
@@ -114,7 +120,10 @@ abstract contract RiskConfigs is IRiskConfigs {
             }
 
             // protocolFeePips = _protocolFeePips;
-            sstore(protocolFeePips.slot, _protocolFeePips)
+            sstore(
+                protocolFeePips.slot,
+                or(and(sload(protocolFeePips.slot), 0xffffffffffffffffffffffffffffffffffffffff000000), _protocolFeePips)
+            )
 
             // emit SetProtocolFeePips(_protocolFeePips);
             mstore(0x00, _protocolFeePips)
@@ -122,12 +131,16 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice Sets the protocol fee recipient
-    /// @param _protocolFeeRecipient The protocol fee recipient
+    /// @inheritdoc IRiskConfigs
     function setProtocolFeeRecipient(address _protocolFeeRecipient) external onlyGovernor {
         assembly ("memory-safe") {
+            _protocolFeeRecipient := and(_protocolFeeRecipient, 0xffffffffffffffffffffffffffffffffffffffff)
+
             // protocolFeeRecipient = _protocolFeeRecipient;
-            sstore(protocolFeeRecipient.slot, and(_protocolFeeRecipient, 0xffffffffffffffffffffffffffffffffffffffff))
+            sstore(
+                protocolFeeRecipient.slot,
+                or(shl(24, _protocolFeeRecipient), and(sload(protocolFeeRecipient.slot), 0xffffff))
+            )
 
             // emit SetProtocolFeeRecipient(_protocolFeeRecipient);
             log2(0x00, 0x00, 0x0adecf76fa869b35236c53f76ec37546457966d5848d8be34a4508acdd51f7c3, _protocolFeeRecipient)
