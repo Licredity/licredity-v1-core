@@ -7,8 +7,6 @@ import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {PositionDB} from "test/utils/PositionFuzzDB.sol";
 
-import {console} from "@forge-std/console.sol";
-
 contract PositionTest is Test {
     Position public position;
 
@@ -112,7 +110,6 @@ contract PositionTest is Test {
 
                 if (!db.isUsedFungible(fungible)) {
                     fungibleLength = fungibleLength + 1;
-                    // console.log("fungibleLength: ", fungibleLength);
                     db.addUsedFungible(fungible);
 
                     assertEq(position.fungibles.length, fungibleLength);
