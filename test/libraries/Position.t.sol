@@ -128,6 +128,14 @@ contract PositionTest is Test {
         assertFalse(isRemoved);
     }
 
+    function test_removeFungible_notExist(Fungible fungible, Fungible removeFungible) public {
+        vm.assume(Fungible.unwrap(fungible) != Fungible.unwrap(removeFungible));
+        position.addFungible(fungible, 1 ether);
+        bool isRemoved = position.removeFungible(removeFungible, 0);
+
+        assertFalse(isRemoved);    
+    }
+
     function test_removeFungible(
         Fungible[] calldata fungibles,
         uint128[] calldata amounts,
