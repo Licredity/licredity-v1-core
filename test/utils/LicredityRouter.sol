@@ -10,6 +10,7 @@ import {IERC721} from "@forge-std/interfaces/IERC721.sol";
 
 enum Actions {
     ADD_DEBT,
+    REMOVE_DEBT,
     WITHDRAW_FUNGIBLE,
     WITHDRAW_NON_FUNGIBLE,
     DEPOSIT_FUNGIBLE,
@@ -72,6 +73,8 @@ contract LicredityRouter is IUnlockCallback {
 
             if (action == Actions.ADD_DEBT) {
                 _addDebt(param);
+            } else if (action == Actions.REMOVE_DEBT) {
+                _removeDebt(param);
             } else if (action == Actions.WITHDRAW_FUNGIBLE) {
                 _withdrawFungible(param);
             } else if (action == Actions.WITHDRAW_NON_FUNGIBLE) {
@@ -89,6 +92,11 @@ contract LicredityRouter is IUnlockCallback {
     function _addDebt(bytes memory param) internal {
         (uint256 positionId, uint256 delta, address recipient) = abi.decode(param, (uint256, uint256, address));
         licredity.increaseDebtShare(positionId, delta, recipient);
+    }
+
+    function _removeDebt(bytes memory param) internal {
+        (uint256 positionId, uint256 delta, bool useBalance) = abi.decode(param, (uint256, uint256, bool));
+        licredity.decreaseDebtShare(positionId, delta, useBalance);
     }
 
     function _withdrawFungible(bytes memory param) internal {

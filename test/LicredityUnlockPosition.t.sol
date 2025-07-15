@@ -8,6 +8,7 @@ import {NonFungible} from "src/types/NonFungible.sol";
 import {StateLibrary} from "./utils/StateLibrary.sol";
 import {Licredity} from "src/Licredity.sol";
 import {ChainInfo} from "src/libraries/ChainInfo.sol";
+import {Actions} from "./utils/LicredityRouter.sol";
 
 contract LicredityUnlockPositionTest is Deployers {
     using ShareMath for uint128;
@@ -157,7 +158,28 @@ contract LicredityUnlockPositionTest is Deployers {
         licredity.decreaseDebtShare(positionId, 0, true);
     }
 
-    function test_decreaseDebtShare_useBalance(uint128 decreaseAmount) public {
+    function test_decreaseDebtShare_useBalance_share(uint256 delta) public {
+        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 maxDelta = uint128(10000 ether - 1).toShares(totalAssets, totalShares);
+
+        delta = bound(delta, 1e6, maxDelta);
+
+        uint256 positionId = licredityRouter.open();
+        licredityRouter.depositFungible{value: 1 gwei}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 gwei);
+
+        Actions[] memory actions = new Actions[](2);
+        bytes[] memory params = new bytes[](2);
+
+        actions[0] = Actions.ADD_DEBT;
+        params[0] = abi.encode(positionId, delta, address(licredity));
+
+        actions[1] = Actions.REMOVE_DEBT;
+        params[1] = abi.encode(positionId, delta - 1e6, true);
+
+        licredityRouter.executeActions(actions, params);
+    }
+
+    function test_decreaseDebtShare_useBalance_amount(uint128 decreaseAmount) public {
         uint256 positionId = licredityRouter.open();
         uint128 amount = 99 ether;
 
