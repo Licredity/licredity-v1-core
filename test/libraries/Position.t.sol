@@ -7,8 +7,6 @@ import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {PositionDB} from "test/utils/PositionFuzzDB.sol";
 
-import {console} from "@forge-std/console.sol";
-
 contract PositionTest is Test {
     Position public position;
 
@@ -112,7 +110,6 @@ contract PositionTest is Test {
 
                 if (!db.isUsedFungible(fungible)) {
                     fungibleLength = fungibleLength + 1;
-                    // console.log("fungibleLength: ", fungibleLength);
                     db.addUsedFungible(fungible);
 
                     assertEq(position.fungibles.length, fungibleLength);
@@ -126,6 +123,14 @@ contract PositionTest is Test {
         bool isRemoved = position.removeFungible(Fungible.wrap(address(0)), 0);
 
         assertFalse(isRemoved);
+    }
+
+    function test_removeFungible_notExist(Fungible fungible, Fungible removeFungible) public {
+        vm.assume(Fungible.unwrap(fungible) != Fungible.unwrap(removeFungible));
+        position.addFungible(fungible, 1 ether);
+        bool isRemoved = position.removeFungible(removeFungible, 0);
+
+        assertFalse(isRemoved);    
     }
 
     function test_removeFungible(
