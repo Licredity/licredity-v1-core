@@ -33,4 +33,6 @@ contract RiskConfigsMock is RiskConfigs {
     function loadMinMargin() external view returns (uint256) {
         return minMargin;
     }
+
+    function _collectFees() internal virtual override {}
 }

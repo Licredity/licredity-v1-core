@@ -714,6 +714,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         return (this.afterSwap.selector, 0);
     }
 
+    /// @inheritdoc RiskConfigs
+    function _collectFees() internal override {
+        _collectInterest(false);
+    }
+
     function _appraisePosition(Position storage position)
         internal
         returns (uint256 value, uint256 marginRequirement, uint256 debt, bool isHealthy)
