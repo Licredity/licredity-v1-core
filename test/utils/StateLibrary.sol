@@ -7,11 +7,11 @@ import {FungibleState} from "src/types/FungibleState.sol";
 library StateLibrary {
     uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 18;
     uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 19;
-    uint256 public constant POSITIONS_OFFSET = 25;
+    uint256 public constant POSITIONS_OFFSET = 26;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
 
-    uint256 public constant BASE_AMOUNT_AVAILABLE_OFFSET = 22;
-    uint256 public constant DEBT_AMOUNT_OUTSTANDING_OFFSET = 23;
+    uint256 public constant BASE_AMOUNT_AVAILABLE_OFFSET = 23;
+    uint256 public constant DEBT_AMOUNT_OUTSTANDING_OFFSET = 24;
 
     function getExchangeAmount(ILicredity manager)
         internal

@@ -51,7 +51,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     PoolKey internal poolKey;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
-    uint256 internal accruedInterest;
+    uint256 internal accruedDonation;
+    uint256 internal accruedProtocolFee;
     uint256 internal lastInterestCollectionTimestamp;
     uint256 internal baseAmountAvailable;
     uint256 internal debtAmountOutstanding;
@@ -634,7 +635,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
-            // collect and distribute interest before active liquidity is updated
+            // collect and donate interest before active liquidity is updated
             _collectInterest(true);
         }
 
@@ -651,7 +652,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
-            // collect and distribute interest before active liquidity is updated
+            // collect and donate interest before active liquidity is updated
             _collectInterest(true);
         }
 
@@ -666,7 +667,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     {
         // do nothing during the back run swap
         if (sender != address(this)) {
-            // collect and distribute interest before active liquidity is potentially updated
+            // collect and donate interest before active liquidity is potentially updated
             _collectInterest(true);
         }
 
@@ -715,8 +716,59 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc RiskConfigs
-    function _collectFees() internal override {
-        _collectInterest(false);
+    function _collectInterest(bool donate) internal override {
+        uint256 elapsed = block.timestamp - lastInterestCollectionTimestamp;
+        // short circuit if no time has elapsed and donation is not requested
+        // this also prevents distributing any accrued protocol fee which is acceptable
+        if (elapsed == 0 && !donate) return;
+
+        uint256 donation;
+        uint256 protocolFee;
+        if (elapsed > 0) {
+            uint256 _totalDebtBalance = totalDebtBalance; // gas saving
+            InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
+            uint256 interest = interestRate.calculateInterest(_totalDebtBalance, elapsed);
+
+            // split interest into donation and protocol fee
+            protocolFee = interest.pipsMulUp(protocolFeePips);
+            donation = interest - protocolFee;
+
+            // increase total debt balance and update last interest collection timestamp
+            totalDebtBalance = _totalDebtBalance + interest;
+            lastInterestCollectionTimestamp = block.timestamp;
+        }
+
+        // only donate if requested and there is active liquidity in the pool
+        if (donate && poolManager.getLiquidity(poolId) > 0) {
+            // include any accrued donation and set it to 0
+            donation += accruedDonation;
+            accruedDonation = 0;
+
+            if (donation > 0) {
+                // donate to active liquidity
+                poolManager.donate(poolKey, 0, donation, "");
+                poolManager.sync(Currency.wrap(address(this)));
+                _mint(address(poolManager), donation);
+                poolManager.settle();
+            }
+        } else if (donation > 0) {
+            // accrue donation for later distribution
+            accruedDonation += donation;
+        }
+
+        if (protocolFeeRecipient != address(0)) {
+            // include any accrued protocol fee and set it to 0
+            protocolFee += accruedProtocolFee;
+            accruedProtocolFee = 0;
+
+            if (protocolFee > 0) {
+                // collect protocol fee
+                _mint(protocolFeeRecipient, protocolFee);
+            }
+        } else if (protocolFee > 0) {
+            // accrue protocol fee for later distribution
+            accruedProtocolFee += protocolFee;
+        }
     }
 
     function _appraisePosition(Position storage position)
@@ -754,50 +806,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         //    which has 0% margin requirement, to take on enormous debt that causes the position to go underwater)
         isHealthy = value >= debt + marginRequirement && marginRequirement >= minMargin
             && debt <= value - value.pipsMulUp(POSITION_MRR_PIPS);
-    }
-
-    function _collectInterest(bool distribute) internal {
-        uint256 elapsed = block.timestamp - lastInterestCollectionTimestamp;
-        if (elapsed == 0 && !distribute) return;
-
-        uint256 interest;
-        if (elapsed > 0) {
-            uint256 _totalDebtBalance = totalDebtBalance; // gas saving
-            InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
-            interest = interestRate.calculateInterest(_totalDebtBalance, elapsed);
-
-            totalDebtBalance = _totalDebtBalance + interest;
-            lastInterestCollectionTimestamp = block.timestamp;
-        }
-
-        if (distribute && poolManager.getLiquidity(poolId) > 0) {
-            assembly ("memory-safe") {
-                // interest += accruedInterest; // overflow not possible
-                interest := add(interest, sload(accruedInterest.slot))
-                // accruedInterest = 0;
-                sstore(accruedInterest.slot, 0)
-            }
-
-            if (interest != 0) {
-                // collect protocol fee if applicable
-                if (protocolFeePips > 0 && protocolFeeRecipient != address(0)) {
-                    uint256 protocolFee = interest.pipsMulUp(protocolFeePips);
-                    interest -= protocolFee;
-                    _mint(protocolFeeRecipient, protocolFee);
-                }
-
-                // donate interest to active liquidity
-                poolManager.donate(poolKey, 0, interest, "");
-                poolManager.sync(Currency.wrap(address(this)));
-                _mint(address(poolManager), interest);
-                poolManager.settle();
-            }
-        } else {
-            assembly ("memory-safe") {
-                // accruedInterest += interest; // overflow not possible
-                sstore(accruedInterest.slot, add(sload(accruedInterest.slot), interest))
-            }
-        }
     }
 
     function _deficitToTopup(uint256 deficit) internal pure returns (uint256 topup) {

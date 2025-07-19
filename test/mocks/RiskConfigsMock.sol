@@ -34,5 +34,5 @@ contract RiskConfigsMock is RiskConfigs {
         return minMargin;
     }
 
-    function _collectFees() internal virtual override {}
+    function _collectInterest(bool) internal virtual override {}
 }

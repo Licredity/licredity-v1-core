@@ -111,8 +111,8 @@ abstract contract RiskConfigs is IRiskConfigs {
     /// @inheritdoc IRiskConfigs
     function setProtocolFeePips(uint256 _protocolFeePips) external onlyGovernor {
         uint256 uintPips = PipsMath.UNIT_PIPS;
-        // collect fees first so that the new protocol fee is not applied retroactively
-        _collectFees();
+        // collect interest first so that the new protocol fee is not applied retroactively
+        _collectInterest(false);
 
         assembly ("memory-safe") {
             // require(_protocolFeePips <= UNIT_PIPS / 2 ** 4, InvalidProtocolFeePips());
@@ -149,6 +149,6 @@ abstract contract RiskConfigs is IRiskConfigs {
         }
     }
 
-    /// @notice internal virtual function to collect fees
-    function _collectFees() internal virtual;
+    /// @notice internal virtual function to collect interest
+    function _collectInterest(bool donate) internal virtual;
 }
