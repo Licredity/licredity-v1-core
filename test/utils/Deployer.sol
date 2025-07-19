@@ -22,7 +22,6 @@ contract Deployers is Test {
     using StateLibrary for Licredity;
 
     IPoolManager public poolManager;
-    address public constant UNISWAP_V4 = address(0x000000000004444c5dc75cB358380D2e3dE08A90);
     address public constant user = address(0xE585379156909287F8aA034B2F4b1Cb88aa3d29D);
 
     Licredity public licredity;
@@ -39,19 +38,30 @@ contract Deployers is Test {
         return new BaseERC20Mock("Token", "T", decimals);
     }
 
-    function deployPoolManager() public {
-        vm.createSelectFork("ETH", 22638094);
-        poolManager = IPoolManager(address(0x000000000004444c5dc75cB358380D2e3dE08A90));
+    function deployPoolManager(address initialOwner, bytes32 salt) public {
+        bytes memory args = abi.encode(initialOwner);
+        bytes memory bytecode = vm.readFileBinary("test/bin/v4PoolManager.bytecode");
+        bytes memory initcode = abi.encodePacked(bytecode, args);
+
+        address v4PoolManagerAddr;
+        assembly {
+            v4PoolManagerAddr := create2(0, add(initcode, 0x20), mload(initcode), salt)
+        }
+
+        poolManager = IPoolManager(v4PoolManagerAddr);
+
+        vm.label(v4PoolManagerAddr, "V4PoolManager");
+        vm.deal(v4PoolManagerAddr, 10000 ether);
     }
 
     function deployETHLicredityWithUniswapV4() public {
-        deployPoolManager();
+        deployPoolManager(address(this), hex"01");
 
         address payable mockLicredity = payable(address(0xFb46d30c9B3ACc61d714D167179748FD01E09aC0));
 
         vm.label(mockLicredity, "Licredity");
         deployCodeTo(
-            "Licredity.sol", abi.encode(address(0), UNISWAP_V4, address(this), "Debt ETH", "DETH"), mockLicredity
+            "Licredity.sol", abi.encode(address(0), address(poolManager), address(this), "Debt ETH", "DETH"), mockLicredity
         );
 
         licredity = Licredity(mockLicredity);
@@ -64,7 +74,7 @@ contract Deployers is Test {
     }
 
     function deployUniswapV4Router() public {
-        uniswapV4Router = new V4MiniRouter(UNISWAP_V4);
+        uniswapV4Router = new V4MiniRouter(address(poolManager));
         uniswapV4RouterHelper = new V4RouterHelper(uniswapV4Router);
     }
 

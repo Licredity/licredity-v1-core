@@ -705,6 +705,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 poolManager.sync(Currency.wrap(address(this)));
                 _mint(address(poolManager), debtAmount);
                 poolManager.settle();
+                
+                // If there is not enough ETH in the Uniswap V4 Pool Manager, `poolManager.take` will revert
                 poolManager.take(Currency.wrap(Fungible.unwrap(baseFungible)), address(this), baseAmount);
             }
 

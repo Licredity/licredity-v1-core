@@ -8,16 +8,14 @@ import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 contract LicredityInitalizeTest is Deployers {
     error InvalidAddress();
 
-    function setUp() public {
-        deployPoolManager();
-    }
-
     function test_initalize_BaseERC20LtBaseToken() public {
+        deployPoolManager(address(this), hex"01");
+
         address baseToken = address(_newAsset(18));
         address deployAddress = address(uint160(uint160(baseToken) - 1));
 
         vm.expectRevert(InvalidAddress.selector);
-        deployCodeTo("Licredity.sol", abi.encode(baseToken, UNISWAP_V4, address(this), "Debt T", "DT"), deployAddress);
+        deployCodeTo("Licredity.sol", abi.encode(baseToken, poolManager, address(this), "Debt T", "DT"), deployAddress);
     }
 
     function test_initalize_ETH() public {
