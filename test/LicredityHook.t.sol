@@ -88,7 +88,7 @@ contract LicredityHookTest is Deployers {
         );
         uint256 hookEtherAfter = address(licredity).balance;
 
-        (uint160 sqrtPriceX96,,,) = IPoolManager(UNISWAP_V4).getSlot0(poolKey.toId());
+        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
         assertGe(sqrtPriceX96, ONE_SQRT_PRICE_X96);
         assertApproxEqAbsDecimal(hookEtherAfter - hookEtherBefore, uint256(-amountSpecified), 0.0001 ether, 18);
 
@@ -178,7 +178,7 @@ contract LicredityHookTest is Deployers {
         skip(1000);
 
         vm.expectEmit(true, true, false, false, address(licredity));
-        emit Transfer(address(0), UNISWAP_V4, 0);
+        emit Transfer(address(0), address(poolManager), 0);
         uniswapV4RouterHelper.addLiquidity(
             address(this),
             poolKey,
@@ -202,7 +202,7 @@ contract LicredityHookTest is Deployers {
 
         skip(1000);
         vm.expectEmit(true, true, false, false, address(licredity));
-        emit Transfer(address(0), UNISWAP_V4, 0);
+        emit Transfer(address(0), address(poolManager), 0);
 
         uniswapV4RouterHelper.removeLiquidity(
             address(this),
