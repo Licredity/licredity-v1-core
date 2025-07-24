@@ -58,6 +58,7 @@ abstract contract RiskConfigs is IRiskConfigs {
             }
 
             // address lastGovernor = governor;
+            // no dirty bits
             let lastGovernor := sload(governor.slot)
 
             // transfer governor role to the next governor and clear nextGovernor

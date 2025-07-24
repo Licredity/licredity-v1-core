@@ -45,9 +45,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 internal transient stagedFungibleBalance;
     NonFungible internal transient stagedNonFungible;
 
-    Fungible internal baseFungible;
-    Fungible internal debtFungible;
-    PoolId internal poolId;
+    Fungible internal immutable baseFungible;
+    PoolId internal immutable poolId;
     PoolKey internal poolKey;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 internal totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
@@ -74,7 +73,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // set base and debt fungibles
         baseFungible = Fungible.wrap(baseToken);
-        debtFungible = Fungible.wrap(address(this));
 
         // set pool key and id, initialize the hooked pool
         poolKey =
@@ -161,50 +159,84 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function exchangeFungible(address recipient) external {
-        Fungible fungible = stagedFungible; // gas saving
-        uint256 _baseAmountAvailable = baseAmountAvailable; // gas saving
-        uint256 _debtAmountOutstanding = debtAmountOutstanding; // gas saving
-        uint256 amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+    function exchangeFungible(address recipient, bool baseForDebt) external {
+        Fungible fungibleIn = stagedFungible; // gas saving
+        uint256 amountIn = fungibleIn.balanceOf(address(this)) - stagedFungibleBalance;
+        uint256 amountOut;
 
-        assembly ("memory-safe") {
-            // require(Fungible.unwrap(fungible) == address(this), NotDebtFungible());
-            if iszero(eq(fungible, address())) {
-                mstore(0x00, 0x93bbf24d) // 'NotDebtFungible()'
-                revert(0x1c, 0x04)
-            }
-            // require(amount == _debtAmountOutstanding, NotAmountOutstanding());
-            if iszero(eq(amount, _debtAmountOutstanding)) {
-                mstore(0x00, 0xb2afc83e) // 'NotAmountOutstanding()'
-                revert(0x1c, 0x04)
+        if (baseForDebt) {
+            // allow unlimited exchange of base fungible for debt fungible at 1:1 ratio
+            // prevents insufficient liquidity when repaying debt fungible
+
+            // exchange at 1:1 ratio
+            amountOut = amountIn;
+
+            Fungible _baseFungible = baseFungible;
+            assembly ("memory-safe") {
+                // require(fungibleIn == baseFungible, NotBaseFungible());
+                if iszero(eq(fungibleIn, _baseFungible)) {
+                    mstore(0x00, 0x74db12cd) // 'NotBaseFungible()'
+                    revert(0x1c, 0x04)
+                }
+
+                // update the exchange amounts
+                sstore(baseAmountAvailable.slot, add(sload(baseAmountAvailable.slot), amountIn)) // overflow not practical
+                sstore(debtAmountOutstanding.slot, add(sload(debtAmountOutstanding.slot), amountOut)) // overflow not practical
             }
 
-            // clear staged fungible and exchange amounts
-            tstore(stagedFungible.slot, 0)
-            sstore(baseAmountAvailable.slot, 0)
-            sstore(debtAmountOutstanding.slot, 0)
+            // complete the exchange
+            _mint(recipient, amountOut);
+        } else {
+            // allow burning outstanding debt fungible for available base fungible at current ratio
+            // amount outstanding and available are accrued either from base-for-debt exchange above or from back run swap
+            uint256 _baseAmountAvailable = baseAmountAvailable; // gas saving
+            uint256 _debtAmountOutstanding = debtAmountOutstanding; // gas saving
+
+            // calculate amount out at current available / outstanding ratio
+            amountOut = _baseAmountAvailable.fullMulDiv(amountIn, _debtAmountOutstanding);
+
+            assembly ("memory-safe") {
+                // require(Fungible.unwrap(fungibleIn) == address(this), NotDebtFungible());
+                if iszero(eq(fungibleIn, address())) {
+                    mstore(0x00, 0x93bbf24d) // 'NotDebtFungible()'
+                    revert(0x1c, 0x04)
+                }
+                // require(amountIn <= _debtAmountOutstanding, ExceedsAmountOutstanding());
+                if gt(amountIn, _debtAmountOutstanding) {
+                    mstore(0x00, 0xdf4eb199) // 'ExceedsAmountOutstanding()'
+                    revert(0x1c, 0x04)
+                }
+
+                // update the exchange amounts
+                sstore(baseAmountAvailable.slot, sub(_baseAmountAvailable, amountOut)) // underflow not possible
+                sstore(debtAmountOutstanding.slot, sub(_debtAmountOutstanding, amountIn)) // underflow not possible
+            }
+
+            // complete the exchange
+            _burn(address(this), amountIn);
+            baseFungible.transfer(recipient, amountOut);
         }
 
-        // make the exchagne
-        _burn(address(this), _debtAmountOutstanding);
-        baseFungible.transfer(recipient, _baseAmountAvailable);
-
-        // emit Exchange(recipient, _debtAmountOutstanding, _baseAmountAvailable);
         assembly ("memory-safe") {
-            mstore(0x00, _debtAmountOutstanding)
-            mstore(0x20, _baseAmountAvailable)
-            log2(
+            // clear staged fungible
+            tstore(stagedFungible.slot, 0)
+
+            // emit Exchange(recipient, baseForDebt, amountIn, amountOut);
+            mstore(0x00, amountIn)
+            mstore(0x20, amountOut)
+            log3(
                 0x00,
                 0x40,
-                0x26981b9aefbb0f732b0264bd34c255e831001eb50b06bc85b32cc39e14389721,
-                and(recipient, 0xffffffffffffffffffffffffffffffffffffffff)
+                0xa826ac1379ee41b2ea30a0515f61757b4cae0c794b03989090a14aac7db78e82,
+                and(recipient, 0xffffffffffffffffffffffffffffffffffffffff),
+                and(baseForDebt, 0x1)
             )
         }
     }
 
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
-        Fungible fungible = stagedFungible; // gas saving
+        Fungible fungible = stagedFungible; // gas saving, no dirty bits
         Position storage position = positions[positionId];
 
         // require(position.owner == msg.sender, NotPositionOwner());
@@ -420,9 +452,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // if newly minted debt fungible is meant to be held in the position
         if (recipient == address(this)) {
-            position.addFungible(debtFungible, amount);
+            position.addFungible(Fungible.wrap(address(this)), amount);
 
-            // emit DepositFungible(positionId, debtFungible, amount);
+            // emit DepositFungible(positionId, Fungible.wrap(address(this)), amount);
             assembly ("memory-safe") {
                 mstore(0x00, amount)
                 log3(
@@ -471,10 +503,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 }
             }
 
-            position.removeFungible(debtFungible, amount);
+            position.removeFungible(Fungible.wrap(address(this)), amount);
             _burn(address(this), amount);
 
-            // emit WithdrawFungible(positionId, address(0), debtFungible, amount);
+            // emit WithdrawFungible(positionId, address(0), Fungible.wrap(address(this)), amount);
             assembly ("memory-safe") {
                 mstore(0x00, amount)
                 log4(
@@ -503,18 +535,18 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         totalDebtShare = _totalDebtShare - delta;
         totalDebtBalance = _totalDebtBalance - amount;
 
-        // emit DecreaseDebtShare(positionId, delta, amount, useBalance);
+        // emit DecreaseDebtShare(positionId, useBalance, delta, amount);
         assembly ("memory-safe") {
-            let fmp := mload(0x40)
-            mstore(fmp, delta)
-            mstore(add(fmp, 0x20), amount)
-            mstore(add(fmp, 0x40), and(useBalance, 0x1))
+            mstore(0x00, delta)
+            mstore(0x20, amount)
 
-            log2(fmp, 0x60, 0xbb844dda1dc3eeb4dc867c5845fc66e006fbfab01f29f94287e597bc8f14c6aa, positionId)
-
-            mstore(fmp, 0)
-            mstore(add(fmp, 0x20), 0)
-            mstore(add(fmp, 0x40), 0)
+            log3(
+                0x00,
+                0x40,
+                0xb1a5dc5e6da79cfa0d771fe626e7c7d839c8f77d8ba8d23219abd0ad42efbfca,
+                positionId,
+                and(useBalance, 0x1)
+            )
         }
     }
 
@@ -550,7 +582,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             topup = _deficitToTopup(debt - value);
 
             _mint(address(this), topup);
-            position.addFungible(debtFungible, topup);
+            position.addFungible(Fungible.wrap(address(this)), topup);
 
             // update total debt balance, and position's value and debt
             uint256 newTotalDebtBalance;
@@ -566,7 +598,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
             debt = position.debtShare.fullMulDivUp(newTotalDebtBalance, totalDebtShare);
 
-            // emit DepositFungible(positionId, debtFungible, topup);
+            // emit DepositFungible(positionId, Fungible.wrap(address(this)), topup);
             assembly ("memory-safe") {
                 mstore(0x00, topup)
                 log3(
@@ -705,7 +737,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 poolManager.sync(Currency.wrap(address(this)));
                 _mint(address(poolManager), debtAmount);
                 poolManager.settle();
-                
+
                 // If there is not enough ETH in the Uniswap V4 Pool Manager, `poolManager.take` will revert
                 poolManager.take(Currency.wrap(Fungible.unwrap(baseFungible)), address(this), baseAmount);
             }
