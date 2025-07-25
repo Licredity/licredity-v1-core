@@ -23,8 +23,9 @@ interface ILicredity is IExtsload, IRiskConfigs {
     error NonFungibleNotInPosition();
     error MaxFungiblesExceeded();
     error MaxNonFungiblesExceeded();
+    error NotBaseFungible();
     error NotDebtFungible();
-    error NotAmountOutstanding();
+    error ExceedsAmountOutstanding();
     error NonZeroNativeValue();
     error DebtLimitExceeded();
 
@@ -43,9 +44,10 @@ interface ILicredity is IExtsload, IRiskConfigs {
 
     /// @notice Emitted when a debt-for-base exchange has occurred
     /// @param recipient The recipient of the base fungible
+    /// @param baseForDebt Whether the exchange is base fungible for debt fungible
     /// @param debtAmountIn The amount of debt fungible exchanged
     /// @param baseAmountOut The amount of base fungible received
-    event Exchange(address indexed recipient, uint256 debtAmountIn, uint256 baseAmountOut);
+    event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 debtAmountIn, uint256 baseAmountOut);
 
     /// @notice Emitted when a fungible has been deposited into a position
     /// @param positionId The ID of the position
@@ -82,10 +84,10 @@ interface ILicredity is IExtsload, IRiskConfigs {
 
     /// @notice Emitted when the debt share in a position has been decreased
     /// @param positionId The ID of the position
+    /// @param useBalance Whether to use the balance of debt fungible in the position
     /// @param delta The delta of debt shares decreased by
     /// @param amount The amount of debt fungible given back
-    /// @param useBalance Whether to use the balance of debt fungible in the position
-    event DecreaseDebtShare(uint256 indexed positionId, uint256 delta, uint256 amount, bool useBalance);
+    event DecreaseDebtShare(uint256 indexed positionId, bool indexed useBalance, uint256 delta, uint256 amount);
 
     /// @notice Emitted when a position has been seized
     /// @param positionId The ID of the position
@@ -126,7 +128,8 @@ interface ILicredity is IExtsload, IRiskConfigs {
 
     /// @notice Exchanges staged debt fungible for base fungible
     /// @param recipient The recipient of the exchange
-    function exchangeFungible(address recipient) external;
+    /// @param baseForDebt Whether the exchange is base fungible for debt fungible
+    function exchangeFungible(address recipient, bool baseForDebt) external;
 
     /// @notice Deposits staged fungible received into a position
     /// @param positionId The ID of the position to deposit into

@@ -22,7 +22,7 @@ contract LicredityUnlockPositionTest is Deployers {
     error DebtLimitExceeded();
 
     event IncreaseDebtShare(uint256 indexed positionId, address indexed recipient, uint256 delta, uint256 amount);
-    event DecreaseDebtShare(uint256 indexed positionId, uint256 delta, uint256 amount, bool useBalance);
+    event DecreaseDebtShare(uint256 indexed positionId, bool indexed useBalance, uint256 delta, uint256 amount);
     event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
     event WithdrawFungible(
         uint256 indexed positionId, address indexed recipient, Fungible indexed fungible, uint256 amount
@@ -218,7 +218,7 @@ contract LicredityUnlockPositionTest is Deployers {
         Fungible.wrap(address(licredity)).transfer(address(licredityRouter), decreaseAmount);
 
         vm.expectEmit(true, false, false, true);
-        emit DecreaseDebtShare(positionId, decreaseDelta, decreaseAmount, false);
+        emit DecreaseDebtShare(positionId, false, decreaseDelta, decreaseAmount);
         licredityRouter.decreaseDebtShare(positionId, decreaseDelta, false);
     }
 
