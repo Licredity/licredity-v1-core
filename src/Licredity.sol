@@ -160,8 +160,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     /// @inheritdoc ILicredity
     function exchangeFungible(address recipient, bool baseForDebt) external {
-        Fungible fungibleIn = stagedFungible; // gas saving
-        uint256 amountIn = fungibleIn.balanceOf(address(this)) - stagedFungibleBalance;
+        (Fungible fungibleIn, uint256 amountIn) = _getStagedFungibleAndAmount();
         uint256 amountOut;
 
         if (baseForDebt) {
@@ -236,8 +235,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
-        Fungible fungible = stagedFungible; // gas saving, no dirty bits
         Position storage position = positions[positionId];
+        (Fungible fungible, uint256 amount) = _getStagedFungibleAndAmount();
 
         // require(position.owner == msg.sender, NotPositionOwner());
         if (position.owner != msg.sender) {
@@ -245,21 +244,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                 mstore(0x00, 0x70d645e3) // 'NotPositionOwner()'
                 revert(0x1c, 0x04)
             }
-        }
-
-        uint256 amount;
-        if (fungible.isNative()) {
-            amount = msg.value;
-        } else {
-            assembly ("memory-safe") {
-                // require(msg.value == 0, NonZeroNativeValue());
-                if iszero(iszero(callvalue())) {
-                    mstore(0x00, 0x19d245cf) // 'NonZeroNativeValue()'
-                    revert(0x1c, 0x04)
-                }
-            }
-
-            amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
         }
 
         assembly ("memory-safe") {
@@ -840,6 +824,24 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         //    which has 0% margin requirement, to take on enormous debt that causes the position to go underwater)
         isHealthy = value >= debt + marginRequirement && marginRequirement >= minMargin
             && debt <= value - value.pipsMulUp(POSITION_MRR_PIPS);
+    }
+
+    function _getStagedFungibleAndAmount() internal view returns (Fungible fungible, uint256 amount) {
+        fungible = stagedFungible; // no dirty bits
+
+        if (fungible.isNative()) {
+            amount = msg.value;
+        } else {
+            assembly ("memory-safe") {
+                // require(msg.value == 0, NonZeroNativeValue());
+                if iszero(iszero(callvalue())) {
+                    mstore(0x00, 0x19d245cf) // 'NonZeroNativeValue()'
+                    revert(0x1c, 0x04)
+                }
+            }
+
+            amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+        }
     }
 
     function _deficitToTopup(uint256 deficit) internal pure returns (uint256 topup) {
