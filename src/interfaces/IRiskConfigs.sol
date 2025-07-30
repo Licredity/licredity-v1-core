@@ -25,6 +25,10 @@ interface IRiskConfigs {
     /// @param minMargin The new minimum margin
     event SetMinMargin(uint256 minMargin);
 
+    /// @notice Emitted when the minimum liquidity lifespan is set
+    /// @param minLiquidityLifespan The new minimum liquidity lifespan in seconds
+    event SetMinLiquidityLifespan(uint256 minLiquidityLifespan);
+
     /// @notice Emitted when the protocol fee in pips are set
     /// @param protocolFeePips The new protocol fee in pips
     event SetProtocolFeePips(uint256 protocolFeePips);
@@ -56,6 +60,11 @@ interface IRiskConfigs {
     /// @param minMargin The minimum margin
     /// @dev Can only be called by the current governor
     function setMinMargin(uint256 minMargin) external;
+
+    /// @notice Sets the minimum liquidity lifespan
+    /// @param minLiquidityLifespan The minimum liquidity lifespan in seconds
+    /// @dev Can only be called by the current governor
+    function setMinLiquidityLifespan(uint256 minLiquidityLifespan) external;
 
     /// @notice Sets the protocol fee in pips
     /// @param protocolFeePips The protocol fee in pips

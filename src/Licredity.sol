@@ -56,6 +56,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 internal baseAmountAvailable;
     uint256 internal debtAmountOutstanding;
     uint256 internal positionCount;
+    mapping(bytes32 => uint256) internal liquidityOnsets; // maps liquidity key to its onset timestamp
     mapping(uint256 => Position) internal positions;
 
     constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
@@ -200,9 +201,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                     mstore(0x00, 0x93bbf24d) // 'NotDebtFungible()'
                     revert(0x1c, 0x04)
                 }
-                // require(amountIn <= _debtAmountOutstanding, ExceedsAmountOutstanding());
+                // require(amountIn <= _debtAmountOutstanding, AmountOutstandingExceeded());
                 if gt(amountIn, _debtAmountOutstanding) {
-                    mstore(0x00, 0xdf4eb199) // 'ExceedsAmountOutstanding()'
+                    mstore(0x00, 0x0709cb26) // 'AmountOutstandingExceeded()'
                     revert(0x1c, 0x04)
                 }
 
@@ -546,6 +547,16 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
         }
 
+        // prevents owner from purposely causing a position to be underwater then profit from seizing it
+        // side effect is that positions cannot be seized by owner contract, such as non-fungible position manager, which is acceptable
+        // require(position.owner != msg.sender, CannotSeizeOwnPosition());
+        if (position.owner == msg.sender) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x7c474390) // 'CannotSeizeOwnPosition()'
+                revert(0x1c, 0x04)
+            }
+        }
+
         // ensure position health post seizure
         Locker.register(bytes32(positionId));
 
@@ -648,6 +659,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata
     ) internal override returns (bytes4) {
+        // add / update liquidity key onset timestamp
+        bytes32 liquidityKey = _calculateLiquidityKey(params.tickLower, params.tickUpper, params.salt);
+        liquidityOnsets[liquidityKey] = block.timestamp;
+
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
@@ -665,6 +680,17 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata
     ) internal override returns (bytes4) {
+        bytes32 liquidityKey = _calculateLiquidityKey(params.tickLower, params.tickUpper, params.salt);
+        // liquidity must have been available for at least `minLiquidityLifespan` seconds
+        // prevents emphemeral liquidity from vampiring interest yield
+        // require(block.timestamp >= liquidityOnsets[liquidityKey] + minLiquidityLifespan, MinLiquidityLifespanNotMet());
+        if (block.timestamp < liquidityOnsets[liquidityKey] + minLiquidityLifespan) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0x463df77d) // 'MinLiquidityLifespanNotMet()'
+                revert(0x1c, 0x04)
+            }
+        }
+
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
@@ -841,6 +867,20 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
 
             amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+        }
+    }
+
+    function _calculateLiquidityKey(int24 tickLower, int24 tickUpper, bytes32 salt)
+        internal
+        view
+        returns (bytes32 key)
+    {
+        // calculate the liquidity key as a hash of the message sender, tickLower, tickUpper and salt
+        assembly ("memory-safe") {
+            // key = keccak256(abi.encodePacked(msg.sender, tickLower, tickUpper, salt));
+            mstore(0x00, or(or(shl(0x06, caller()), shl(0x03, tickLower)), tickUpper))
+            mstore(0x20, salt)
+            key := keccak256(0x06, 0x3a)
         }
     }
 
