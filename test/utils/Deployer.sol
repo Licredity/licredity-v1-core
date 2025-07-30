@@ -30,6 +30,8 @@ contract Deployers is Test {
 
     LicredityRouter public licredityRouter;
     LicredityRouterHelper public licredityRouterHelper;
+    LicredityRouter public seizerRouter;
+    LicredityRouterHelper public seizerRouterHelper;
 
     V4MiniRouter public uniswapV4Router;
     V4RouterHelper public uniswapV4RouterHelper;
@@ -61,7 +63,9 @@ contract Deployers is Test {
 
         vm.label(mockLicredity, "Licredity");
         deployCodeTo(
-            "Licredity.sol", abi.encode(address(0), address(poolManager), address(this), "Debt ETH", "DETH"), mockLicredity
+            "Licredity.sol",
+            abi.encode(address(0), address(poolManager), address(this), "Debt ETH", "DETH"),
+            mockLicredity
         );
 
         licredity = Licredity(mockLicredity);
@@ -71,6 +75,8 @@ contract Deployers is Test {
     function deployLicredityRouter() public {
         licredityRouter = new LicredityRouter(licredity);
         licredityRouterHelper = new LicredityRouterHelper(licredityRouter);
+        seizerRouter = new LicredityRouter(licredity);
+        seizerRouterHelper = new LicredityRouterHelper(seizerRouter);
     }
 
     function deployUniswapV4Router() public {
