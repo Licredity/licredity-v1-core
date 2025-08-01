@@ -654,13 +654,13 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     /// @inheritdoc BaseHooks
     function _beforeAddLiquidity(
-        address,
+        address sender,
         PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata
     ) internal override returns (bytes4) {
         // add / update liquidity key onset timestamp
-        bytes32 liquidityKey = _calculateLiquidityKey(params.tickLower, params.tickUpper, params.salt);
+        bytes32 liquidityKey = _calculateLiquidityKey(sender, params.tickLower, params.tickUpper, params.salt);
         liquidityOnsets[liquidityKey] = block.timestamp;
 
         (, int24 tick,,) = poolManager.getSlot0(poolId);
@@ -675,12 +675,12 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     /// @inheritdoc BaseHooks
     function _beforeRemoveLiquidity(
-        address,
+        address sender,
         PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata params,
         bytes calldata
     ) internal override returns (bytes4) {
-        bytes32 liquidityKey = _calculateLiquidityKey(params.tickLower, params.tickUpper, params.salt);
+        bytes32 liquidityKey = _calculateLiquidityKey(sender, params.tickLower, params.tickUpper, params.salt);
         // liquidity must have been available for at least `minLiquidityLifespan` seconds
         // prevents emphemeral liquidity from vampiring interest yield
         // require(block.timestamp >= liquidityOnsets[liquidityKey] + minLiquidityLifespan, MinLiquidityLifespanNotMet());
@@ -870,15 +870,15 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         }
     }
 
-    function _calculateLiquidityKey(int24 tickLower, int24 tickUpper, bytes32 salt)
+    function _calculateLiquidityKey(address provider, int24 tickLower, int24 tickUpper, bytes32 salt)
         internal
-        view
+        pure
         returns (bytes32 key)
     {
         // calculate the liquidity key as a hash of the message sender, tickLower, tickUpper and salt
         assembly ("memory-safe") {
-            // key = keccak256(abi.encodePacked(msg.sender, tickLower, tickUpper, salt));
-            mstore(0x00, or(or(shl(0x06, caller()), shl(0x03, tickLower)), tickUpper))
+            // key = keccak256(abi.encodePacked(provider, tickLower, tickUpper, salt));
+            mstore(0x00, or(or(shl(0x06, provider), shl(0x03, tickLower)), tickUpper))
             mstore(0x20, salt)
             key := keccak256(0x06, 0x3a)
         }
