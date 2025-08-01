@@ -13,6 +13,7 @@ abstract contract RiskConfigs is IRiskConfigs {
     IOracle internal oracle;
     uint256 internal debtLimit; // global debt limit in debt fungible
     uint256 internal minMargin; // minimum margin in an indebted position
+    uint256 internal minLiquidityLifespan; // minimum lifespan of a liquidity position in seconds
     uint24 internal protocolFeePips;
     address internal protocolFeeRecipient;
 
@@ -106,6 +107,18 @@ abstract contract RiskConfigs is IRiskConfigs {
             // emit SetMinMargin(_minMargin);
             mstore(0x00, _minMargin)
             log1(0x00, 0x20, 0x49ec42791c6fc287661930b06d5ae845a2bc030c0edc63db175b4e4092458d5b)
+        }
+    }
+
+    /// @inheritdoc IRiskConfigs
+    function setMinLiquidityLifespan(uint256 _minLiquidityLifespan) external onlyGovernor {
+        assembly ("memory-safe") {
+            // minLiquidityLifespan = _minLiquidityLifespan;
+            sstore(minLiquidityLifespan.slot, _minLiquidityLifespan)
+
+            // emit SetMinLiquidityLifespan(_minLiquidityLifespan);
+            mstore(0x00, _minLiquidityLifespan)
+            log1(0x00, 0x20, 0xec2fc83a63c373b5e2712344cfb94409f5688a351e7266d18d37e4a4a10baf8e)
         }
     }
 

@@ -19,7 +19,7 @@ contract LicredityHookTest is Deployers {
 
     error NotBaseFungible();
     error NotDebtFungible();
-    error ExceedsAmountOutstanding();
+    error AmountOutstandingExceeded();
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 debtAmountIn, uint256 baseAmountOut);
@@ -119,7 +119,7 @@ contract LicredityHookTest is Deployers {
         (, uint256 debtAmountOutstanding) = licredity.getExchangeAmount();
         licredity.stageFungible(Fungible.wrap(address(licredity)));
         IERC20(address(licredity)).transfer(address(licredity), debtAmountOutstanding + 1);
-        vm.expectRevert(ExceedsAmountOutstanding.selector);
+        vm.expectRevert(AmountOutstandingExceeded.selector);
         licredity.exchangeFungible(user, false);
     }
 
