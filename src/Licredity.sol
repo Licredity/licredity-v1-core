@@ -160,7 +160,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function exchangeFungible(address recipient, bool baseForDebt) external {
+    function exchangeFungible(address recipient, bool baseForDebt) external payable {
         (Fungible fungibleIn, uint256 amountIn) = _getStagedFungibleAndAmount();
         uint256 amountOut;
 
