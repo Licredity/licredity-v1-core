@@ -130,7 +130,7 @@ contract PositionTest is Test {
         position.addFungible(fungible, 1 ether);
         bool isRemoved = position.removeFungible(removeFungible, 0);
 
-        assertFalse(isRemoved);    
+        assertFalse(isRemoved);
     }
 
     function test_removeFungible(
