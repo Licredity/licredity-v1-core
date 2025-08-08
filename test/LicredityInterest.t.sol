@@ -35,12 +35,12 @@ contract LicredityInterestTest is Deployers {
 
         (, uint256 afterTotalAssets) = licredity.getTotalDebt();
 
-        uint256 rate = (price - 1e18) * 1e9;
-        if (rate > 365e25) {
-            rate = 365e25;
+        uint256 yearRate = (price - 1e18) * 1e9 * 365;
+        if (yearRate > 365e25) {
+            yearRate = 365e25;
         }
 
-        uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(rate, elapsed);
+        uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
 
         uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, RAY);
         assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
