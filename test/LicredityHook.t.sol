@@ -124,7 +124,7 @@ contract LicredityHookTest is Deployers {
     }
 
     function test_exchange_baseForDebt() public {
-        licredity.exchangeFungible{ value: 1 ether }(user, true);
+        licredity.exchangeFungible{value: 1 ether}(user, true);
         assertEq(IERC20(address(licredity)).balanceOf(address(user)), 1 ether);
     }
 

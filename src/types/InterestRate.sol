@@ -15,7 +15,7 @@ using InterestRateLibrary for InterestRate global;
 library InterestRateLibrary {
     using FullMath for uint256;
 
-    uint256 private constant SECONDS_PER_YEAR = 365 days;
+    uint256 private constant SECONDS_PER_DAY = 1 days;
     uint256 private constant RAY = 1e27;
     uint256 private constant HALF_RAY = 0.5e27;
 
@@ -36,7 +36,7 @@ library InterestRateLibrary {
     }
 
     /// @notice Calculates the interest accrued over a period of time
-    /// @param rate The interest rate
+    /// @param rate The daily interest rate(DPR)
     /// @param principal The principal amount
     /// @param elapsed The time elapsed in seconds
     /// @return interest The interest accrued
@@ -50,15 +50,22 @@ library InterestRateLibrary {
         uint256 basePowerTwo;
         uint256 basePowerThree;
         unchecked {
-            expMinusOne = elapsed - 1;
-            expMinusTwo = elapsed > 2 ? elapsed - 2 : 0;
-            basePowerTwo = InterestRate.unwrap(mul(rate, rate)) / (SECONDS_PER_YEAR * SECONDS_PER_YEAR);
-            basePowerThree = InterestRate.unwrap(mul(InterestRate.wrap(basePowerTwo), rate)) / SECONDS_PER_YEAR;
+            expMinusOne = elapsed - 1; // n - 1
+            expMinusTwo = elapsed > 2 ? elapsed - 2 : 0; // n - 2
+            basePowerTwo = InterestRate.unwrap(mul(rate, rate)) / (SECONDS_PER_DAY * SECONDS_PER_DAY); // x^2
+            basePowerThree = InterestRate.unwrap(mul(InterestRate.wrap(basePowerTwo), rate)) / SECONDS_PER_DAY; // x^3
         }
 
-        uint256 firstTerm = InterestRate.unwrap(rate).fullMulDiv(elapsed, SECONDS_PER_YEAR);
-        uint256 secondTerm = basePowerTwo.fullMulDiv(elapsed * expMinusOne, 2);
-        uint256 thirdTerm = basePowerThree.fullMulDiv(elapsed * expMinusOne * expMinusTwo, 6);
+        uint256 firstTerm = InterestRate.unwrap(rate) * elapsed / SECONDS_PER_DAY;
+        uint256 secondTerm = elapsed * basePowerTwo * expMinusOne;
+        unchecked {
+            secondTerm /= 2;
+        }
+
+        uint256 thirdTerm = elapsed * basePowerThree * expMinusOne * expMinusTwo;
+        unchecked {
+            thirdTerm /= 6;
+        }
 
         interest = principal.fullMulDivUp(firstTerm + secondTerm + thirdTerm, RAY);
     }
