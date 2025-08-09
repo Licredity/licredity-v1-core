@@ -72,7 +72,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
         }
 
-        // set base and debt fungibles
+        // set base fungibles
         baseFungible = Fungible.wrap(baseToken);
 
         // set pool key and id, initialize the hooked pool
