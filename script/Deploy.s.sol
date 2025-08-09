@@ -35,13 +35,30 @@ contract DeployScript is Script {
         Licredity licredity = new Licredity(baseToken, poolManager, governor, name, symbol);
         vm.stopBroadcast();
         console.log("=== DEPLOYMENT COMPLETE ===");
-        console.log("Licredity Address:", address(licredity));
+        console.log("Licredity deployed at:", address(licredity));
 
-        // Log and save deployment
+        // Save deployment
         string memory fileName = string.concat("./deployments/", chain, "_", baseTokenTicker, ".env");
         vm.writeFile(
             fileName,
-            string.concat("# Deployment to ", chain, " for ", baseTokenTicker, ": ", vm.toString(address(licredity)), "\n")
+            string.concat(
+                "# Licredity for ",
+                baseTokenTicker,
+                " on ",
+                chain,
+                " deployed at: ",
+                vm.toString(address(licredity)),
+                "\n",
+                "Base token: ",
+                vm.toString(baseToken),
+                "\n",
+                "Pool Manager: ",
+                vm.toString(poolManager),
+                "\n",
+                "Governor: ",
+                vm.toString(governor),
+                "\n"
+            )
         );
         console.log("Deployment info saved to:", fileName);
     }
