@@ -6,7 +6,7 @@
 
 set -e
 
-if [ $# -ne 3 ]; then
+if [ $@ -gt 2 ]; then
     echo "Usage: $0 <CHAIN> <BASE_TOKEN>"
     echo "Chains: Ethereum, Unichain, Base"
     echo "Base tokens: ETH, USDC"
@@ -89,7 +89,7 @@ echo "Compiling contracts..."
 forge build
 
 # Deploy contracts
-if [[ "$*" == *"--deploy"* ]]; then
+if [[ $3 == "--deploy" ]]; then
     echo "Dry run deploying contracts..."
     forge script script/Deploy.s.sol:DeployScript \
         --rpc-url "$RPC_URL" \
