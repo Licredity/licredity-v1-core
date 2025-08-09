@@ -16,6 +16,8 @@ contract DeployScript is Script {
         address baseToken = vm.envAddress(string.concat(chain, "_", baseTokenTicker));
         address poolManager = vm.envAddress(string.concat(chain, "_POOL_MANAGER"));
         address governor = vm.envAddress(string.concat(chain, "_GOVERNOR"));
+        bytes32 salt = vm.envBytes32(string.concat(chain, "_", baseTokenTicker, "_CREATE2_SALT"));
+
         string memory name = string.concat(vm.envString("DEBT_TOKEN_NAME_PREFIX"), " ", baseTokenTicker);
         string memory symbol = string.concat(vm.envString("DEBT_TOKEN_SYMBOL_PREFIX"), baseTokenTicker);
         console.log("Base Token Address:", baseToken);
@@ -25,41 +27,15 @@ contract DeployScript is Script {
         console.log("Token Symbol:", symbol);
 
         // Validate deployment parameters
-        require(baseToken != address(0), "BaseToken address cannot be zero");
         require(poolManager != address(0), "PoolManager address cannot be zero");
         require(governor != address(0), "Governor address cannot be zero");
 
         // Deploy contracts
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         console.log("Deploying Licredity...");
-        Licredity licredity = new Licredity(baseToken, poolManager, governor, name, symbol);
+        Licredity licredity = new Licredity{ salt: salt }(baseToken, poolManager, governor, name, symbol);
         vm.stopBroadcast();
         console.log("=== DEPLOYMENT COMPLETE ===");
         console.log("Licredity deployed at:", address(licredity));
-
-        // Save deployment
-        string memory fileName = string.concat("./deployments/", chain, "_", baseTokenTicker, ".env");
-        vm.writeFile(
-            fileName,
-            string.concat(
-                "# Licredity for ",
-                baseTokenTicker,
-                " on ",
-                chain,
-                " deployed at: ",
-                vm.toString(address(licredity)),
-                "\n",
-                "Base token: ",
-                vm.toString(baseToken),
-                "\n",
-                "Pool Manager: ",
-                vm.toString(poolManager),
-                "\n",
-                "Governor: ",
-                vm.toString(governor),
-                "\n"
-            )
-        );
-        console.log("Deployment info saved to:", fileName);
     }
 }

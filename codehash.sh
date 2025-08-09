@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Deployment script for Licredity protocol
-# Usage: ./deploy.sh <CHAIN> <BASE_TOKEN>
-# Example: ./deploy.sh Ethereum ETH
+# Usage: ./codehash.sh <CHAIN> <BASE_TOKEN>
+# Example: ./codehash.sh Ethereum ETH
 
 set -e
 
-if [ $# -ne 3 ]; then
+if [ $# -ne 2 ]; then
     echo "Usage: $0 <CHAIN> <BASE_TOKEN>"
     echo "Chains: Ethereum, Unichain, Base"
     echo "Base tokens: ETH, USDC"
@@ -66,41 +66,14 @@ echo "RPC URL: $RPC_URL"
 echo "Base token address: $BASE_TOKEN_ADDRESS"
 echo "Pool manager address: $POOL_MANAGER_ADDRESS"
 
-# Create deployments directory if it doesn't exist
-mkdir -p deployments
-
 # Set environment variables for the deployment script
 export CHAIN=$CHAIN
 export BASE_TOKEN=$BASE_TOKEN
-
-# Determine which API key to use for verification
-# API_KEY_VAR="${CHAIN}_SCAN_API_KEY"
-# API_KEY=${!API_KEY_VAR}
-# VERIFY_ARGS=""
-# if [ ! -z "$API_KEY" ]; then
-#     VERIFY_ARGS="--verify --etherscan-api-key $API_KEY"
-#     echo "Contract verification enabled"
-# else
-#     echo "Warning: No API key found for $CHAIN verification. Skipping verification."
-# fi
 
 # Compile contracts
 echo "Compiling contracts..."
 forge build
 
 # Deploy contracts
-if [[ "$*" == *"--deploy"* ]]; then
-    echo "Dry run deploying contracts..."
-    forge script script/Deploy.s.sol:DeployScript \
-        --rpc-url "$RPC_URL" \
-        --broadcast \
-        -vvv
-else
-    echo "Dry run deploying contracts..."
-    forge script script/Deploy.s.sol:DeployScript \
-        --rpc-url "$RPC_URL" \
-        -vvv
-fi
-
-echo "Deployment completed for chain: $CHAIN with base token: $BASE_TOKEN"
-echo "Check deployments/${CHAIN}_${BASE_TOKEN}.env for deployed addresses"
+echo "Deploying contracts..."
+forge script script/CodeHash.s.sol:PrintInitCodeHash
