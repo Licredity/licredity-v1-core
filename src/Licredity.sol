@@ -62,7 +62,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     constructor(
         address baseToken,
-        uint256 sensitivity,
+        uint256 interestSensitivity,
         address _poolManager,
         address _governor,
         string memory name,
@@ -78,7 +78,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
         // set base fungibles and scale factor
         baseFungible = Fungible.wrap(baseToken);
-        scaleFactor = sensitivity * 1e9;
+        scaleFactor = interestSensitivity * 1e9;
 
         // set pool key and id, initialize the hooked pool
         poolKey =
