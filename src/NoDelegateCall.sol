@@ -13,8 +13,8 @@ abstract contract NoDelegateCall {
 
     function _noDelegateCall() internal view {
         address _self = self;
+        // require(address(this) == self, DelegateCallNotAllowed());
         assembly ("memory-safe") {
-            // require(address(this) == self, DelegateCallNotAllowed());
             if iszero(eq(address(), _self)) {
                 mstore(0x00, 0x0d89438e) // 'DelegateCallNotAllowed()'
                 revert(0x1c, 0x04)
