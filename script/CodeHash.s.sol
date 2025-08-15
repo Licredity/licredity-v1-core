@@ -38,12 +38,14 @@ contract PrintInitCodeHash is Script {
         // Load deployment parameters
         address baseToken = vm.envAddress(string.concat(chain, "_", baseTokenTicker));
         address poolManager = vm.envAddress(string.concat(chain, "_POOL_MANAGER"));
+        uint256 interestSensitivity = vm.envUint(string.concat(chain, "_INTEREST_SENSITIVITY"));
         address governor = vm.envAddress(string.concat(chain, "_GOVERNOR"));
 
         string memory name = string.concat(vm.envString("DEBT_TOKEN_NAME_PREFIX"), " ", baseTokenTicker);
         string memory symbol = string.concat(vm.envString("DEBT_TOKEN_SYMBOL_PREFIX"), baseTokenTicker);
         console.log("Base Token Address:", baseToken);
         console.log("Pool Manager Address:", poolManager);
+        console.log("Interest Sensitivity:", interestSensitivity);
         console.log("Governor Address:", governor);
         console.log("Token Name:", name);
         console.log("Token Symbol:", symbol);
@@ -52,7 +54,8 @@ contract PrintInitCodeHash is Script {
         require(poolManager != address(0), "PoolManager address cannot be zero");
         require(governor != address(0), "Governor address cannot be zero");
 
-        bytes memory constructorArguments = abi.encode(baseToken, poolManager, governor, name, symbol);
+        bytes memory constructorArguments =
+            abi.encode(baseToken, interestSensitivity, poolManager, governor, name, symbol);
 
         // Print Init Code Hash
         bytes memory creationCodeWithConstructorArguments =

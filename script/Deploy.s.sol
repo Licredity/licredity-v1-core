@@ -15,6 +15,7 @@ contract DeployScript is Script {
         // Load deployment parameters
         address baseToken = vm.envAddress(string.concat(chain, "_", baseTokenTicker));
         address poolManager = vm.envAddress(string.concat(chain, "_POOL_MANAGER"));
+        uint256 interestSensitivity = vm.envUint(string.concat(chain, "_INTEREST_SENSITIVITY"));
         address governor = vm.envAddress(string.concat(chain, "_GOVERNOR"));
         bytes32 salt = vm.envBytes32(string.concat(chain, "_", baseTokenTicker, "_CREATE2_SALT"));
 
@@ -22,6 +23,7 @@ contract DeployScript is Script {
         string memory symbol = string.concat(vm.envString("DEBT_TOKEN_SYMBOL_PREFIX"), baseTokenTicker);
         console.log("Base Token Address:", baseToken);
         console.log("Pool Manager Address:", poolManager);
+        console.log("Interest Sensitivity:", interestSensitivity);
         console.log("Governor Address:", governor);
         console.log("Token Name:", name);
         console.log("Token Symbol:", symbol);
@@ -33,7 +35,8 @@ contract DeployScript is Script {
         // Deploy contracts
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         console.log("Deploying Licredity...");
-        Licredity licredity = new Licredity{salt: salt}(baseToken, poolManager, governor, name, symbol);
+        Licredity licredity =
+            new Licredity{salt: salt}(baseToken, interestSensitivity, poolManager, governor, name, symbol);
         vm.stopBroadcast();
         console.log("=== DEPLOYMENT COMPLETE ===");
         console.log("Licredity deployed at:", address(licredity));
