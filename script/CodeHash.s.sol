@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: MIT
+//SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.8.26;
 
 import "@forge-std/Script.sol";
@@ -29,7 +29,7 @@ contract PrintInitCodeHash is Script {
     // address constant PM_ADDRESS = 0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408;  // Base Sepolia: 84532
     // address constant PM_ADDRESS = 0xFB3e0C6F74eB1a21CC1Da29aeC80D2Dfe6C9a317;  // Arbitrum Sepolia: 421614
 
-    function run() public {
+    function run() public view {
         // Load deployment settings
         string memory chain = vm.envString("CHAIN");
         string memory baseTokenTicker = vm.envString("BASE_TOKEN");
@@ -52,9 +52,7 @@ contract PrintInitCodeHash is Script {
         require(poolManager != address(0), "PoolManager address cannot be zero");
         require(governor != address(0), "Governor address cannot be zero");
 
-        bytes memory constructorArguments = abi.encode(
-            baseToken, poolManager, governor, name, symbol
-        );
+        bytes memory constructorArguments = abi.encode(baseToken, poolManager, governor, name, symbol);
 
         // Print Init Code Hash
         bytes memory creationCodeWithConstructorArguments =
