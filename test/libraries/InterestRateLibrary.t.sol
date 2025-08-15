@@ -35,16 +35,15 @@ contract InterestRateLibraryTest is Test {
         return InterestRateLibrary.calculateInterest(rate, principal, elapsed);
     }
 
-    function test_calculateCompoundedInterest(uint256 dayRate, uint256 elapsed) public view {
-        dayRate = bound(dayRate, 1, 0.01e27);
-        uint256 yearRate = dayRate * 365;
+    function test_calculateCompoundedInterest(uint256 yearRate, uint256 elapsed) public view {
+        yearRate = bound(yearRate, 1, 3.65e27);
         elapsed = bound(elapsed, 0, 100 * 365 days);
 
         (bool success0, bytes memory result0) = address(this).staticcall(
             abi.encodeWithSignature("AAVECalculateCompoundedInterest(uint256,uint256)", yearRate, elapsed)
         );
         (bool success1, bytes memory result1) = address(this).staticcall(
-            abi.encodeWithSignature("calculateInterest(uint256,uint256,uint256)", dayRate, 1e27, elapsed)
+            abi.encodeWithSignature("calculateInterest(uint256,uint256,uint256)", yearRate, 1e27, elapsed)
         );
         assertEq(success0, success1);
         if (success0) {
