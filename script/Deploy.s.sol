@@ -33,7 +33,7 @@ contract DeployScript is Script {
         // Deploy contracts
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         console.log("Deploying Licredity...");
-        Licredity licredity = new Licredity{ salt: salt }(baseToken, poolManager, governor, name, symbol);
+        Licredity licredity = new Licredity{salt: salt}(baseToken, poolManager, governor, name, symbol);
         vm.stopBroadcast();
         console.log("=== DEPLOYMENT COMPLETE ===");
         console.log("Licredity deployed at:", address(licredity));

@@ -15,7 +15,7 @@ using InterestRateLibrary for InterestRate global;
 library InterestRateLibrary {
     using FullMath for uint256;
 
-    uint256 private constant SECONDS_PER_DAY = 1 days;
+    uint256 private constant SECONDS_PER_YEAR = 365 days;
     uint256 private constant RAY = 1e27;
     uint256 private constant HALF_RAY = 0.5e27;
 
@@ -36,7 +36,7 @@ library InterestRateLibrary {
     }
 
     /// @notice Calculates the interest accrued over a period of time
-    /// @param rate The daily interest rate(DPR)
+    /// @param rate The interest rate
     /// @param principal The principal amount
     /// @param elapsed The time elapsed in seconds
     /// @return interest The interest accrued
@@ -52,11 +52,11 @@ library InterestRateLibrary {
         unchecked {
             expMinusOne = elapsed - 1; // n - 1
             expMinusTwo = elapsed > 2 ? elapsed - 2 : 0; // n - 2
-            basePowerTwo = InterestRate.unwrap(mul(rate, rate)) / (SECONDS_PER_DAY * SECONDS_PER_DAY); // x^2
-            basePowerThree = InterestRate.unwrap(mul(InterestRate.wrap(basePowerTwo), rate)) / SECONDS_PER_DAY; // x^3
+            basePowerTwo = InterestRate.unwrap(mul(rate, rate)) / (SECONDS_PER_YEAR * SECONDS_PER_YEAR); // x^2
+            basePowerThree = InterestRate.unwrap(mul(InterestRate.wrap(basePowerTwo), rate)) / SECONDS_PER_YEAR; // x^3
         }
 
-        uint256 firstTerm = InterestRate.unwrap(rate) * elapsed / SECONDS_PER_DAY;
+        uint256 firstTerm = InterestRate.unwrap(rate) * elapsed / SECONDS_PER_YEAR;
         uint256 secondTerm = elapsed * basePowerTwo * expMinusOne;
         unchecked {
             secondTerm /= 2;
