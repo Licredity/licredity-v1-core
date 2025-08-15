@@ -22,11 +22,12 @@ import {Position} from "./types/Position.sol";
 import {BaseERC20} from "./BaseERC20.sol";
 import {BaseHooks} from "./BaseHooks.sol";
 import {Extsload} from "./Extsload.sol";
+import {NoDelegateCall} from "./NoDelegateCall.sol";
 import {RiskConfigs} from "./RiskConfigs.sol";
 
 /// @title Licredity
 /// @notice Provides the core functionalities of the Licredity protocol
-contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Extsload, RiskConfigs {
+contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Extsload, NoDelegateCall, RiskConfigs {
     using FullMath for uint256;
     using PipsMath for uint256;
     using StateLibrary for IPoolManager;
@@ -88,7 +89,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function unlock(bytes calldata data) external returns (bytes memory result) {
+    function unlock(bytes calldata data) external noDelegateCall returns (bytes memory result) {
         Locker.unlock();
 
         // accrue interest and update total debt balance
@@ -409,6 +410,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     /// @inheritdoc ILicredity
     function increaseDebtShare(uint256 positionId, uint256 delta, address recipient)
         external
+        noDelegateCall
         returns (uint256 amount)
     {
         Position storage position = positions[positionId];
@@ -475,7 +477,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance) external returns (uint256 amount) {
+    function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance)
+        external
+        noDelegateCall
+        returns (uint256 amount)
+    {
         Position storage position = positions[positionId];
 
         uint256 _totalDebtShare = totalDebtShare; // gas saving
@@ -541,7 +547,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function seize(uint256 positionId, address recipient) external returns (uint256 shortfall) {
+    function seize(uint256 positionId, address recipient) external noDelegateCall returns (uint256 shortfall) {
         Position storage position = positions[positionId];
 
         // require(position.owner != address(0), PositionDoesNotExist());
