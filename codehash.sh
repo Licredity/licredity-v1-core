@@ -61,10 +61,20 @@ if [ -z "$POOL_MANAGER_ADDRESS" ]; then
     exit 1
 fi
 
-echo "Starting deployment for chain: $CHAIN with base token: $BASE_TOKEN"
+# Check interest sensitivity exists
+INTEREST_SENSITIVITY_VAR="${CHAIN}_INTEREST_SENSITIVITY"
+INTEREST_SENSITIVITY=${!INTEREST_SENSITIVITY_VAR}
+
+if [ -z "$INTEREST_SENSITIVITY" ]; then
+    echo "Error: ${INTEREST_SENSITIVITY_VAR} not set in .env file"
+    exit 1
+fi
+
+echo "Printing init code hash for chain: $CHAIN with base token: $BASE_TOKEN"
 echo "RPC URL: $RPC_URL"
 echo "Base token address: $BASE_TOKEN_ADDRESS"
 echo "Pool manager address: $POOL_MANAGER_ADDRESS"
+echo "Interest sensitivity: $INTEREST_SENSITIVITY"
 
 # Set environment variables for the deployment script
 export CHAIN=$CHAIN
@@ -75,5 +85,5 @@ echo "Compiling contracts..."
 forge build
 
 # Deploy contracts
-echo "Deploying contracts..."
+echo "Printing init code hash for contracts..."
 forge script script/CodeHash.s.sol:PrintInitCodeHash

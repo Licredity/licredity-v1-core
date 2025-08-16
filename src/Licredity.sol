@@ -40,13 +40,14 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 private constant POSITION_MRR_PIPS = 10_000; // 1% margin requirement
     uint256 private constant MAX_FUNGIBLES = 128; // maximum number of fungibles per position
     uint256 private constant MAX_NON_FUNGIBLES = 128; // maximum number of non-fungibles per position
-    uint256 private constant MAX_INTEREST_RATE = 0.01e27; // maximum interest rate (365% per year)
+    uint256 private constant MAX_INTEREST_RATE = 3.65e27; // maximum interest rate (365% per year)
 
     Fungible internal transient stagedFungible;
     uint256 internal transient stagedFungibleBalance;
     NonFungible internal transient stagedNonFungible;
 
     Fungible internal immutable baseFungible;
+    uint256 internal immutable scaleFactor; // used to convert price deviation to interest rate, accounting for precision differences
     PoolId internal immutable poolId;
     PoolKey internal poolKey;
     uint256 internal totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
@@ -60,11 +61,14 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     mapping(bytes32 => uint256) internal liquidityOnsets; // maps liquidity key to its onset timestamp
     mapping(uint256 => Position) internal positions;
 
-    constructor(address baseToken, address _poolManager, address _governor, string memory name, string memory symbol)
-        BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals())
-        BaseHooks(_poolManager)
-        RiskConfigs(_governor)
-    {
+    constructor(
+        address baseToken,
+        uint256 interestSensitivity,
+        address _poolManager,
+        address _governor,
+        string memory name,
+        string memory symbol
+    ) BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals()) BaseHooks(_poolManager) RiskConfigs(_governor) {
         // require(address(this) > baseToken, InvalidAddress());
         if (address(this) <= baseToken) {
             assembly ("memory-safe") {
@@ -73,8 +77,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
         }
 
-        // set base fungibles
+        // set base fungibles and scale factor
         baseFungible = Fungible.wrap(baseToken);
+        scaleFactor = interestSensitivity * 1e9;
 
         // set pool key and id, initialize the hooked pool
         poolKey =
@@ -899,7 +904,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         }
     }
 
-    function _priceToInterestRate(uint256 price) internal pure returns (InterestRate interestRate) {
+    function _priceToInterestRate(uint256 price) internal view returns (InterestRate interestRate) {
+        uint256 _scaleFactor = scaleFactor;
         assembly ("memory-safe") {
             if lt(price, 1000000000000000000) {
                 // if price falls below 1, force 0% interest rate until it recovers
@@ -909,8 +915,8 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
             if not(lt(price, 1000000000000000000)) {
                 // price has 18 decimals, and interest has 27 decimals
-                // interestRate = InterestRate.wrap((price - 1e18) * 1e9);
-                interestRate := mul(sub(price, 1000000000000000000), 1000000000)
+                // interestRate = InterestRate.wrap((price - 1e18) * scaleFactor);
+                interestRate := mul(sub(price, 1000000000000000000), _scaleFactor)
 
                 if gt(interestRate, MAX_INTEREST_RATE) { interestRate := MAX_INTEREST_RATE }
             }

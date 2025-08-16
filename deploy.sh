@@ -61,10 +61,19 @@ if [ -z "$POOL_MANAGER_ADDRESS" ]; then
     exit 1
 fi
 
+INTEREST_SENSITIVITY_VAR="${CHAIN}_INTEREST_SENSITIVITY"
+INTEREST_SENSITIVITY=${!INTEREST_SENSITIVITY_VAR}
+
+if [ -z "$INTEREST_SENSITIVITY" ]; then
+    echo "Error: ${INTEREST_SENSITIVITY_VAR} not set in .env file"
+    exit 1
+fi
+
 echo "Starting deployment for chain: $CHAIN with base token: $BASE_TOKEN"
 echo "RPC URL: $RPC_URL"
 echo "Base token address: $BASE_TOKEN_ADDRESS"
 echo "Pool manager address: $POOL_MANAGER_ADDRESS"
+echo "Interest sensitivity: $INTEREST_SENSITIVITY"
 
 # Create deployments directory if it doesn't exist
 mkdir -p deployments

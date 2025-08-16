@@ -61,10 +61,11 @@ contract Deployers is Test {
 
         address payable mockLicredity = payable(address(0xFb46d30c9B3ACc61d714D167179748FD01E09aC0));
 
+        // Using (1 - prices) = day interest rates
         vm.label(mockLicredity, "Licredity");
         deployCodeTo(
             "Licredity.sol",
-            abi.encode(address(0), address(poolManager), address(this), "Debt ETH", "DETH"),
+            abi.encode(address(0), 365, address(poolManager), address(this), "Debt ETH", "DETH"),
             mockLicredity
         );
 
