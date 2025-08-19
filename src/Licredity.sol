@@ -35,7 +35,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint24 private constant FEE = 100;
     int24 private constant TICK_SPACING = 1;
     uint160 private constant ONE_SQRT_PRICE_X96 = 0x1000000000000000000000000;
-    uint160 private constant MAX_SQRT_PRICE_X96 = 1461446703485210103287273052203988822378723970342;
 
     uint256 private constant POSITION_MRR_PIPS = 10_000; // 1% margin requirement
     uint256 private constant MAX_FUNGIBLES = 128; // maximum number of fungibles per position
@@ -55,8 +54,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 internal accruedDonation;
     uint256 internal accruedProtocolFee;
     uint256 internal lastInterestCollectionTimestamp;
-    uint256 internal baseAmountAvailable;
-    uint256 internal debtAmountOutstanding;
+    uint256 internal exchangableAmount;
     uint256 internal positionCount;
     mapping(bytes32 => uint256) internal liquidityOnsets; // maps liquidity key to its onset timestamp
     mapping(uint256 => Position) internal positions;
@@ -167,73 +165,62 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
 
     /// @inheritdoc ILicredity
     function exchangeFungible(address recipient, bool baseForDebt) external payable {
-        (Fungible fungibleIn, uint256 amountIn) = _getStagedFungibleAndAmount();
-        uint256 amountOut;
+        (Fungible fungible, uint256 amount) = _getStagedFungibleAndAmount();
 
         if (baseForDebt) {
             // allow unlimited exchange of base fungible for debt fungible at 1:1 ratio
             // prevents insufficient liquidity when repaying debt fungible
 
-            // exchange at 1:1 ratio
-            amountOut = amountIn;
-
             Fungible _baseFungible = baseFungible;
             assembly ("memory-safe") {
-                // require(fungibleIn == baseFungible, NotBaseFungible());
-                if iszero(eq(fungibleIn, _baseFungible)) {
+                // require(fungible == baseFungible, NotBaseFungible());
+                if iszero(eq(fungible, _baseFungible)) {
                     mstore(0x00, 0x74db12cd) // 'NotBaseFungible()'
                     revert(0x1c, 0x04)
                 }
 
-                // update the exchange amounts
-                sstore(baseAmountAvailable.slot, add(sload(baseAmountAvailable.slot), amountIn)) // overflow not practical
-                sstore(debtAmountOutstanding.slot, add(sload(debtAmountOutstanding.slot), amountOut)) // overflow not practical
+                // update the exchangable amount
+                sstore(exchangableAmount.slot, add(sload(exchangableAmount.slot), amount)) // overflow not plausible
             }
 
             // complete the exchange
-            _mint(recipient, amountOut);
+            _mint(recipient, amount);
         } else {
-            // allow burning outstanding debt fungible for available base fungible at current ratio
-            // amount outstanding and available are accrued either from base-for-debt exchange above or from back run swap
-            uint256 _baseAmountAvailable = baseAmountAvailable; // gas saving
-            uint256 _debtAmountOutstanding = debtAmountOutstanding; // gas saving
-
-            // calculate amount out at current available / outstanding ratio
-            amountOut = _baseAmountAvailable.fullMulDiv(amountIn, _debtAmountOutstanding);
+            // allow exchange of debt fungible for base fungible at 1:1. ratio, up to `exchangableAmount`
+            uint256 _exchangableAmount = exchangableAmount; // gas saving
 
             assembly ("memory-safe") {
-                // require(Fungible.unwrap(fungibleIn) == address(this), NotDebtFungible());
-                if iszero(eq(fungibleIn, address())) {
+                // require(Fungible.unwrap(fungible) == address(this), NotDebtFungible());
+                if iszero(eq(fungible, address())) {
                     mstore(0x00, 0x93bbf24d) // 'NotDebtFungible()'
                     revert(0x1c, 0x04)
                 }
-                // require(amountIn <= _debtAmountOutstanding, AmountOutstandingExceeded());
-                if gt(amountIn, _debtAmountOutstanding) {
-                    mstore(0x00, 0x0709cb26) // 'AmountOutstandingExceeded()'
+
+                // require(amount <= _exchangableAmount, ExchangableAmountExceeded());
+                if gt(amount, _exchangableAmount) {
+                    mstore(0x00, 0x0e2fab80) // 'ExchangableAmountExceeded()'
                     revert(0x1c, 0x04)
                 }
 
                 // update the exchange amounts
-                sstore(baseAmountAvailable.slot, sub(_baseAmountAvailable, amountOut)) // underflow not possible
-                sstore(debtAmountOutstanding.slot, sub(_debtAmountOutstanding, amountIn)) // underflow not possible
+                sstore(exchangableAmount.slot, sub(_exchangableAmount, amount)) // underflow not possible
             }
 
             // complete the exchange
-            _burn(address(this), amountIn);
-            baseFungible.transfer(recipient, amountOut);
+            _burn(address(this), amount);
+            baseFungible.transfer(recipient, amount);
         }
 
         assembly ("memory-safe") {
             // clear staged fungible
             tstore(stagedFungible.slot, 0)
 
-            // emit Exchange(recipient, baseForDebt, amountIn, amountOut);
-            mstore(0x00, amountIn)
-            mstore(0x20, amountOut)
+            // emit Exchange(recipient, baseForDebt, amount);
+            mstore(0x00, amount)
             log3(
                 0x00,
-                0x40,
-                0xa826ac1379ee41b2ea30a0515f61757b4cae0c794b03989090a14aac7db78e82,
+                0x20,
+                0xf180c055eb1cd10829ed8df85b38cfb88b73082f81b95fde49a92fd744975489,
                 and(recipient, 0xffffffffffffffffffffffffffffffffffffffff),
                 and(baseForDebt, 0x1)
             )
@@ -728,44 +715,24 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc BaseHooks
-    function _afterSwap(
-        address sender,
-        PoolKey calldata,
-        IPoolManager.SwapParams calldata,
-        BalanceDelta balanceDelta,
-        bytes calldata
-    ) internal override returns (bytes4, int128) {
-        // do nothing during the back run swap
-        if (sender != address(this)) {
-            (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+    function _afterSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, BalanceDelta, bytes calldata)
+        internal
+        override
+        returns (bytes4, int128)
+    {
+        (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
 
-            // price below 1 will result in negative interest, which is not allowed
-            // mint non-interest-bearing debt fungible to revert the effect of the current swap
-            // anyone can remove these additional fungible tokens by exchanging them for base fungible collected
-            if (sqrtPriceX96 <= ONE_SQRT_PRICE_X96) {
-                // back run swap to revert the effect of the current swap, using exactOut to account for fees
-                IPoolManager.SwapParams memory params =
-                    IPoolManager.SwapParams(false, -balanceDelta.amount0(), MAX_SQRT_PRICE_X96 - 1);
-                balanceDelta = poolManager.swap(poolKey, params, "");
-
-                // store amounts eligible for exchange
-                uint256 baseAmount = uint128(balanceDelta.amount0());
-                uint256 debtAmount = uint128(-balanceDelta.amount1());
-                baseAmountAvailable += baseAmount;
-                debtAmountOutstanding += debtAmount;
-
-                // reconcile balance delta with the pool manager
-                poolManager.sync(Currency.wrap(address(this)));
-                _mint(address(poolManager), debtAmount);
-                poolManager.settle();
-
-                // If there is not enough ETH in the Uniswap V4 Pool Manager, `poolManager.take` will revert
-                poolManager.take(Currency.wrap(Fungible.unwrap(baseFungible)), address(this), baseAmount);
+        // price below 1 will result in negative interest, which is not allowed
+        // require(sqrtPriceX96 >= ONE_SQRT_PRICE_X96, MinPriceNotMet());
+        if (sqrtPriceX96 < ONE_SQRT_PRICE_X96) {
+            assembly ("memory-safe") {
+                mstore(0x00, 0xc670a4ea) // 'MinPriceNotMet()'
+                revert(0x1c, 0x04)
             }
-
-            // trigger the oracle for price update
-            oracle.update();
         }
+
+        // trigger the oracle for price update
+        oracle.update();
 
         return (this.afterSwap.selector, 0);
     }

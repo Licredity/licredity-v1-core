@@ -25,10 +25,11 @@ interface ILicredity is IExtsload, IRiskConfigs {
     error MaxNonFungiblesExceeded();
     error NotBaseFungible();
     error NotDebtFungible();
-    error AmountOutstandingExceeded();
+    error ExchangableAmountExceeded();
     error NonZeroNativeValue();
     error DebtLimitExceeded();
     error CannotSeizeOwnPosition();
+    error MinPriceNotMet();
     error MinLiquidityLifespanNotMet();
 
     //////////////////////////////
