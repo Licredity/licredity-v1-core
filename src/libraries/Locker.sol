@@ -100,4 +100,13 @@ library Locker {
             mstore(0x40, add(items, mul(i, 0x20)))
         }
     }
+
+    /// @notice Checks whether an item is registered
+    function isRegistered(bytes32 item) internal view returns (bool _isRegistered) {
+        assembly ("memory-safe") {
+            mstore(0x00, item)
+            mstore(0x20, LOCKER_SLOT)
+            _isRegistered := tload(keccak256(0x00, 0x40))
+        }
+    }
 }
