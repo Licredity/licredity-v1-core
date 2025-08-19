@@ -15,7 +15,7 @@ contract LicreditySeizeTest is Deployers {
 
     error PositionDoesNotExist();
     error PositionIsHealthy();
-    error CannotSeizeOwnPosition();
+    error CannotSeizeRegisteredPosition();
 
     event SeizePosition(
         uint256 indexed positionId,
@@ -44,10 +44,19 @@ contract LicreditySeizeTest is Deployers {
         licredityRouterHelper.seize(1, msg.sender);
     }
 
-    function test_seize_ownPosition() public {
+    function test_seize_registeredPosition() public {
         uint256 positionId = licredityRouter.open();
-        vm.expectRevert(CannotSeizeOwnPosition.selector);
-        licredityRouterHelper.seize(positionId, msg.sender);
+
+        Actions[] memory actions = new Actions[](2);
+        bytes[] memory params = new bytes[](2);
+
+        actions[0] = Actions.ADD_DEBT;
+        params[0] = abi.encode(positionId, 1, address(1));
+        actions[1] = Actions.SEIZE;
+        params[1] = abi.encode(positionId, msg.sender);
+
+        vm.expectRevert(CannotSeizeRegisteredPosition.selector);
+        licredityRouter.executeActions(actions, params);
     }
 
     function test_seize_positionIsHealth() public {
