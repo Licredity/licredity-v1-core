@@ -23,7 +23,7 @@ contract LicredityHookTest is Deployers {
     error NotBaseFungible();
     error NotDebtFungible();
     error ExchangableAmountExceeded();
-    error MinPriceNotMet();
+    error PriceTooLow();
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 amount);
@@ -87,7 +87,7 @@ contract LicredityHookTest is Deployers {
                 WrappedError.selector,
                 address(licredity),
                 bytes4(0xb47b2fb1),
-                abi.encodePacked(MinPriceNotMet.selector),
+                abi.encodePacked(PriceTooLow.selector),
                 abi.encodePacked(HookCallFailed.selector)
             )
         );

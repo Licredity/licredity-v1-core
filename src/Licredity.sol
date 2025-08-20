@@ -723,10 +723,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
 
         // price below 1 will result in negative interest, which is not allowed
-        // require(sqrtPriceX96 >= ONE_SQRT_PRICE_X96, MinPriceNotMet());
+        // require(sqrtPriceX96 >= ONE_SQRT_PRICE_X96, PriceTooLow());
         if (sqrtPriceX96 < ONE_SQRT_PRICE_X96) {
             assembly ("memory-safe") {
-                mstore(0x00, 0xc670a4ea) // 'MinPriceNotMet()'
+                mstore(0x00, 0xdbbbe822) // 'PriceTooLow()'
                 revert(0x1c, 0x04)
             }
         }
