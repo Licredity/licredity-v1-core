@@ -17,12 +17,16 @@ contract LicredityHookTest is Deployers {
     using StateLibrary for IPoolManager;
     using LicredityStateLibrary for Licredity;
 
+    error WrappedError(address target, bytes4 selector, bytes reason, bytes details);
+    error HookCallFailed();
+
     error NotBaseFungible();
     error NotDebtFungible();
-    error AmountOutstandingExceeded();
+    error ExchangableAmountExceeded();
+    error MinPriceNotMet();
 
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 debtAmountIn, uint256 baseAmountOut);
+    event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 amount);
 
     uint24 private constant FEE = 100;
     int24 private constant TICK_SPACING = 1;
@@ -76,8 +80,17 @@ contract LicredityHookTest is Deployers {
             IPoolManager.ModifyLiquidityParams({tickLower: -2, tickUpper: 2, liquidityDelta: 10001 ether, salt: ""})
         );
 
-        int256 amountSpecified = -int256(uint256(bound(uint256(swapAmount), 1, 1.0002 ether)));
-        uint256 hookEtherBefore = address(licredity).balance;
+        int256 amountSpecified = -int256(uint256(bound(uint256(swapAmount), 2, 1.0002 ether)));
+        /// 0xb47b2fb1 = afterSwap selector
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                WrappedError.selector,
+                address(licredity),
+                bytes4(0xb47b2fb1),
+                abi.encodePacked(MinPriceNotMet.selector),
+                abi.encodePacked(HookCallFailed.selector)
+            )
+        );
         uniswapV4RouterHelper.zeroForOneSwap(
             user,
             poolKey,
@@ -87,17 +100,6 @@ contract LicredityHookTest is Deployers {
                 sqrtPriceLimitX96: TickMath.getSqrtPriceAtTick(-3)
             })
         );
-        uint256 hookEtherAfter = address(licredity).balance;
-
-        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
-        assertGe(sqrtPriceX96, ONE_SQRT_PRICE_X96);
-        assertApproxEqAbsDecimal(hookEtherAfter - hookEtherBefore, uint256(-amountSpecified), 0.0001 ether, 18);
-
-        uint256 userDebtAmount = IERC20(address(licredity)).balanceOf(address(user));
-
-        (uint256 baseAmountAvailable, uint256 debtAmountOutstanding) = licredity.getExchangeAmount();
-        assertApproxEqAbsDecimal(baseAmountAvailable, uint256(-amountSpecified), 0.0001 ether, 18);
-        assertApproxEqAbsDecimal(debtAmountOutstanding, uint256(userDebtAmount), 0.00021 ether, 18);
     }
 
     function test_exchangeFungible_NotBaseFungible() public {
@@ -106,50 +108,47 @@ contract LicredityHookTest is Deployers {
         licredity.exchangeFungible(address(user), true);
     }
 
-    function test_exchangeFungible_zeroBaseFungible() public {
+    function test_exchangeFungible_baseForDebt_zeroBaseFungible() public {
         licredity.stageFungible(Fungible.wrap(address(0)));
         licredity.exchangeFungible(user, true);
     }
 
-    function test_exchangeFungible_ExceedsAmountOutstanding() public {
-        swapForExchange(int256(-0.5 ether));
+    function test_exchangeFungible_baseForDebt(uint256 amount) public {
+        amount = bound(amount, 1, address(this).balance);
+        vm.expectEmit(true, true, false, true);
+        emit Exchange(user, true, amount);
 
+        licredity.exchangeFungible{value: amount}(user, true);
+        assertEq(IERC20(address(licredity)).balanceOf(address(user)), amount);
+    }
+
+    function test_exchangeFungible_DebtForbase_ExceedsAmountOutstanding() public {
         getDebtERC20(address(this), 1 ether);
 
-        (, uint256 debtAmountOutstanding) = licredity.getExchangeAmount();
         licredity.stageFungible(Fungible.wrap(address(licredity)));
-        IERC20(address(licredity)).transfer(address(licredity), debtAmountOutstanding + 1);
-        vm.expectRevert(AmountOutstandingExceeded.selector);
+        IERC20(address(licredity)).transfer(address(licredity), 1);
+        vm.expectRevert(ExchangableAmountExceeded.selector);
         licredity.exchangeFungible(user, false);
     }
 
-    function test_exchange_baseForDebt() public {
-        licredity.exchangeFungible{value: 1 ether}(user, true);
-        assertEq(IERC20(address(licredity)).balanceOf(address(user)), 1 ether);
+    function test_exchangeFungible_DebtForBase_zeroDebtFungible() public {
+        licredity.stageFungible(Fungible.wrap(address(0)));
+        vm.expectRevert(NotDebtFungible.selector);
+        licredity.exchangeFungible(user, false);
     }
 
-    function test_exchangeDebtFungible() public {
-        swapForExchange(int256(-0.5 ether));
+    function test_exchangeFungible_DebtForBase(uint256 baseAmount, uint256 debtAmount) public {
+        baseAmount = bound(baseAmount, 1, address(this).balance);
+        debtAmount = bound(debtAmount, 1, baseAmount);
 
-        getDebtERC20(address(this), 1 ether);
+        licredity.exchangeFungible{value: baseAmount}(address(this), true);
 
-        (uint256 baseAmountAvailable, uint256 debtAmountOutstanding) = licredity.getExchangeAmount();
         licredity.stageFungible(Fungible.wrap(address(licredity)));
-        IERC20(address(licredity)).transfer(address(licredity), debtAmountOutstanding);
+        IERC20(address(licredity)).transfer(address(licredity), debtAmount);
 
-        uint256 beforeUserBalance = user.balance;
-
-        vm.expectEmit(true, false, false, true);
-        emit Exchange(user, false, debtAmountOutstanding, baseAmountAvailable);
+        vm.expectEmit(true, true, false, true);
+        emit Exchange(user, false, debtAmount);
         licredity.exchangeFungible(address(user), false);
-
-        uint256 afterUserBalance = user.balance;
-
-        assertEq(afterUserBalance - beforeUserBalance, baseAmountAvailable);
-
-        (baseAmountAvailable, debtAmountOutstanding) = licredity.getExchangeAmount();
-        assertEq(baseAmountAvailable, 0);
-        assertEq(debtAmountOutstanding, 0);
     }
 
     function test_beforeAddLiquidity() public {
