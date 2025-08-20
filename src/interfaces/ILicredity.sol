@@ -131,7 +131,7 @@ interface ILicredity is IExtsload, IRiskConfigs {
     /// @notice Exchanges staged debt fungible for base fungible
     /// @param recipient The recipient of the exchange
     /// @param baseForDebt Whether the exchange is base fungible for debt fungible
-    function exchangeFungible(address recipient, bool baseForDebt) external payable;
+    function exchange(address recipient, bool baseForDebt) external payable;
 
     /// @notice Deposits staged fungible received into a position
     /// @param positionId The ID of the position to deposit into
