@@ -7,20 +7,8 @@ import {FungibleState} from "src/types/FungibleState.sol";
 library StateLibrary {
     uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 16;
     uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 17;
-    uint256 public constant POSITIONS_OFFSET = 25;
+    uint256 public constant POSITIONS_OFFSET = 24;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
-
-    uint256 public constant BASE_AMOUNT_AVAILABLE_OFFSET = 21;
-    uint256 public constant DEBT_AMOUNT_OUTSTANDING_OFFSET = 22;
-
-    function getExchangeAmount(ILicredity manager)
-        internal
-        view
-        returns (uint256 baseAmountAvailable, uint256 debtAmountOutstanding)
-    {
-        baseAmountAvailable = uint256(manager.extsload(bytes32(BASE_AMOUNT_AVAILABLE_OFFSET)));
-        debtAmountOutstanding = uint256(manager.extsload(bytes32(DEBT_AMOUNT_OUTSTANDING_OFFSET)));
-    }
 
     function getTotalDebt(ILicredity manager) internal view returns (uint256 totalShares, uint256 totalAssets) {
         totalShares = uint256(manager.extsload(bytes32(TOTAL_DEBT_SHARE_OFFSET)));
