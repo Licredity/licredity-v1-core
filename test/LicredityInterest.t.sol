@@ -12,6 +12,8 @@ import {AAVEIntertestMath, RAY} from "./utils/AAVEMathInterest.sol";
 import {LicredityRouter} from "./utils/LicredityRouter.sol";
 import {LicredityRouterHelper} from "./utils/LicredityRouterHelper.sol";
 
+import {console} from "@forge-std/console.sol";
+
 contract LicredityInterestTest is Deployers {
     using StateLibrary for Licredity;
 
@@ -118,5 +120,31 @@ contract LicredityInterestTest is Deployers {
         uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, RAY);
 
         assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
+    }
+
+    function test_decreaseDebtShare_collectsInterest(uint256 elapsed, uint256 price) public {
+        price = bound(price, 1 ether, 5 ether);
+        elapsed = bound(elapsed, 1, 30 days);
+
+        uint256 positionId = licredityRouter.open();
+        licredityRouter.depositFungible{value: 10.2 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 10.2 ether);
+
+        uint256 delta = 10 ether * 1e6;
+
+        licredityRouterHelper.addDebt(positionId, delta, address(this));
+
+        skip(elapsed);
+        oracleMock.setQuotePrice(price);
+        
+        uint256 amountRepaid = licredity.decreaseDebtShare(positionId, 1 ether * 1e6, false);
+
+        uint256 yearRate = (price - 1e18) * 1e9 * 365;
+        if (yearRate > 365e25) {
+            yearRate = 365e25;
+        }
+
+        uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
+        uint256 borrowWithInterest = FullMath.fullMulDiv(1 ether, rayRate, RAY);
+        assertApproxEqAbs(amountRepaid, borrowWithInterest, 2);
     }
 }
