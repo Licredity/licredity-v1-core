@@ -94,7 +94,17 @@ library PositionLibrary {
                     let dataSlot := keccak256(0x00, 0x20)
 
                     if iszero(eq(index, len)) {
-                        sstore(add(dataSlot, sub(index, 1)), sload(add(dataSlot, sub(len, 1))))
+                        // overwrite removed fungible's slot with the last fungible
+                        let lastFungible := sload(add(dataSlot, sub(len, 1)))
+                        sstore(add(dataSlot, sub(index, 1)), lastFungible)
+
+                        // update moved fungible's state
+                        mstore(0x00, lastFungible)
+                        mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
+                        let stateSlot := keccak256(0x00, 0x40)
+                        sstore(
+                            stateSlot, or(shl(192, index), and(sload(stateSlot), 0xffffffffffffffffffffffffffffffff))
+                        )
                     }
 
                     sstore(add(dataSlot, sub(len, 1)), 0)
