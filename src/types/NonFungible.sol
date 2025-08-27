@@ -11,8 +11,10 @@ type NonFungible is bytes32;
 using {equals as ==} for NonFungible global;
 using NonFungibleLibrary for NonFungible global;
 
-function equals(NonFungible self, NonFungible other) pure returns (bool) {
-    return NonFungible.unwrap(self) == NonFungible.unwrap(other);
+function equals(NonFungible self, NonFungible other) pure returns (bool _equals) {
+    assembly ("memory-safe") {
+        _equals := iszero(and(xor(self, other), 0xffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff))
+    }
 }
 
 /// @title NonFungibleLibrary
