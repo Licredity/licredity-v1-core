@@ -59,6 +59,12 @@ contract LicreditySeizeTest is Deployers {
         licredityRouter.executeActions(actions, params);
     }
 
+    function test_seize_recipientZeroAddress() public {
+        uint256 positionId = licredityRouter.open();
+        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        licredityRouterHelper.seize(positionId, address(0));
+    }
+
     function test_seize_positionIsHealth() public {
         uint256 positionId = licredityRouter.open();
         vm.expectRevert(PositionIsHealthy.selector);
