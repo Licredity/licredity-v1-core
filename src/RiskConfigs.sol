@@ -113,6 +113,12 @@ abstract contract RiskConfigs is IRiskConfigs {
     /// @inheritdoc IRiskConfigs
     function setMinLiquidityLifespan(uint256 _minLiquidityLifespan) external onlyGovernor {
         assembly ("memory-safe") {
+            // require(_minLiquidityLifespan <= 7 days, InvalidMinLiquidityLifespan());
+            if gt(_minLiquidityLifespan, 604800) {
+                mstore(0x00, 0x3ad3c8a9) // 'InvalidMinLiquidityLifespan()'
+                revert(0x1c, 0x04)
+            }
+
             // minLiquidityLifespan = _minLiquidityLifespan;
             sstore(minLiquidityLifespan.slot, _minLiquidityLifespan)
 
