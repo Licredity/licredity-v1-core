@@ -20,6 +20,7 @@ contract LicredityHookTest is Deployers {
     error NotBaseFungible();
     error NotDebtFungible();
     error AmountOutstandingExceeded();
+    error ZeroAddressNotAllowed();
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 debtAmountIn, uint256 baseAmountOut);
@@ -100,10 +101,23 @@ contract LicredityHookTest is Deployers {
         assertApproxEqAbsDecimal(debtAmountOutstanding, uint256(userDebtAmount), 0.00021 ether, 18);
     }
 
+    function test_exchangeFungible_recipientZeroAddress() public {
+        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        licredity.exchangeFungible(address(0), true);
+    }
+
     function test_exchangeFungible_NotBaseFungible() public {
         licredity.stageFungible(Fungible.wrap(address(licredity)));
         vm.expectRevert(NotBaseFungible.selector);
         licredity.exchangeFungible(address(user), true);
+    }
+
+    function test_exchangeFungible_NotDebtFungible() public {
+        swapForExchange(int256(-0.5 ether));
+
+        licredity.stageFungible(Fungible.wrap(address(0)));
+        vm.expectRevert(NotDebtFungible.selector);
+        licredity.exchangeFungible(address(user), false);
     }
 
     function test_exchangeFungible_zeroBaseFungible() public {

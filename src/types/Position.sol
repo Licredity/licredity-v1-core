@@ -43,7 +43,7 @@ library PositionLibrary {
     function addFungible(Position storage self, Fungible fungible, uint256 amount) internal {
         FungibleState state = self.fungibleStates[fungible];
 
-        if (state.index() == 0) {
+        if (state.index() == 0 && amount > 0) {
             // add a fungible to the fungibles array
             assembly ("memory-safe") {
                 let slot := add(self.slot, FUNGIBLES_OFFSET)
