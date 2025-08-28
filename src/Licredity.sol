@@ -66,7 +66,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         _;
     }
 
-    function _noZeroAddress(address _address) internal view {
+    function _noZeroAddress(address _address) internal pure {
         assembly ("memory-safe") {
             if eq(_address, 0) {
                 mstore(0x00, 0x8579befe) // 'ZeroAddressNotAllowed()'
