@@ -61,6 +61,20 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     mapping(bytes32 => uint256) internal liquidityOnsets; // maps liquidity key to its onset timestamp
     mapping(uint256 => Position) internal positions;
 
+    modifier noZeroAddress(address _address) {
+        _noZeroAddress(_address);
+        _;
+    }
+
+    function _noZeroAddress(address _address) internal view {
+        assembly ("memory-safe") {
+            if eq(_address, 0) {
+                mstore(0x00, 0x8579befe) // 'ZeroAddressNotAllowed()'
+                revert(0x1c, 0x04)
+            }
+        }
+    }
+
     constructor(
         address baseToken,
         uint256 interestSensitivity,
@@ -166,7 +180,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function exchangeFungible(address recipient, bool baseForDebt) external payable {
+    function exchangeFungible(address recipient, bool baseForDebt) external payable noZeroAddress(recipient) {
         (Fungible fungibleIn, uint256 amountIn) = _getStagedFungibleAndAmount();
         uint256 amountOut;
 
@@ -275,7 +289,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount) external {
+    function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount)
+        external
+        noZeroAddress(recipient)
+    {
         Position storage position = positions[positionId];
 
         // require(position.owner == msg.sender, NotPositionOwner());
@@ -371,7 +388,10 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function withdrawNonFungible(uint256 positionId, address recipient, NonFungible nonFungible) external {
+    function withdrawNonFungible(uint256 positionId, address recipient, NonFungible nonFungible)
+        external
+        noZeroAddress(recipient)
+    {
         Position storage position = positions[positionId];
 
         // require(position.owner == msg.sender, NotPositionOwner());
@@ -411,6 +431,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     function increaseDebtShare(uint256 positionId, uint256 delta, address recipient)
         external
         noDelegateCall
+        noZeroAddress(recipient)
         returns (uint256 amount)
     {
         Position storage position = positions[positionId];
@@ -547,7 +568,12 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     }
 
     /// @inheritdoc ILicredity
-    function seize(uint256 positionId, address recipient) external noDelegateCall returns (uint256 shortfall) {
+    function seize(uint256 positionId, address recipient)
+        external
+        noDelegateCall
+        noZeroAddress(recipient)
+        returns (uint256 shortfall)
+    {
         Position storage position = positions[positionId];
 
         // require(position.owner != address(0), PositionDoesNotExist());
