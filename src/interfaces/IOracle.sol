@@ -17,6 +17,7 @@ interface IOracle {
     /// @param amounts The amounts of fungibles to quote
     /// @return value The total value of the fungibles in debt fungible
     /// @return marginRequirement The total margin requirement of the fungibles in debt fungible
+    /// @dev Expects fungibles and amounts to have the same length
     function quoteFungibles(Fungible[] memory fungibles, uint256[] memory amounts)
         external
         returns (uint256 value, uint256 marginRequirement);

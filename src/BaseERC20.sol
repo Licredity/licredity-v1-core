@@ -56,6 +56,8 @@ abstract contract BaseERC20 is IERC20 {
 
     /// @inheritdoc IERC20
     function transfer(address to, uint256 amount) public returns (bool) {
+        require(to != address(0));
+
         _transfer(msg.sender, to, amount);
 
         return true;
@@ -63,6 +65,8 @@ abstract contract BaseERC20 is IERC20 {
 
     /// @inheritdoc IERC20
     function transferFrom(address from, address to, uint256 amount) public returns (bool) {
+        require(to != address(0));
+
         assembly ("memory-safe") {
             from := and(from, 0xffffffffffffffffffffffffffffffffffffffff)
 

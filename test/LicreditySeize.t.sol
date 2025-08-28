@@ -16,6 +16,7 @@ contract LicreditySeizeTest is Deployers {
     error PositionDoesNotExist();
     error PositionIsHealthy();
     error CannotSeizeOwnPosition();
+    error ZeroAddressNotAllowed();
 
     event SeizePosition(
         uint256 indexed positionId,
@@ -48,6 +49,12 @@ contract LicreditySeizeTest is Deployers {
         uint256 positionId = licredityRouter.open();
         vm.expectRevert(CannotSeizeOwnPosition.selector);
         licredityRouterHelper.seize(positionId, msg.sender);
+    }
+
+    function test_seize_recipientZeroAddress() public {
+        uint256 positionId = licredityRouter.open();
+        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        licredityRouterHelper.seize(positionId, address(0));
     }
 
     function test_seize_positionIsHealth() public {

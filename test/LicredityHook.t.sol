@@ -24,6 +24,7 @@ contract LicredityHookTest is Deployers {
     error NotDebtFungible();
     error ExchangableAmountExceeded();
     error PriceTooLow();
+    error ZeroAddressNotAllowed();
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 amount);
@@ -100,6 +101,11 @@ contract LicredityHookTest is Deployers {
                 sqrtPriceLimitX96: TickMath.getSqrtPriceAtTick(-3)
             })
         );
+    }
+
+    function test_exchangeFungible_recipientZeroAddress() public {
+        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        licredity.exchangeFungible(address(0), true);
     }
 
     function test_exchange_NotBaseFungible() public {

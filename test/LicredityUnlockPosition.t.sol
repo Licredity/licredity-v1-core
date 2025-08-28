@@ -20,6 +20,7 @@ contract LicredityUnlockPositionTest is Deployers {
     error PositionDoesNotExist();
     error NonFungibleNotInPosition();
     error DebtLimitExceeded();
+    error ZeroAddressNotAllowed();
 
     event IncreaseDebtShare(uint256 indexed positionId, address indexed recipient, uint256 delta, uint256 amount);
     event DecreaseDebtShare(uint256 indexed positionId, bool indexed useBalance, uint256 delta, uint256 amount);
@@ -41,6 +42,12 @@ contract LicredityUnlockPositionTest is Deployers {
     function test_increaseDebtShare_notOwner() public {
         vm.expectRevert(NotPositionOwner.selector);
         licredityRouterHelper.addDebt(1, 1, address(this));
+    }
+
+    function test_increaseDebtShare_recipientZeroAddress() public {
+        uint256 positionId = licredityRouter.open();
+        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        licredityRouterHelper.addDebt(positionId, 1, address(0));
     }
 
     function test_increaseDebt_ltMinMargin() public {
@@ -229,6 +236,12 @@ contract LicredityUnlockPositionTest is Deployers {
         licredity.withdrawFungible(1, address(this), Fungible.wrap(address(licredity)), 1);
     }
 
+    function test_withdrawFungible_recipientZeroAddress() public {
+        uint256 positionId = licredityRouter.open();
+        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        licredity.withdrawFungible(positionId, address(0), Fungible.wrap(address(licredity)), 1);
+    }
+
     function test_withdrawFungible(uint128 withdrawAmount) public {
         withdrawAmount = uint128(bound(withdrawAmount, 0, 2 ether));
 
@@ -258,6 +271,12 @@ contract LicredityUnlockPositionTest is Deployers {
     function test_withdrawNonFungible_notOwner() public {
         vm.expectRevert(NotPositionOwner.selector);
         licredity.withdrawNonFungible(1, address(this), getMockFungible(1));
+    }
+
+    function test_withdrawNonFungible_recipientZeroAddress() public {
+        uint256 positionId = licredityRouter.open();
+        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        licredity.withdrawNonFungible(positionId, address(0), getMockFungible(1));
     }
 
     function test_withdrawNonFungible_notInPosition() public {
