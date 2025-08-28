@@ -184,6 +184,11 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         (Fungible fungibleIn, uint256 amountIn) = _getStagedFungibleAndAmount();
         uint256 amountOut;
 
+        assembly ("memory-safe") {
+            // clear staged fungible
+            tstore(stagedFungible.slot, 0)
+        }
+
         if (baseForDebt) {
             // allow unlimited exchange of base fungible for debt fungible at 1:1 ratio
             // prevents insufficient liquidity when repaying debt fungible
@@ -238,9 +243,6 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         }
 
         assembly ("memory-safe") {
-            // clear staged fungible
-            tstore(stagedFungible.slot, 0)
-
             // emit Exchange(recipient, baseForDebt, amountIn, amountOut);
             mstore(0x00, amountIn)
             mstore(0x20, amountOut)
