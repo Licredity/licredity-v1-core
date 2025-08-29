@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Deployers} from "./utils/Deployer.sol";
-import {Licredity} from "src/Licredity.sol";
+import {StateLibrary} from "./utils/StateLibrary.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 
 contract LicredityInitalizeTest is Deployers {
@@ -18,6 +18,26 @@ contract LicredityInitalizeTest is Deployers {
         deployCodeTo(
             "Licredity.sol", abi.encode(baseToken, 1, poolManager, address(this), "Debt T", "DT"), deployAddress
         );
+    }
+
+    function test_initalize_poolManager() public {
+        deployETHLicredityWithUniswapV4();
+
+        bytes32 poolManagerValue = vm.load(address(licredity), bytes32(StateLibrary.POOL_MANAGER_OFFSET));
+        address poolManagerAddress;
+
+        assembly ("memory-safe") {
+            poolManagerAddress := poolManagerValue
+        }
+
+        assertEq(poolManagerAddress, address(poolManager));
+    }
+
+    function test_initalize_poolId() public {
+        deployETHLicredityWithUniswapV4();
+
+        bytes32 poolId = StateLibrary.getPoolId(licredity);
+        assertEq(poolId, hex"86f15e7ec533935883c86e206d779a79b78e0e9e9d2166b62ad60a99a0c5e276");
     }
 
     function test_initalize_ETH() public {

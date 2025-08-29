@@ -12,8 +12,6 @@ import {AAVEIntertestMath, RAY} from "./utils/AAVEMathInterest.sol";
 import {LicredityRouter} from "./utils/LicredityRouter.sol";
 import {LicredityRouterHelper} from "./utils/LicredityRouterHelper.sol";
 
-import {console} from "@forge-std/console.sol";
-
 contract LicredityInterestTest is Deployers {
     using StateLibrary for Licredity;
 
@@ -135,7 +133,7 @@ contract LicredityInterestTest is Deployers {
 
         skip(elapsed);
         oracleMock.setQuotePrice(price);
-        
+
         uint256 amountRepaid = licredity.decreaseDebtShare(positionId, 1 ether * 1e6, false);
 
         uint256 yearRate = (price - 1e18) * 1e9 * 365;

@@ -6,7 +6,6 @@ import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
-import {IERC721} from "@forge-std/interfaces/IERC721.sol";
 
 enum Actions {
     ADD_DEBT,
