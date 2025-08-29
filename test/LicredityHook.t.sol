@@ -103,9 +103,9 @@ contract LicredityHookTest is Deployers {
         );
     }
 
-    function test_exchangeFungible_recipientZeroAddress() public {
+    function test_exchange_recipientZeroAddress() public {
         vm.expectRevert(ZeroAddressNotAllowed.selector);
-        licredity.exchangeFungible(address(0), true);
+        licredity.exchange(address(0), true);
     }
 
     function test_exchange_NotBaseFungible() public {
