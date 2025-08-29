@@ -25,10 +25,11 @@ interface ILicredity is IExtsload, IRiskConfigs {
     error MaxNonFungiblesExceeded();
     error NotBaseFungible();
     error NotDebtFungible();
-    error AmountOutstandingExceeded();
+    error ExchangableAmountExceeded();
     error NonZeroNativeValue();
     error DebtLimitExceeded();
     error CannotSeizeRegisteredPosition();
+    error PriceTooLow();
     error MinLiquidityLifespanNotMet();
     error ZeroAddressNotAllowed();
 
@@ -48,11 +49,10 @@ interface ILicredity is IExtsload, IRiskConfigs {
     /// @notice Emitted when a debt-for-base exchange has occurred
     /// @param recipient The recipient of the base fungible
     /// @param baseForDebt Whether the exchange is base fungible for debt fungible
-    /// @param debtAmountIn The amount of debt fungible exchanged
-    /// @param baseAmountOut The amount of base fungible received
-    event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 debtAmountIn, uint256 baseAmountOut);
+    /// @param amount The amount of fungible exchanged
+    event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 amount);
 
-    /// @notice Emitted when a fungible has been deposited into a position
+    /// @notice Emitted when a fungible has been deposited into a positiont
     /// @param positionId The ID of the position
     /// @param fungible The fungible deposited
     /// @param amount The amount of fungible deposited
@@ -132,7 +132,7 @@ interface ILicredity is IExtsload, IRiskConfigs {
     /// @notice Exchanges staged debt fungible for base fungible
     /// @param recipient The recipient of the exchange
     /// @param baseForDebt Whether the exchange is base fungible for debt fungible
-    function exchangeFungible(address recipient, bool baseForDebt) external payable;
+    function exchange(address recipient, bool baseForDebt) external payable;
 
     /// @notice Deposits staged fungible received into a position
     /// @param positionId The ID of the position to deposit into
