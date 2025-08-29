@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {Test} from "@forge-std/Test.sol";
 import {InterestRate, InterestRateLibrary} from "src/types/InterestRate.sol";
 import {AAVEIntertestMath} from "../utils/AAVEMathInterest.sol";
-import {console} from "@forge-std/console.sol";
 
 contract InterestRateLibraryTest is Test {
     function AAVERayMul(uint256 a, uint256 b) public pure returns (uint256) {

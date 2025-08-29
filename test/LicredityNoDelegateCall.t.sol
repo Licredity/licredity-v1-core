@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {Deployers} from "./utils/Deployer.sol";
-import {Licredity} from "src/Licredity.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
 
 contract LicredityNoDelegateTest is Deployers {
