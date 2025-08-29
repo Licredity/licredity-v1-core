@@ -64,7 +64,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
         _;
     }
 
-    function _noZeroAddress(address _address) internal view {
+    function _noZeroAddress(address _address) internal pure {
         assembly ("memory-safe") {
             if eq(_address, 0) {
                 mstore(0x00, 0x8579befe) // 'ZeroAddressNotAllowed()'
@@ -573,12 +573,12 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
             }
         }
 
-        // prevents owner from purposely causing a position to be underwater then profit from seizing it
-        // side effect is that positions cannot be seized by owner contract, such as non-fungible position manager, which is acceptable
-        // require(position.owner != msg.sender, CannotSeizeOwnPosition());
-        if (position.owner == msg.sender) {
+        // prevents owner from purposely degrading a position to be underwater then profit from seizing it
+        // either directly or through a third party contract
+        // require(!Locker.isRegistered(bytes32(positionId)), CannotSeizeRegisteredPosition());
+        if (Locker.isRegistered(bytes32(positionId))) {
             assembly ("memory-safe") {
-                mstore(0x00, 0x7c474390) // 'CannotSeizeOwnPosition()'
+                mstore(0x00, 0x4c2e8700) // 'CannotSeizeRegisteredPosition()'
                 revert(0x1c, 0x04)
             }
         }

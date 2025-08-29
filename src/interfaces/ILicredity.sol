@@ -28,7 +28,7 @@ interface ILicredity is IExtsload, IRiskConfigs {
     error ExchangableAmountExceeded();
     error NonZeroNativeValue();
     error DebtLimitExceeded();
-    error CannotSeizeOwnPosition();
+    error CannotSeizeRegisteredPosition();
     error PriceTooLow();
     error MinLiquidityLifespanNotMet();
     error ZeroAddressNotAllowed();
