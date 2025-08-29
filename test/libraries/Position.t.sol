@@ -22,6 +22,7 @@ contract PositionTest is Test {
     }
 
     function test_addFungible_init(Fungible fungible, uint128 amount) public {
+        vm.assume(amount > 0);
         position.addFungible(fungible, amount);
 
         assertEq(position.fungibles.length, 1);
@@ -53,7 +54,7 @@ contract PositionTest is Test {
                 position.addFungible(fungible, addAmount);
                 db.addFungibleBalance(fungible, addAmount);
 
-                if (!db.isUsedFungible(fungible)) {
+                if (!db.isUsedFungible(fungible) && addAmount > 0) {
                     fungibleLength += 1;
 
                     db.addUsedFungible(fungible);
@@ -70,6 +71,7 @@ contract PositionTest is Test {
     {
         vm.assume(fungibles.length <= amounts.length);
         vm.assume(fungibles.length > 0);
+        vm.assume(amounts[0] > 0);
 
         assertTrue(position.isEmpty());
         uint256 boundIndex = bound(index, 0, fungibles.length - 1);
@@ -83,7 +85,10 @@ contract PositionTest is Test {
         uint256 beforeSelectedFungibleBalance = position.fungibleStates[selectedFungible].balance();
         if (beforeSelectedFungibleBalance + uint256(amount) <= type(uint128).max) {
             position.addFungible(selectedFungible, amount);
-            assertEq(position.fungibles.length, fungibleLength);
+
+            assertEq(
+                position.fungibles.length, fungibleLength + (beforeSelectedFungibleBalance == 0 && amount > 0 ? 1 : 0)
+            );
             assertEq(position.fungibleStates[selectedFungible].balance(), db.fungibleBalance(selectedFungible) + amount);
         }
 
@@ -108,7 +113,7 @@ contract PositionTest is Test {
                 position.addFungible(fungible, addAmount);
                 db.addFungibleBalance(fungible, addAmount);
 
-                if (!db.isUsedFungible(fungible)) {
+                if (!db.isUsedFungible(fungible) && addAmount > 0) {
                     fungibleLength = fungibleLength + 1;
                     db.addUsedFungible(fungible);
 
