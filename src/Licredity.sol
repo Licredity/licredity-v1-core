@@ -887,8 +887,12 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     {
         // calculate the liquidity key as a hash of the message sender, tickLower, tickUpper and salt
         assembly ("memory-safe") {
+            provider := and(provider, 0xffffffffffffffffffffffffffffffffffffffff)
+            tickLower := and(tickLower, 0xffffff)
+            tickUpper := and(tickUpper, 0xffffff)
+
             // key = keccak256(abi.encodePacked(provider, tickLower, tickUpper, salt));
-            mstore(0x00, or(or(shl(0x06, provider), shl(0x03, tickLower)), tickUpper))
+            mstore(0x00, or(or(shl(48, provider), shl(24, tickLower)), tickUpper))
             mstore(0x20, salt)
             key := keccak256(0x06, 0x3a)
         }
