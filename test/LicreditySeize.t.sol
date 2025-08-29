@@ -16,6 +16,7 @@ contract LicreditySeizeTest is Deployers {
     error PositionDoesNotExist();
     error PositionIsHealthy();
     error CannotSeizeRegisteredPosition();
+    error ZeroAddressNotAllowed();
 
     event SeizePosition(
         uint256 indexed positionId,

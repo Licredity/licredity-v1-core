@@ -494,6 +494,9 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     {
         Position storage position = positions[positionId];
 
+        // accrue interest and update total debt balance
+        _collectInterest(false);
+
         uint256 _totalDebtShare = totalDebtShare; // gas saving
         uint256 _totalDebtBalance = totalDebtBalance; // gas saving
         // amount of debt fungible to be burned
