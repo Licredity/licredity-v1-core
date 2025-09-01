@@ -152,7 +152,12 @@ library PositionLibrary {
             for { let i := 0 } lt(i, len) { i := add(i, 1) } {
                 let elementSlot := add(dataSlot, i)
 
-                if eq(sload(elementSlot), nonFungible) {
+                if iszero(
+                    and(
+                        xor(sload(elementSlot), nonFungible),
+                        0xffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff
+                    )
+                ) {
                     let lastElementSlot := add(dataSlot, sub(len, 1))
 
                     if iszero(eq(elementSlot, lastElementSlot)) { sstore(elementSlot, sload(lastElementSlot)) }

@@ -202,7 +202,9 @@ contract PositionTest is Test {
         uint256 nonFungibleLength;
 
         for (uint256 i = 0; i < nonFungibles.length; i++) {
-            NonFungible nonFungible = nonFungibles[i];
+            NonFungible nonFungible = NonFungible.wrap(
+                NonFungible.unwrap(nonFungibles[i]) & 0xffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff
+            );
             if (!db.isUsedNonFungible(nonFungible)) {
                 position.addNonFungible(nonFungible);
                 db.addUsedNonFungible(nonFungible);
