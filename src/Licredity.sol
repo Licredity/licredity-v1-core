@@ -54,7 +54,7 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
     uint256 internal accruedDonation;
     uint256 internal accruedProtocolFee;
     uint256 internal lastInterestCollectionTimestamp;
-    uint256 internal exchangableAmount;
+    uint256 internal exchangeableAmount;
     uint256 internal positionCount;
     mapping(bytes32 => uint256) internal liquidityOnsets; // maps liquidity key to its onset timestamp
     mapping(uint256 => Position) internal positions;
@@ -198,15 +198,15 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                     revert(0x1c, 0x04)
                 }
 
-                // update the exchangable amount
-                sstore(exchangableAmount.slot, add(sload(exchangableAmount.slot), amount)) // overflow not plausible
+                // update the exchangeableAmount amount
+                sstore(exchangeableAmount.slot, add(sload(exchangeableAmount.slot), amount)) // overflow not plausible
             }
 
             // complete the exchange
             _mint(recipient, amount);
         } else {
-            // allow exchange of debt fungible for base fungible at 1:1. ratio, up to `exchangableAmount`
-            uint256 _exchangableAmount = exchangableAmount; // gas saving
+            // allow exchange of debt fungible for base fungible at 1:1. ratio, up to `exchangeableAmount`
+            uint256 _exchangeableAmount = exchangeableAmount; // gas saving
 
             assembly ("memory-safe") {
                 // require(Fungible.unwrap(fungible) == address(this), NotDebtFungible());
@@ -215,14 +215,14 @@ contract Licredity is ILicredity, IERC721TokenReceiver, BaseERC20, BaseHooks, Ex
                     revert(0x1c, 0x04)
                 }
 
-                // require(amount <= _exchangableAmount, ExchangableAmountExceeded());
-                if gt(amount, _exchangableAmount) {
-                    mstore(0x00, 0x0e2fab80) // 'ExchangableAmountExceeded()'
+                // require(amount <= _exchangeableAmount, ExchangeableAmountExceeded());
+                if gt(amount, _exchangeableAmount) {
+                    mstore(0x00, 0xc820ee3a) // 'ExchangeableAmountExceeded()'
                     revert(0x1c, 0x04)
                 }
 
                 // update the exchange amounts
-                sstore(exchangableAmount.slot, sub(_exchangableAmount, amount)) // underflow not possible
+                sstore(exchangeableAmount.slot, sub(_exchangeableAmount, amount)) // underflow not possible
             }
 
             // complete the exchange
