@@ -22,7 +22,7 @@ contract LicredityHookTest is Deployers {
 
     error NotBaseFungible();
     error NotDebtFungible();
-    error ExchangableAmountExceeded();
+    error ExchangeableAmountExceeded();
     error PriceTooLow();
     error ZeroAddressNotAllowed();
 
@@ -133,7 +133,7 @@ contract LicredityHookTest is Deployers {
 
         licredity.stageFungible(Fungible.wrap(address(licredity)));
         IERC20(address(licredity)).transfer(address(licredity), 1);
-        vm.expectRevert(ExchangableAmountExceeded.selector);
+        vm.expectRevert(ExchangeableAmountExceeded.selector);
         licredity.exchange(user, false);
     }
 
