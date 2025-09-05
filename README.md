@@ -142,7 +142,7 @@ certoraRun confs/licredity_valid_state_single.conf
 ```
 
 ### External Audits
-- [**Cyfrin Audits**](/docs/audits/Cyfrin%202025-09-01.pdf)
+- [**Cyfrin Audits**](/docs/audits/Cyfrin%202025-09-01.pdf) (2025-09)
 
 ### Known Considerations
 - Heavy assembly usage for gas optimization - exercise caution when modifying storage operations
