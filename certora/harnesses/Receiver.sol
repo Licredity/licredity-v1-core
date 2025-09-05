@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+// Support `optimistic_fallback` flag (https://discord.com/channels/795999272293236746/1190407175877709864)
+contract Receiver {
+    fallback() external payable { }
+}
