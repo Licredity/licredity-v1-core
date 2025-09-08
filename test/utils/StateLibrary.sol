@@ -5,11 +5,11 @@ import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {FungibleState} from "src/types/FungibleState.sol";
 
 library StateLibrary {
-    uint256 public constant POOL_MANAGER_OFFSET = 5;
+    uint256 public constant POOL_MANAGER_OFFSET = 0;
     uint256 public constant CURRENCY0_OFFSET = 13;
-    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 16;
-    uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 17;
-    uint256 public constant POSITIONS_OFFSET = 24;
+    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 20;
+    uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 21;
+    uint256 public constant POSITIONS_OFFSET = 23;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
 
     uint24 private constant FEE = 100;

@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Deployers} from "./utils/Deployer.sol";
 import {StateLibrary} from "./utils/StateLibrary.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 
 contract LicredityInitalizeTest is Deployers {
-    error InvalidAddress();
-
     function test_initalize_BaseERC20LtBaseToken() public {
         deployPoolManager(address(this), hex"01");
 
         address baseToken = address(_newAsset(18));
         address deployAddress = address(uint160(uint160(baseToken) - 1));
 
-        vm.expectRevert(InvalidAddress.selector);
-        deployCodeTo(
-            "Licredity.sol", abi.encode(baseToken, 1, poolManager, address(this), "Debt T", "DT"), deployAddress
-        );
+        vm.expectRevert(ILicredity.LicredityAddressNotValid.selector);
+        deployCodeTo("Licredity.sol", abi.encode(baseToken, poolManager, address(this), "Debt T", "DT"), deployAddress);
     }
 
     function test_initalize_poolManager() public {

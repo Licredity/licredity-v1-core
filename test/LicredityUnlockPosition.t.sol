@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Deployers} from "./utils/Deployer.sol";
 import {ShareMath} from "./utils/ShareMath.sol";
+import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
 import {StateLibrary} from "./utils/StateLibrary.sol";
@@ -14,22 +15,6 @@ contract LicredityUnlockPositionTest is Deployers {
     using ShareMath for uint128;
     using StateLibrary for Licredity;
 
-    error NotPositionOwner();
-    error PositionNotEmpty();
-    error PositionIsUnhealthy();
-    error PositionDoesNotExist();
-    error NonFungibleNotInPosition();
-    error DebtLimitExceeded();
-    error ZeroAddressNotAllowed();
-
-    event IncreaseDebtShare(uint256 indexed positionId, address indexed recipient, uint256 delta, uint256 amount);
-    event DecreaseDebtShare(uint256 indexed positionId, bool indexed useBalance, uint256 delta, uint256 amount);
-    event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
-    event WithdrawFungible(
-        uint256 indexed positionId, address indexed recipient, Fungible indexed fungible, uint256 amount
-    );
-    event WithdrawNonFungible(uint256 indexed positionId, address indexed recipient, NonFungible indexed nonFungible);
-
     function setUp() public {
         deployETHLicredityWithUniswapV4();
         deployNonFungibleMock();
@@ -40,35 +25,35 @@ contract LicredityUnlockPositionTest is Deployers {
     /// increaseDebtShare ///
 
     function test_increaseDebtShare_notOwner() public {
-        vm.expectRevert(NotPositionOwner.selector);
+        vm.expectRevert(ILicredity.NotPositionOwner.selector);
         licredityRouterHelper.addDebt(1, 1, address(this));
     }
 
     function test_increaseDebtShare_recipientZeroAddress() public {
-        uint256 positionId = licredityRouter.open();
-        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        uint256 positionId = licredityRouter.openPosition();
+        vm.expectRevert(ILicredity.ZeroAddressNotAllowed.selector);
         licredityRouterHelper.addDebt(positionId, 1, address(0));
     }
 
     function test_increaseDebt_ltMinMargin() public {
-        uint256 positionId = licredityRouter.open();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 ether);
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
 
         licredity.setMinMargin(0.0015 ether);
 
         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
         uint256 delta = uint128(0.99 ether).toShares(totalAssets, totalShares);
 
-        vm.expectRevert(PositionIsUnhealthy.selector);
+        vm.expectRevert(ILicredity.PositionNotHealthy.selector);
         licredityRouterHelper.addDebt(positionId, delta, address(this));
     }
 
     function test_increaseDebtShare(uint128 amount) public {
         vm.assume(amount < type(uint128).max / 1e6);
 
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
-        licredityRouter.depositFungible{value: 1 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 ether);
+        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
 
         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
         uint256 delta = amount.toShares(totalAssets, totalShares);
@@ -77,16 +62,16 @@ contract LicredityUnlockPositionTest is Deployers {
         /// max debt = value - margin requirement = 1 ether - 0.01 ether = 0.99 ether
         if (amount <= 0.99 ether) {
             vm.expectEmit(true, true, false, true);
-            emit IncreaseDebtShare(positionId, address(this), delta, amount);
+            emit ILicredity.IncreaseDebtShare(positionId, address(this), delta, amount);
 
             licredityRouterHelper.addDebt(positionId, delta, address(this));
             assertEq(licredity.balanceOf(address(this)), amount);
         } else {
             if (amount < 10000 ether) {
-                vm.expectRevert(PositionIsUnhealthy.selector);
+                vm.expectRevert(ILicredity.PositionNotHealthy.selector);
                 licredityRouterHelper.addDebt(positionId, delta, address(this));
             } else {
-                vm.expectRevert(DebtLimitExceeded.selector);
+                vm.expectRevert(ILicredity.DebtLimitExceeded.selector);
                 licredityRouterHelper.addDebt(positionId, delta, address(this));
             }
         }
@@ -95,24 +80,24 @@ contract LicredityUnlockPositionTest is Deployers {
     function test_increaseDebtShare_Position(uint128 amount) public {
         vm.assume(amount < type(uint128).max / 1e6);
 
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 ether);
+        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
 
         uint256 delta = amount.toShares(totalAssets, totalShares);
 
         if (amount < 99 ether) {
             vm.expectEmit(true, true, false, true);
-            emit DepositFungible(positionId, Fungible.wrap(address(licredity)), amount);
+            emit ILicredity.DepositFungible(positionId, Fungible.wrap(address(licredity)), amount);
             licredityRouterHelper.addDebt(positionId, delta, address(licredity));
             assertEq(licredity.getPositionFungiblesBalance(positionId, address(licredity)), amount);
         } else if (amount > 100 ether) {
             if (amount < 10000 ether) {
-                vm.expectRevert(PositionIsUnhealthy.selector);
+                vm.expectRevert(ILicredity.PositionNotHealthy.selector);
                 licredityRouterHelper.addDebt(positionId, delta, address(this));
             } else {
-                vm.expectRevert(DebtLimitExceeded.selector);
+                vm.expectRevert(ILicredity.DebtLimitExceeded.selector);
                 licredityRouterHelper.addDebt(positionId, delta, address(this));
             }
         }
@@ -123,7 +108,7 @@ contract LicredityUnlockPositionTest is Deployers {
 
         oracleMock.setNonFungibleConfig(getMockFungible(1), 1 ether, 1000);
 
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
         nonFungibleMock.mint(address(licredityRouter), 1);
         licredityRouter.depositNonFungible(positionId, getMockFungible(1));
@@ -137,31 +122,30 @@ contract LicredityUnlockPositionTest is Deployers {
             licredityRouterHelper.addDebt(positionId, delta, address(this));
             assertEq(licredity.balanceOf(address(this)), amount);
         } else if (amount < 10000 ether) {
-            vm.expectRevert(PositionIsUnhealthy.selector);
+            vm.expectRevert(ILicredity.PositionNotHealthy.selector);
             licredityRouterHelper.addDebt(positionId, delta, address(this));
         }
     }
 
     function test_increaseDebtShare_notEmpty() public {
-        uint256 positionId = licredityRouter.open();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 ether);
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
 
         licredityRouterHelper.addDebt(positionId, 1, address(this));
 
-        vm.expectRevert(PositionNotEmpty.selector);
-        licredityRouter.close(1);
+        vm.expectRevert(ILicredity.PositionNotEmpty.selector);
+        licredityRouter.closePosition(1);
     }
 
     /// decreaseDebtShare ///
 
     function test_decreaseDebtShare_notExistPosition() public {
-        vm.expectRevert(PositionDoesNotExist.selector);
         licredity.decreaseDebtShare(1, 0, false);
     }
 
     function test_decreaseDebtShare_useBalance_NotPositionOwner() public {
-        uint256 positionId = licredityRouter.open();
-        vm.expectRevert(NotPositionOwner.selector);
+        uint256 positionId = licredityRouter.openPosition();
+        vm.expectRevert(ILicredity.NotPositionOwner.selector);
         licredity.decreaseDebtShare(positionId, 0, true);
     }
 
@@ -171,8 +155,8 @@ contract LicredityUnlockPositionTest is Deployers {
 
         delta = bound(delta, 1e6, maxDelta);
 
-        uint256 positionId = licredityRouter.open();
-        licredityRouter.depositFungible{value: 1 gwei}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 gwei);
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 1 gwei}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 gwei);
 
         Actions[] memory actions = new Actions[](2);
         bytes[] memory params = new bytes[](2);
@@ -187,11 +171,11 @@ contract LicredityUnlockPositionTest is Deployers {
     }
 
     function test_decreaseDebtShare_useBalance_amount(uint128 decreaseAmount) public {
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
         uint128 amount = 99 ether;
 
         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 ether);
+        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
 
         uint256 debtDelta = amount.toShares(totalAssets, totalShares);
 
@@ -203,7 +187,7 @@ contract LicredityUnlockPositionTest is Deployers {
         uint256 decreaseDelta = decreaseAmount.toShares(totalAssets, totalShares);
 
         vm.expectEmit(true, true, true, false);
-        emit WithdrawFungible(positionId, address(0), Fungible.wrap(address(licredity)), amount);
+        emit ILicredity.WithdrawFungible(positionId, address(0), Fungible.wrap(address(licredity)), amount);
         licredityRouter.decreaseDebtShare(positionId, decreaseDelta, true);
     }
 
@@ -211,11 +195,11 @@ contract LicredityUnlockPositionTest is Deployers {
         uint128 decreaseAmount = 1 ether;
         getDebtERC20(address(this), decreaseAmount);
 
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
         uint128 amount = 99 ether;
 
         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 1 ether);
+        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
 
         uint256 debtDelta = amount.toShares(totalAssets, totalShares);
         licredityRouterHelper.addDebt(positionId, debtDelta, address(licredity));
@@ -225,30 +209,30 @@ contract LicredityUnlockPositionTest is Deployers {
         Fungible.wrap(address(licredity)).transfer(address(licredityRouter), decreaseAmount);
 
         vm.expectEmit(true, false, false, true);
-        emit DecreaseDebtShare(positionId, false, decreaseDelta, decreaseAmount);
+        emit ILicredity.DecreaseDebtShare(positionId, false, decreaseDelta, decreaseAmount);
         licredityRouter.decreaseDebtShare(positionId, decreaseDelta, false);
     }
 
     /// withdrawFungible ///
 
     function test_withdrawFungible_notOwner() public {
-        vm.expectRevert(NotPositionOwner.selector);
+        vm.expectRevert(ILicredity.NotPositionOwner.selector);
         licredity.withdrawFungible(1, address(this), Fungible.wrap(address(licredity)), 1);
     }
 
     function test_withdrawFungible_recipientZeroAddress() public {
-        uint256 positionId = licredityRouter.open();
-        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        uint256 positionId = licredityRouter.openPosition();
+        vm.expectRevert(ILicredity.ZeroAddressNotAllowed.selector);
         licredity.withdrawFungible(positionId, address(0), Fungible.wrap(address(licredity)), 1);
     }
 
     function test_withdrawFungible(uint128 withdrawAmount) public {
         withdrawAmount = uint128(bound(withdrawAmount, 0, 2 ether));
 
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
         uint128 amount = 0.99 ether;
-        licredityRouter.depositFungible{value: 2 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 2 ether);
+        licredityRouter.depositFungible{value: 2 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 2 ether);
 
         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
         uint256 delta = amount.toShares(totalAssets, totalShares);
@@ -256,12 +240,12 @@ contract LicredityUnlockPositionTest is Deployers {
 
         if (withdrawAmount <= 1 ether) {
             vm.expectEmit(true, true, true, true);
-            emit WithdrawFungible(positionId, user, Fungible.wrap(address(0)), withdrawAmount);
+            emit ILicredity.WithdrawFungible(positionId, user, Fungible.wrap(address(0)), withdrawAmount);
             licredityRouterHelper.withdrawFungible(positionId, user, address(0), withdrawAmount);
 
             assertEq(user.balance, withdrawAmount);
         } else {
-            vm.expectRevert(PositionIsUnhealthy.selector);
+            vm.expectRevert(ILicredity.PositionNotHealthy.selector);
             licredityRouterHelper.withdrawFungible(positionId, user, address(0), withdrawAmount);
         }
     }
@@ -269,34 +253,34 @@ contract LicredityUnlockPositionTest is Deployers {
     /// withdrawNonFungible ///
 
     function test_withdrawNonFungible_notOwner() public {
-        vm.expectRevert(NotPositionOwner.selector);
+        vm.expectRevert(ILicredity.NotPositionOwner.selector);
         licredity.withdrawNonFungible(1, address(this), getMockFungible(1));
     }
 
     function test_withdrawNonFungible_recipientZeroAddress() public {
-        uint256 positionId = licredityRouter.open();
-        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        uint256 positionId = licredityRouter.openPosition();
+        vm.expectRevert(ILicredity.ZeroAddressNotAllowed.selector);
         licredity.withdrawNonFungible(positionId, address(0), getMockFungible(1));
     }
 
     function test_withdrawNonFungible_notInPosition() public {
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
         nonFungibleMock.mint(address(licredityRouter), 1);
         licredityRouter.depositNonFungible(positionId, getMockFungible(1));
 
-        vm.expectRevert(NonFungibleNotInPosition.selector);
+        vm.expectRevert(ILicredity.NonFungibleNotFound.selector);
         licredityRouterHelper.withdrawNonFungible(1, address(this), getMockFungible(20));
     }
 
     function test_withdrawNonFungible() public {
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
         nonFungibleMock.mint(address(licredityRouter), 1);
         licredityRouter.depositNonFungible(positionId, getMockFungible(1));
 
         vm.expectEmit(true, true, true, false);
-        emit WithdrawNonFungible(positionId, user, getMockFungible(1));
+        emit ILicredity.WithdrawNonFungible(positionId, user, getMockFungible(1));
 
         licredityRouterHelper.withdrawNonFungible(1, user, getMockFungible(1));
     }

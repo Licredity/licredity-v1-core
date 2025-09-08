@@ -27,12 +27,12 @@ contract LicredityRouter is IUnlockCallback {
         licredity = _licredity;
     }
 
-    function open() external returns (uint256 positionId) {
-        positionId = licredity.open();
+    function openPosition() external returns (uint256 positionId) {
+        positionId = licredity.openPosition();
     }
 
-    function close(uint256 positionId) external {
-        licredity.close(positionId);
+    function closePosition(uint256 positionId) external {
+        licredity.closePosition(positionId);
     }
 
     function _depositFungible(address from, uint256 positionId, Fungible fungible, uint256 amount) internal {
@@ -82,7 +82,7 @@ contract LicredityRouter is IUnlockCallback {
                 (uint256 positionId, address fungible, uint256 amount) = abi.decode(param, (uint256, address, uint256));
                 _depositFungible(owner, positionId, Fungible.wrap(fungible), amount);
             } else if (action == Actions.SEIZE) {
-                _seize(param);
+                _seizePosition(param);
             }
         }
         return "";
@@ -109,8 +109,8 @@ contract LicredityRouter is IUnlockCallback {
         licredity.withdrawNonFungible(positionId, recipient, NonFungible.wrap(nonFungible));
     }
 
-    function _seize(bytes memory param) internal {
+    function _seizePosition(bytes memory param) internal {
         (uint256 positionId, address recipient) = abi.decode(param, (uint256, address));
-        licredity.seize(positionId, recipient);
+        licredity.seizePosition(positionId, recipient);
     }
 }

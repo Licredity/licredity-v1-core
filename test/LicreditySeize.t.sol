@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Licredity} from "src/Licredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {Deployers} from "./utils/Deployer.sol";
@@ -12,21 +13,6 @@ import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
 contract LicreditySeizeTest is Deployers {
     using StateLibrary for Licredity;
     using ShareMath for uint128;
-
-    error PositionDoesNotExist();
-    error PositionIsHealthy();
-    error CannotSeizeRegisteredPosition();
-    error ZeroAddressNotAllowed();
-
-    event SeizePosition(
-        uint256 indexed positionId,
-        address indexed recipient,
-        uint256 value,
-        uint256 debt,
-        uint256 marginRequirement,
-        uint256 topup
-    );
-    event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
 
     BaseERC20Mock public token;
 
@@ -41,12 +27,12 @@ contract LicreditySeizeTest is Deployers {
     }
 
     function test_seize_positionNotExist() public {
-        vm.expectRevert(PositionDoesNotExist.selector);
+        vm.expectRevert(ILicredity.PositionIsHealthy.selector);
         licredityRouterHelper.seize(1, msg.sender);
     }
 
     function test_seize_registeredPosition() public {
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
         Actions[] memory actions = new Actions[](2);
         bytes[] memory params = new bytes[](2);
@@ -56,25 +42,25 @@ contract LicreditySeizeTest is Deployers {
         actions[1] = Actions.SEIZE;
         params[1] = abi.encode(positionId, msg.sender);
 
-        vm.expectRevert(CannotSeizeRegisteredPosition.selector);
+        vm.expectRevert(ILicredity.RegisteredPositionCannotBeSeized.selector);
         licredityRouter.executeActions(actions, params);
     }
 
     function test_seize_recipientZeroAddress() public {
-        uint256 positionId = licredityRouter.open();
-        vm.expectRevert(ZeroAddressNotAllowed.selector);
+        uint256 positionId = licredityRouter.openPosition();
+        vm.expectRevert(ILicredity.ZeroAddressNotAllowed.selector);
         licredityRouterHelper.seize(positionId, address(0));
     }
 
     function test_seize_positionIsHealth() public {
-        uint256 positionId = licredityRouter.open();
-        vm.expectRevert(PositionIsHealthy.selector);
+        uint256 positionId = licredityRouter.openPosition();
+        vm.expectRevert(ILicredity.PositionIsHealthy.selector);
         seizerRouterHelper.seize(positionId, msg.sender);
     }
 
     function test_seize_position() public {
         /// deposit 1 ether token
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
         token.mint(address(this), 1 ether);
         token.approve(address(licredityRouter), 1 ether);
 
@@ -103,14 +89,14 @@ contract LicreditySeizeTest is Deployers {
         // params[1] = abi.encode(positionId, Fungible.wrap(address(token)), 20 ether);
 
         vm.expectEmit(true, true, false, true);
-        emit SeizePosition(positionId, address(seizerRouter), 0.95 ether, 0.9 ether, 0.095 ether, 0);
+        emit ILicredity.SeizePosition(positionId, address(seizerRouter), 0.95 ether, 0.9 ether, 0.095 ether, 0);
 
         seizerRouter.executeActions{value: 0.2 ether}(actions, params);
     }
 
     function test_seize_positionDeficit() public {
         /// deposit 1 ether token
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
         token.mint(address(this), 1 ether);
         token.approve(address(licredityRouter), 1 ether);
 
@@ -139,7 +125,7 @@ contract LicreditySeizeTest is Deployers {
         params[1] = abi.encode(positionId, Fungible.wrap(address(0)), 0.451 ether);
 
         vm.expectEmit(true, true, false, true);
-        emit DepositFungible(positionId, Fungible.wrap(address(licredity)), 0.8 ether);
+        emit ILicredity.DepositFungible(positionId, Fungible.wrap(address(licredity)), 0.8 ether);
 
         seizerRouter.executeActions{value: 0.451 ether}(actions, params);
 
