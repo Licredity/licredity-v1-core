@@ -127,7 +127,9 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     /// @inheritdoc ILicredity
     function openPosition() external returns (uint256 positionId) {
-        positionId = ++lastPositionId;
+        unchecked {
+            positionId = ++lastPositionId; // overflow not plausible
+        }
         positions[positionId].setOwner(msg.sender);
 
         // emit OpenPosition(positionId, msg.sender);
