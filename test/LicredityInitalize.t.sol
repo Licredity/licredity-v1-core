@@ -14,7 +14,9 @@ contract LicredityInitalizeTest is Deployers {
         address deployAddress = address(uint160(uint160(baseToken) - 1));
 
         vm.expectRevert(ILicredity.LicredityAddressNotValid.selector);
-        deployCodeTo("Licredity.sol", abi.encode(baseToken, poolManager, address(this), "Debt T", "DT"), deployAddress);
+        deployCodeTo(
+            "Licredity.sol", abi.encode(baseToken, 1, poolManager, address(this), "Debt T", "DT"), deployAddress
+        );
     }
 
     function test_initalize_poolManager() public {

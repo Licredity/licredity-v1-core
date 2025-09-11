@@ -107,25 +107,6 @@ forge test --match-contract LicredityUnlockPosition
 forge coverage
 ```
 
-### Deployment
-
-1. **Configure Environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-2. **Deploy to Network**
-   ```bash
-   # Deploy using script
-   forge script script/Deploy.s.sol --broadcast --rpc-url $RPC_URL
-   ```
-
-3. **Verify Contract** (optional)
-   ```bash
-   forge verify-contract <address> Licredity --etherscan-api-key $API_KEY
-   ```
-
 ## 🛡️ Security & Audits
 
 ### Formal Verification

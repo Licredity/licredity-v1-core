@@ -65,7 +65,7 @@ contract Deployers is Test {
         vm.label(mockLicredity, "Licredity");
         deployCodeTo(
             "Licredity.sol",
-            abi.encode(address(0), address(poolManager), address(this), "Debt ETH", "DETH"),
+            abi.encode(address(0), 365, address(poolManager), address(this), "Debt ETH", "DETH"),
             mockLicredity
         );
 
