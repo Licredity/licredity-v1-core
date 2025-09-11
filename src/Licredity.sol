@@ -140,7 +140,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     /// @inheritdoc ILicredity
     function closePosition(uint256 positionId) external {
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // require(position.owner == msg.sender, NotPositionOwner());
         if (position.owner != msg.sender) {
@@ -240,7 +246,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // require(position.owner == msg.sender, NotPositionOwner());
         if (position.owner != msg.sender) {
@@ -273,7 +285,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         external
         onlyNonZeroAddress(recipient)
     {
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // require(position.owner == msg.sender, NotPositionOwner());
         if (position.owner != msg.sender) {
@@ -322,7 +340,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function depositNonFungible(uint256 positionId) external {
         NonFungible nonFungible = stagedNonFungible; // gas saving
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // require(position.owner == msg.sender, NotPositionOwner());
         if (position.owner != msg.sender) {
@@ -366,7 +390,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         external
         onlyNonZeroAddress(recipient)
     {
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // require(position.owner == msg.sender, NotPositionOwner());
         if (position.owner != msg.sender) {
@@ -402,7 +432,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         onlyNonZeroAddress(recipient)
         returns (uint256 amount)
     {
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // require(position.owner == msg.sender, NotPositionOwner());
         if (position.owner != msg.sender) {
@@ -471,7 +507,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         noDelegateCall
         returns (uint256 amount)
     {
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // accrue interest and update total debt balance
         _collectInterest(false);
@@ -537,7 +579,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         onlyNonZeroAddress(recipient)
         returns (uint256 shortfall)
     {
-        Position storage position = positions[positionId];
+        Position storage position;
+        // position = positions[positionId];
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, positions.slot)
+            position.slot := keccak256(0x00, 0x40)
+        }
 
         // prevents owner from purposely degrading a position to be underwater then profit from seizing it
         // either directly or through a third party contract
@@ -746,7 +794,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             if (_protocolFeePips > 0) {
                 // split interest into donation and protocol fee
                 protocolFee = interest.pipsMulUp(_protocolFeePips);
-                donation = interest - protocolFee;
+
+                unchecked {
+                    donation = interest - protocolFee; // overflow not possible
+                }
             }
 
             // increase total debt balance and update last interest collection timestamp

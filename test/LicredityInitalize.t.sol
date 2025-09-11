@@ -22,14 +22,7 @@ contract LicredityInitalizeTest is Deployers {
     function test_initalize_poolManager() public {
         deployETHLicredityWithUniswapV4();
 
-        bytes32 poolManagerValue = vm.load(address(licredity), bytes32(StateLibrary.POOL_MANAGER_OFFSET));
-        address poolManagerAddress;
-
-        assembly ("memory-safe") {
-            poolManagerAddress := poolManagerValue
-        }
-
-        assertEq(poolManagerAddress, address(poolManager));
+        assertEq(address(licredity.poolManager()), address(poolManager));
     }
 
     function test_initalize_poolId() public {
@@ -43,7 +36,7 @@ contract LicredityInitalizeTest is Deployers {
         deployETHLicredityWithUniswapV4();
         assertEq(licredity.decimals(), 18);
 
-        bytes32 governorValue = vm.load(address(licredity), bytes32(uint256(6)));
+        bytes32 governorValue = vm.load(address(licredity), bytes32(uint256(5)));
         address governor;
         assembly ("memory-safe") {
             governor := governorValue
