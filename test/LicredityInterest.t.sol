@@ -23,7 +23,7 @@ contract LicredityInterestTest is Deployers {
     }
 
     // (1 - price) = day interest rate
-    function test_interest(uint32 elapsed, uint256 price) public {
+    function test_dayRate_interest(uint32 elapsed, uint256 price) public {
         price = bound(price, 1 ether, 5 ether);
 
         getDebtERC20(address(this), 1 ether);
