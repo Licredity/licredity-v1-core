@@ -22,6 +22,7 @@ contract LicredityInterestTest is Deployers {
         deployLicredityRouter();
     }
 
+    // (1 - price) = day interest rate
     function test_interest(uint32 elapsed, uint256 price) public {
         price = bound(price, 1 ether, 5 ether);
 

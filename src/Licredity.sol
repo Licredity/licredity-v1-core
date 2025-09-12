@@ -89,9 +89,11 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             }
         }
 
+        // set base fungibles and scale factor
         baseFungible = Fungible.wrap(baseToken);
         scaleFactor = interestSensitivity * 1e9;
 
+        // set pool key and id, initialize the hooked pool
         poolKey =
             PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
         poolId = poolKey.toId();
@@ -549,6 +551,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
                 )
             }
         } else {
+            // require(position.owner != address(0), PositionDoesNotExist());
+            if (position.owner == address(0)) {
+                assembly ("memory-safe") {
+                    mstore(0x00, 0xf7b3b391) // 'PositionDoesNotExist()'
+                    revert(0x1c, 0x04)
+                }
+            }
+
             _burn(msg.sender, amount);
         }
 
@@ -649,7 +659,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         // transfer ownership to recipient
         position.setOwner(recipient);
         // calculate shortfall, the amount needed to bring the position back to health
-        shortfall = value < debt + marginRequirement ? debt + marginRequirement - value : 0;
+        // shortfall = value < debt + marginRequirement ? debt + marginRequirement - value : 0;
+        assembly ("memory-safe") {
+            if lt(value, add(debt, marginRequirement)) {
+                // shortfall = debt + marginRequirement - value;
+                shortfall := sub(add(debt, marginRequirement), value)
+            }
+        }
 
         // emit SeizePosition(positionId, recipient, value, debt, marginRequirement, topup);
         assembly ("memory-safe") {
@@ -701,7 +717,12 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     ) internal override returns (bytes4) {
         // add / update liquidity key onset timestamp
         bytes32 liquidityKey = _calculateLiquidityKey(sender, params.tickLower, params.tickUpper, params.salt);
-        liquidityOnsets[liquidityKey] = block.timestamp;
+        // liquidityOnsets[liquidityKey] = block.timestamp;
+        assembly ("memory-safe") {
+            mstore(0x00, liquidityKey)
+            mstore(0x20, liquidityOnsets.slot)
+            sstore(keccak256(0x00, 0x40), timestamp())
+        }
 
         (, int24 tick,,) = poolManager.getSlot0(poolId);
 
@@ -724,8 +745,11 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         // liquidity must have been available for at least `minLiquidityLifespan` seconds
         // prevents emphemeral liquidity from vampiring interest yield
         // require(block.timestamp >= liquidityOnsets[liquidityKey] + minLiquidityLifespan, MinLiquidityLifespanNotMet());
-        if (block.timestamp < liquidityOnsets[liquidityKey] + minLiquidityLifespan) {
-            assembly ("memory-safe") {
+        assembly ("memory-safe") {
+            mstore(0x00, liquidityKey)
+            mstore(0x20, liquidityOnsets.slot)
+
+            if lt(timestamp(), add(sload(keccak256(0x00, 0x40)), sload(minLiquidityLifespan.slot))) {
                 mstore(0x00, 0x463df77d) // 'MinLiquidityLifespanNotMet()'
                 revert(0x1c, 0x04)
             }
@@ -778,7 +802,12 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     /// @inheritdoc RiskConfigs
     function _collectInterest(bool donate) internal override {
-        uint256 elapsed = block.timestamp - lastInterestCollectionTimestamp;
+        uint256 elapsed;
+        // elapsed = block.timestamp - lastInterestCollectionTimestamp;
+        assembly ("memory-safe") {
+            elapsed := sub(timestamp(), sload(lastInterestCollectionTimestamp.slot)) // underflow not possible
+        }
+
         // short circuit if no time has elapsed and donation is not requested
         // this also prevents distributing any accrued protocol fee which is acceptable
         if (elapsed == 0 && !donate) return;
@@ -786,18 +815,22 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         uint256 donation;
         uint256 protocolFee;
         if (elapsed > 0) {
-            uint256 _protocolFeePips = protocolFeePips; // gas saving
-            uint256 _totalDebtBalance = totalDebtBalance; // gas saving
+            uint256 _protocolFeePips;
+            uint256 _totalDebtBalance;
+            assembly ("memory-safe") {
+                _protocolFeePips := sload(protocolFeePips.slot) // gas saving
+                _totalDebtBalance := sload(totalDebtBalance.slot) // gas saving
+            }
+
             InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
             uint256 interest = interestRate.calculateInterest(_totalDebtBalance, elapsed);
 
+            // split interest into protocol fee (if any) and donation
             if (_protocolFeePips > 0) {
-                // split interest into donation and protocol fee
                 protocolFee = interest.pipsMulUp(_protocolFeePips);
-
-                unchecked {
-                    donation = interest - protocolFee; // overflow not possible
-                }
+            }
+            unchecked {
+                donation = interest - protocolFee; // underflow not possible
             }
 
             // increase total debt balance and update last interest collection timestamp

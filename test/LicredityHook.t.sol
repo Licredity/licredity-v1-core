@@ -180,7 +180,7 @@ contract LicredityHookTest is Deployers {
         skip(1000);
 
         vm.expectEmit(true, true, false, false, address(licredity));
-        emit IERC20.Transfer(address(this), address(poolManager), 0);
+        emit IERC20.Transfer(address(0), address(poolManager), 0);
         uniswapV4RouterHelper.addLiquidity(
             address(this),
             poolKey,
@@ -204,7 +204,7 @@ contract LicredityHookTest is Deployers {
 
         skip(1000);
         vm.expectEmit(true, true, false, false, address(licredity));
-        emit IERC20.Transfer(address(poolManager), address(this), 0);
+        emit IERC20.Transfer(address(0), address(poolManager), 0);
 
         uniswapV4RouterHelper.removeLiquidity(
             address(this),
