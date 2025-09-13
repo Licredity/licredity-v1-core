@@ -2,15 +2,12 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
+import {IERC20} from "@forge-std/interfaces/IERC20.sol";
+import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
 
 contract BaseERC20MockTest is Test {
     BaseERC20Mock public token;
-
-    error InsufficientAllowance();
-
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-    event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() public {
         token = new BaseERC20Mock("CreditToken", "CT", 18);
@@ -55,7 +52,7 @@ contract BaseERC20MockTest is Test {
         vm.startPrank(from);
 
         vm.expectEmit(true, true, false, true);
-        emit Approval(from, spender, amount);
+        emit IERC20.Approval(from, spender, amount);
 
         token.approve(spender, amount);
 
@@ -73,7 +70,7 @@ contract BaseERC20MockTest is Test {
         vm.startPrank(from);
 
         vm.expectEmit(true, true, false, true);
-        emit Transfer(from, to, amount);
+        emit IERC20.Transfer(from, to, amount);
         token.transfer(to, amount);
 
         vm.stopPrank();
@@ -143,7 +140,7 @@ contract BaseERC20MockTest is Test {
         token.approve(spender, amount);
 
         vm.prank(spender);
-        vm.expectRevert(InsufficientAllowance.selector);
+        vm.expectRevert(ILicredity.ERC20AllowanceExceeded.selector);
         token.transferFrom(from, to, transferAmount);
     }
 }

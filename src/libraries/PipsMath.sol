@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 /// @title PipsMath
 /// @notice Library for performing math operations in pips (1 / 1_000_000)
 library PipsMath {
-    uint256 internal constant UNIT_PIPS = 1_000_000;
+    uint256 internal constant ONE_PIPS = 1_000_000;
 
     /// @notice Multiplies `x` by `y` in pips, rounding up
     /// @param x The value to multiply
@@ -20,7 +20,7 @@ library PipsMath {
                     revert(0x1c, 0x04)
                 }
             }
-            z := add(div(z, UNIT_PIPS), iszero(iszero(mod(z, UNIT_PIPS))))
+            z := add(div(z, ONE_PIPS), iszero(iszero(mod(z, ONE_PIPS))))
         }
     }
 }

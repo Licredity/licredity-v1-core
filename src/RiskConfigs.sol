@@ -8,14 +8,18 @@ import {PipsMath} from "./libraries/PipsMath.sol";
 /// @title RiskConfigs
 /// @notice Abstract implementation of risk configurations
 abstract contract RiskConfigs is IRiskConfigs {
+    uint256 private constant MAX_MIN_LIQUIDITY_LIFESPAN = 7 days;
+    uint256 private constant MAX_PROTOCOL_FEE_PIPS = PipsMath.ONE_PIPS / 2 ** 4; // 6.25%
+
     address internal governor;
     address internal nextGovernor;
-    IOracle internal oracle;
-    uint256 internal debtLimit; // global debt limit in debt fungible
-    uint256 internal minMargin; // minimum margin in an indebted position
-    uint256 internal minLiquidityLifespan; // minimum lifespan of a liquidity position in seconds
-    uint24 internal protocolFeePips;
-    address internal protocolFeeRecipient;
+
+    IOracle public oracle;
+    uint256 public debtLimit; // global debt limit in debt fungible
+    uint256 public minMargin; // minimum margin in an indebted position
+    uint256 public minLiquidityLifespan; // minimum lifespan of a liquidity position in seconds
+    uint24 public protocolFeePips;
+    address public protocolFeeRecipient;
 
     modifier onlyGovernor() {
         _onlyGovernor();
@@ -59,8 +63,7 @@ abstract contract RiskConfigs is IRiskConfigs {
             }
 
             // address lastGovernor = governor;
-            // no dirty bits
-            let lastGovernor := sload(governor.slot)
+            let lastGovernor := sload(governor.slot) // no dirty bits possible
 
             // transfer governor role to the next governor and clear nextGovernor
             // governor = msg.sender;
@@ -112,10 +115,12 @@ abstract contract RiskConfigs is IRiskConfigs {
 
     /// @inheritdoc IRiskConfigs
     function setMinLiquidityLifespan(uint256 _minLiquidityLifespan) external onlyGovernor {
+        uint256 maxMinLiquidityLifespan = MAX_MIN_LIQUIDITY_LIFESPAN;
+
         assembly ("memory-safe") {
-            // require(_minLiquidityLifespan <= 7 days, InvalidMinLiquidityLifespan());
-            if gt(_minLiquidityLifespan, 604800) {
-                mstore(0x00, 0x3ad3c8a9) // 'InvalidMinLiquidityLifespan()'
+            // require(_minLiquidityLifespan <= MAX_MIN_LIQUIDITY_LIFESPAN, MaxMinLiquidityLifespanExceeded());
+            if gt(_minLiquidityLifespan, maxMinLiquidityLifespan) {
+                mstore(0x00, 0x673c8224) // 'MaxMinLiquidityLifespanExceeded()'
                 revert(0x1c, 0x04)
             }
 
@@ -130,22 +135,20 @@ abstract contract RiskConfigs is IRiskConfigs {
 
     /// @inheritdoc IRiskConfigs
     function setProtocolFeePips(uint256 _protocolFeePips) external onlyGovernor {
-        uint256 uintPips = PipsMath.UNIT_PIPS;
+        uint256 maxProtocolFeePips = MAX_PROTOCOL_FEE_PIPS;
+
         // collect interest first so that the new protocol fee is not applied retroactively
         _collectInterest(false);
 
         assembly ("memory-safe") {
-            // require(_protocolFeePips <= UNIT_PIPS / 2 ** 4, InvalidProtocolFeePips());
-            if gt(_protocolFeePips, shr(4, uintPips)) {
-                mstore(0x00, 0x4587a813) // 'InvalidProtocolFeePips()'
+            // require(_protocolFeePips <= MAX_PROTOCOL_FEE_PIPS, MaxProtocolFeePipsExceeded());
+            if gt(_protocolFeePips, maxProtocolFeePips) {
+                mstore(0x00, 0xf91fc24f) // 'MaxProtocolFeePipsExceeded()'
                 revert(0x1c, 0x04)
             }
 
             // protocolFeePips = _protocolFeePips;
-            sstore(
-                protocolFeePips.slot,
-                or(and(sload(protocolFeePips.slot), 0xffffffffffffffffffffffffffffffffffffffff000000), _protocolFeePips)
-            )
+            sstore(protocolFeePips.slot, or(shl(shr(sload(protocolFeePips.slot), 24), 24), _protocolFeePips))
 
             // emit SetProtocolFeePips(_protocolFeePips);
             mstore(0x00, _protocolFeePips)

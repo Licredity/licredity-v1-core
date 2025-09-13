@@ -8,8 +8,6 @@ import {ChainInfo} from "src/libraries/ChainInfo.sol";
 import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
 
 contract FungibleTest is Test {
-    error NativeTransferFailed();
-
     BaseERC20Mock public token;
     Fungible public constant NATIVE = Fungible.wrap(address(0));
     Fungible public fungible;
@@ -30,7 +28,7 @@ contract FungibleTest is Test {
     }
 
     function test_Native_decimals() public view {
-        assertEq(NATIVE.decimals(), ChainInfo.NATIVE_DECIMALS);
+        assertEq(NATIVE.decimals(), ChainInfo.NATIVE_FUNGIBLE_DECIMALS);
     }
 
     function test_isNative() public {

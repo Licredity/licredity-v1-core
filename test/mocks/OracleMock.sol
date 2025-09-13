@@ -64,7 +64,7 @@ contract OracleMock is IOracle {
         }
     }
 
-    function update() external {}
+    function updatePrice() external {}
 
     /// @dev Calculates `floor(x * y / d)` with full precision.
     /// Throws if result overflows a uint256 or when `d` is zero.

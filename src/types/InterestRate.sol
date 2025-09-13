@@ -27,7 +27,7 @@ library InterestRateLibrary {
         assembly {
             // to avoid overflow, x <= (type(uint256).max - HALF_RAY) / y
             if iszero(or(iszero(y), iszero(gt(x, div(sub(not(0), HALF_RAY), y))))) {
-                mstore(0x00, 0x35278d12) // 'Overflow()'
+                mstore(0x00, 0x60c2874c) // 'InterestRateMulFailed()'
                 revert(0x1c, 0x04)
             }
 

@@ -3,11 +3,14 @@ pragma solidity ^0.8.20;
 
 import {Deployers} from "./utils/Deployer.sol";
 import {StateLibrary as LicredityStateLibrary} from "./utils/StateLibrary.sol";
+import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Licredity} from "src/Licredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {Currency} from "@uniswap-v4-core/types/Currency.sol";
+import {CustomRevert} from "@uniswap-v4-core/libraries/CustomRevert.sol";
+import {Hooks} from "@uniswap-v4-core/libraries/Hooks.sol";
 import {TickMath} from "@uniswap-v4-core/libraries/TickMath.sol";
 import {IHooks} from "@uniswap-v4-core/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
@@ -16,18 +19,6 @@ import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
 contract LicredityHookTest is Deployers {
     using StateLibrary for IPoolManager;
     using LicredityStateLibrary for Licredity;
-
-    error WrappedError(address target, bytes4 selector, bytes reason, bytes details);
-    error HookCallFailed();
-
-    error NotBaseFungible();
-    error NotDebtFungible();
-    error ExchangeableAmountExceeded();
-    error PriceTooLow();
-    error ZeroAddressNotAllowed();
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 amount);
 
     uint24 private constant FEE = 100;
     int24 private constant TICK_SPACING = 1;
@@ -85,11 +76,11 @@ contract LicredityHookTest is Deployers {
         /// 0xb47b2fb1 = afterSwap selector
         vm.expectRevert(
             abi.encodeWithSelector(
-                WrappedError.selector,
+                CustomRevert.WrappedError.selector,
                 address(licredity),
                 bytes4(0xb47b2fb1),
-                abi.encodePacked(PriceTooLow.selector),
-                abi.encodePacked(HookCallFailed.selector)
+                abi.encodePacked(ILicredity.PriceTooLow.selector),
+                abi.encodePacked(Hooks.HookCallFailed.selector)
             )
         );
         uniswapV4RouterHelper.zeroForOneSwap(
@@ -103,58 +94,58 @@ contract LicredityHookTest is Deployers {
         );
     }
 
-    function test_exchange_recipientZeroAddress() public {
-        vm.expectRevert(ZeroAddressNotAllowed.selector);
-        licredity.exchange(address(0), true);
+    function test_exchangeFungible_recipientZeroAddress() public {
+        vm.expectRevert(ILicredity.ZeroAddressNotAllowed.selector);
+        licredity.exchangeFungible(address(0), true);
     }
 
-    function test_exchange_NotBaseFungible() public {
+    function test_exchangeFungible_NotBaseFungible() public {
         licredity.stageFungible(Fungible.wrap(address(licredity)));
-        vm.expectRevert(NotBaseFungible.selector);
-        licredity.exchange(address(user), true);
+        vm.expectRevert(ILicredity.NotBaseFungible.selector);
+        licredity.exchangeFungible(address(user), true);
     }
 
-    function test_exchange_baseForDebt_zeroBaseFungible() public {
+    function test_exchangeFungible_baseForDebt_zeroBaseFungible() public {
         licredity.stageFungible(Fungible.wrap(address(0)));
-        licredity.exchange(user, true);
+        licredity.exchangeFungible(user, true);
     }
 
-    function test_exchange_baseForDebt(uint256 amount) public {
+    function test_exchangeFungible_baseForDebt(uint256 amount) public {
         amount = bound(amount, 1, address(this).balance);
         vm.expectEmit(true, true, false, true);
-        emit Exchange(user, true, amount);
+        emit ILicredity.ExchangeFungible(user, true, amount);
 
-        licredity.exchange{value: amount}(user, true);
+        licredity.exchangeFungible{value: amount}(user, true);
         assertEq(IERC20(address(licredity)).balanceOf(address(user)), amount);
     }
 
-    function test_exchange_DebtForbase_ExceedsAmountOutstanding() public {
+    function test_exchangeFungible_DebtForbase_ExceedsAmountOutstanding() public {
         getDebtERC20(address(this), 1 ether);
 
         licredity.stageFungible(Fungible.wrap(address(licredity)));
         IERC20(address(licredity)).transfer(address(licredity), 1);
-        vm.expectRevert(ExchangeableAmountExceeded.selector);
-        licredity.exchange(user, false);
+        vm.expectRevert(ILicredity.ExchangeableAmountExceeded.selector);
+        licredity.exchangeFungible(user, false);
     }
 
-    function test_exchange_DebtForBase_zeroDebtFungible() public {
+    function test_exchangeFungible_DebtForBase_zeroDebtFungible() public {
         licredity.stageFungible(Fungible.wrap(address(0)));
-        vm.expectRevert(NotDebtFungible.selector);
-        licredity.exchange(user, false);
+        vm.expectRevert(ILicredity.NotDebtFungible.selector);
+        licredity.exchangeFungible(user, false);
     }
 
-    function test_exchange_DebtForBase(uint256 baseAmount, uint256 debtAmount) public {
+    function test_exchangeFungible_DebtForBase(uint256 baseAmount, uint256 debtAmount) public {
         baseAmount = bound(baseAmount, 1, address(this).balance);
         debtAmount = bound(debtAmount, 1, baseAmount);
 
-        licredity.exchange{value: baseAmount}(address(this), true);
+        licredity.exchangeFungible{value: baseAmount}(address(this), true);
 
         licredity.stageFungible(Fungible.wrap(address(licredity)));
         IERC20(address(licredity)).transfer(address(licredity), debtAmount);
 
         vm.expectEmit(true, true, false, true);
-        emit Exchange(user, false, debtAmount);
-        licredity.exchange(address(user), false);
+        emit ILicredity.ExchangeFungible(user, false, debtAmount);
+        licredity.exchangeFungible(address(user), false);
     }
 
     function test_beforeAddLiquidity() public {
@@ -189,7 +180,7 @@ contract LicredityHookTest is Deployers {
         skip(1000);
 
         vm.expectEmit(true, true, false, false, address(licredity));
-        emit Transfer(address(0), address(poolManager), 0);
+        emit IERC20.Transfer(address(0), address(poolManager), 0);
         uniswapV4RouterHelper.addLiquidity(
             address(this),
             poolKey,
@@ -213,7 +204,7 @@ contract LicredityHookTest is Deployers {
 
         skip(1000);
         vm.expectEmit(true, true, false, false, address(licredity));
-        emit Transfer(address(0), address(poolManager), 0);
+        emit IERC20.Transfer(address(0), address(poolManager), 0);
 
         uniswapV4RouterHelper.removeLiquidity(
             address(this),

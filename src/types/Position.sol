@@ -2,8 +2,8 @@
 pragma solidity =0.8.30;
 
 import {Fungible} from "./Fungible.sol";
-import {FungibleState, toFungibleState} from "./FungibleState.sol";
-import {NonFungible} from "./NonFungible.sol";
+import {FungibleState, FungibleStateLibrary} from "./FungibleState.sol";
+import {NonFungible, NonFungibleLibrary} from "./NonFungible.sol";
 
 /// @title Position
 /// @notice Represents a margin position
@@ -36,27 +36,50 @@ library PositionLibrary {
         }
     }
 
+    /// @notice Increases the debt share in a position
+    /// @param self The position to increase debt share in
+    /// @param delta The number of debt shares to increase by
+    function increaseDebtShare(Position storage self, uint256 delta) internal {
+        self.debtShare += delta;
+    }
+
+    /// @notice Decreases the debt share in a position
+    /// @param self The position to decrease debt share in
+    /// @param delta The number of debt shares to decrease by
+    function decreaseDebtShare(Position storage self, uint256 delta) internal {
+        self.debtShare -= delta;
+    }
+
     /// @notice Adds amount of fungible to a position
     /// @param self The position to add fungible to
     /// @param fungible The fungible to add
     /// @param amount The amount of fungible to add
     function addFungible(Position storage self, Fungible fungible, uint256 amount) internal {
-        FungibleState state = self.fungibleStates[fungible];
+        FungibleState state;
+        // load fungible state
+        assembly ("memory-safe") {
+            mstore(0x00, fungible)
+            mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
+            state := sload(keccak256(0x00, 0x40))
+        }
 
         if (state.index() == 0 && amount > 0) {
+            uint256 index;
+
             // add a fungible to the fungibles array
             assembly ("memory-safe") {
                 let slot := add(self.slot, FUNGIBLES_OFFSET)
                 let len := sload(slot)
+                index := add(len, 1)
 
                 mstore(0x00, slot)
                 sstore(add(keccak256(0x00, 0x20), len), fungible)
-                sstore(slot, add(len, 1))
+                sstore(slot, index)
             }
 
-            state = toFungibleState(self.fungibles.length, amount);
+            state = FungibleStateLibrary.from(index, amount);
         } else {
-            state = toFungibleState(state.index(), state.balance() + amount);
+            state = FungibleStateLibrary.from(state.index(), state.balance() + amount);
         }
 
         // update fungible state
@@ -71,18 +94,21 @@ library PositionLibrary {
     /// @param self The position to remove fungible from
     /// @param fungible The fungible to remove
     /// @param amount The amount of fungible to remove
-    /// @return isRemoved True if the non-fungible was removed, false otherwise
-    function removeFungible(Position storage self, Fungible fungible, uint256 amount)
-        internal
-        returns (bool isRemoved)
-    {
-        FungibleState state = self.fungibleStates[fungible];
+    function removeFungible(Position storage self, Fungible fungible, uint256 amount) internal {
+        FungibleState state;
+        // load fungible state
+        assembly ("memory-safe") {
+            mstore(0x00, fungible)
+            mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
+            state := sload(keccak256(0x00, 0x40))
+        }
+
         uint256 index = state.index();
         uint256 newBalance = state.balance() - amount;
 
         if (index != 0) {
             if (newBalance != 0) {
-                state = toFungibleState(index, newBalance);
+                state = FungibleStateLibrary.from(index, newBalance);
             } else {
                 state = FungibleState.wrap(0);
 
@@ -92,10 +118,11 @@ library PositionLibrary {
                     let len := sload(slot)
                     mstore(0x00, slot)
                     let dataSlot := keccak256(0x00, 0x20)
+                    let lastElementSlot := add(dataSlot, sub(len, 1))
 
                     if iszero(eq(index, len)) {
                         // overwrite removed fungible's slot with the last fungible
-                        let lastFungible := sload(add(dataSlot, sub(len, 1)))
+                        let lastFungible := sload(lastElementSlot)
                         sstore(add(dataSlot, sub(index, 1)), lastFungible)
 
                         // update moved fungible's state
@@ -107,7 +134,8 @@ library PositionLibrary {
                         )
                     }
 
-                    sstore(add(dataSlot, sub(len, 1)), 0)
+                    // pop the last fungible
+                    sstore(lastElementSlot, 0)
                     sstore(slot, sub(len, 1))
                 }
             }
@@ -118,8 +146,6 @@ library PositionLibrary {
                 mstore(0x20, add(self.slot, FUNGIBLE_STATES_OFFSET))
                 sstore(keccak256(0x00, 0x40), state)
             }
-
-            isRemoved = true;
         }
     }
 
@@ -141,49 +167,42 @@ library PositionLibrary {
     /// @notice Removes a non-fungible from a position
     /// @param self The position to remove non-fungible from
     /// @param nonFungible The non-fungible to remove
-    /// @return isRemoved True if the non-fungible was removed, false otherwise
-    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool isRemoved) {
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal {
+        bytes32 mask = NonFungibleLibrary.NON_FUNGIBLE_MASK;
+
+        // remove a non-fungible from the non-fungibles array
         assembly ("memory-safe") {
             let slot := add(self.slot, NON_FUNGIBLES_OFFSET)
             let len := sload(slot)
             mstore(0x00, slot)
             let dataSlot := keccak256(0x00, 0x20)
+            let isRemoved := false
 
             for { let i := 0 } lt(i, len) { i := add(i, 1) } {
                 let elementSlot := add(dataSlot, i)
 
-                if iszero(
-                    and(
-                        xor(sload(elementSlot), nonFungible),
-                        0xffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff
-                    )
-                ) {
+                if iszero(and(xor(sload(elementSlot), nonFungible), mask)) {
                     let lastElementSlot := add(dataSlot, sub(len, 1))
 
-                    if iszero(eq(elementSlot, lastElementSlot)) { sstore(elementSlot, sload(lastElementSlot)) }
+                    if iszero(eq(elementSlot, lastElementSlot)) {
+                        // overwrite removed non-fungible's slot with the last non-fungible
+                        sstore(elementSlot, sload(lastElementSlot))
+                    }
 
+                    // pop the last non-fungible
                     sstore(lastElementSlot, 0)
                     sstore(slot, sub(len, 1))
 
-                    isRemoved := 1
+                    isRemoved := true
                     break
                 }
             }
+
+            if iszero(isRemoved) {
+                mstore(0x00, 0x92135bed) // 'NonFungibleNotFound()'
+                revert(0x1c, 0x04)
+            }
         }
-    }
-
-    /// @notice Increases the debt share in a position
-    /// @param self The position to increase debt share in
-    /// @param delta The number of debt shares to increase by
-    function increaseDebtShare(Position storage self, uint256 delta) internal {
-        self.debtShare += delta;
-    }
-
-    /// @notice Decreases the debt share in a position
-    /// @param self The position to decrease debt share in
-    /// @param delta The number of debt shares to decrease by
-    function decreaseDebtShare(Position storage self, uint256 delta) internal {
-        self.debtShare -= delta;
     }
 
     /// @notice Checks whether a position is empty

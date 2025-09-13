@@ -49,6 +49,7 @@ library FungibleLibrary {
                         call(gas(), self, 0, fmp, 68, 0, 32)
                     )
 
+                // clear memory
                 mstore(fmp, 0)
                 mstore(add(fmp, 0x04), 0)
                 mstore(add(fmp, 0x24), 0)
@@ -74,13 +75,13 @@ library FungibleLibrary {
     /// @param self The fungible to get decimals of
     /// @return _decimals The number of decimals of the fungible
     function decimals(Fungible self) internal view returns (uint8 _decimals) {
-        _decimals = self.isNative() ? ChainInfo.NATIVE_DECIMALS : IERC20(Fungible.unwrap(self)).decimals();
+        _decimals = self.isNative() ? ChainInfo.NATIVE_FUNGIBLE_DECIMALS : IERC20(Fungible.unwrap(self)).decimals();
     }
 
-    /// @notice Checks whether a fungible is the native fungible
+    /// @notice Checks whether a fungible is the chain native fungible
     /// @param self The fungible to check
-    /// @return _isNative True if the fungible is the native fungible, false otherwise
+    /// @return _isNative True if the fungible is the chain native fungible, false otherwise
     function isNative(Fungible self) internal pure returns (bool _isNative) {
-        _isNative = Fungible.unwrap(self) == ChainInfo.NATIVE;
+        _isNative = self == ChainInfo.NATIVE_FUNGIBLE;
     }
 }

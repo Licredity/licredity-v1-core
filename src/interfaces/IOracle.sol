@@ -31,5 +31,5 @@ interface IOracle {
         returns (uint256 value, uint256 marginRequirement);
 
     /// @notice Triggers a price update (base fungible in debt fungible)
-    function update() external;
+    function updatePrice() external;
 }

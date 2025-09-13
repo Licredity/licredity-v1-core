@@ -4,6 +4,18 @@ pragma solidity >=0.8.0;
 /// @title IRiskConfigs
 /// @notice Interface for the risk configurations contract
 interface IRiskConfigs {
+    /// @notice Thrown when the caller is not the governor
+    error NotGovernor();
+
+    /// @notice Thrown when the caller is not the next governor
+    error NotNextGovernor();
+
+    /// @notice Thrown when the maximum minimum-liquidity-lifespan is exceeded
+    error MaxMinLiquidityLifespanExceeded();
+
+    /// @notice Thrown when the maximum protocol fee in pips is exceeded
+    error MaxProtocolFeePipsExceeded();
+
     /// @notice Emitted when the next governor is appointed
     /// @param nextGovernor The next governor
     event AppointNextGovernor(address indexed nextGovernor);
@@ -29,7 +41,7 @@ interface IRiskConfigs {
     /// @param minLiquidityLifespan The new minimum liquidity lifespan in seconds
     event SetMinLiquidityLifespan(uint256 minLiquidityLifespan);
 
-    /// @notice Emitted when the protocol fee in pips are set
+    /// @notice Emitted when the protocol fee in pips is set
     /// @param protocolFeePips The new protocol fee in pips
     event SetProtocolFeePips(uint256 protocolFeePips);
 

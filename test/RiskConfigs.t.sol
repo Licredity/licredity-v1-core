@@ -2,22 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
+import {IRiskConfigs} from "../src/interfaces/IRiskConfigs.sol";
 import {RiskConfigsMock} from "./mocks/RiskConfigsMock.sol";
 
 contract RiskConfigsTest is Test {
-    error NotGovernor();
-    error NotNextGovernor();
-    error InvalidProtocolFeePips();
-    error InvalidPositionMrrPips();
-
-    event AppointNextGovernor(address indexed nextGovernor);
-    event ConfirmNextGovernor(address indexed lastGovernor, address indexed newGovernor);
-    event SetOracle(address indexed oracle);
-    event SetDebtLimit(uint256 debtLimit);
-    event SetMinMargin(uint256 minMargin);
-    event SetProtocolFeePips(uint256 protocolFeePips);
-    event SetProtocolFeeRecipient(address indexed protocolFeeRecipient);
-
     RiskConfigsMock public riskConfigs;
 
     function setUp() public {
@@ -26,7 +14,7 @@ contract RiskConfigsTest is Test {
 
     function test_appointNextGovernor_notOwner() public {
         vm.startPrank(address(1));
-        vm.expectRevert(NotGovernor.selector);
+        vm.expectRevert(IRiskConfigs.NotGovernor.selector);
         riskConfigs.appointNextGovernor(address(1));
         vm.stopPrank();
     }
@@ -35,7 +23,7 @@ contract RiskConfigsTest is Test {
         vm.assume(nextGovernors.length > 1);
         for (uint256 i = 0; i < nextGovernors.length; i++) {
             vm.expectEmit(true, false, false, false);
-            emit AppointNextGovernor(nextGovernors[i]);
+            emit IRiskConfigs.AppointNextGovernor(nextGovernors[i]);
             riskConfigs.appointNextGovernor(nextGovernors[i]);
         }
 
@@ -47,7 +35,7 @@ contract RiskConfigsTest is Test {
 
         vm.startPrank(_governorAddr);
         vm.expectEmit(true, true, false, false);
-        emit ConfirmNextGovernor(address(this), _governorAddr);
+        emit IRiskConfigs.ConfirmNextGovernor(address(this), _governorAddr);
         riskConfigs.confirmNextGovernor();
         vm.stopPrank();
 
@@ -61,7 +49,7 @@ contract RiskConfigsTest is Test {
         riskConfigs.appointNextGovernor(pendingAddr);
 
         vm.startPrank(other);
-        vm.expectRevert(NotNextGovernor.selector);
+        vm.expectRevert(IRiskConfigs.NotNextGovernor.selector);
         riskConfigs.confirmNextGovernor();
         vm.stopPrank();
     }
@@ -70,7 +58,7 @@ contract RiskConfigsTest is Test {
         vm.assume(oracles.length > 1);
         for (uint256 i = 0; i < oracles.length; i++) {
             vm.expectEmit(true, false, false, false);
-            emit SetOracle(oracles[i]);
+            emit IRiskConfigs.SetOracle(oracles[i]);
 
             riskConfigs.setOracle(oracles[i]);
         }
@@ -82,7 +70,7 @@ contract RiskConfigsTest is Test {
         vm.assume(protocolFeeRecipients.length > 1);
         for (uint256 i = 0; i < protocolFeeRecipients.length; i++) {
             vm.expectEmit(true, false, false, false);
-            emit SetProtocolFeeRecipient(protocolFeeRecipients[i]);
+            emit IRiskConfigs.SetProtocolFeeRecipient(protocolFeeRecipients[i]);
             riskConfigs.setProtocolFeeRecipient(protocolFeeRecipients[i]);
         }
 
@@ -91,7 +79,7 @@ contract RiskConfigsTest is Test {
 
     function test_setProtocolFeePips_invalid(uint256 _protocolFeePips) public {
         uint256 protocolFeePips = bound(_protocolFeePips, 62501, type(uint24).max);
-        vm.expectRevert(InvalidProtocolFeePips.selector);
+        vm.expectRevert(IRiskConfigs.MaxProtocolFeePipsExceeded.selector);
         riskConfigs.setProtocolFeePips(protocolFeePips);
     }
 
@@ -99,7 +87,7 @@ contract RiskConfigsTest is Test {
         uint256 protocolFeePips = bound(_protocolFeePips, 0, 62500);
 
         vm.expectEmit(false, false, false, true);
-        emit SetProtocolFeePips(protocolFeePips);
+        emit IRiskConfigs.SetProtocolFeePips(protocolFeePips);
         riskConfigs.setProtocolFeePips(protocolFeePips);
 
         assertEq(riskConfigs.loadProtocolFeePips(), protocolFeePips);
@@ -107,14 +95,14 @@ contract RiskConfigsTest is Test {
 
     function test_setMinMargin(uint256 _minMargin) public {
         vm.expectEmit(false, false, false, true);
-        emit SetMinMargin(_minMargin);
+        emit IRiskConfigs.SetMinMargin(_minMargin);
         riskConfigs.setMinMargin(_minMargin);
         assertEq(riskConfigs.loadMinMargin(), _minMargin);
     }
 
     function test_setDebtLimit(uint256 _debtLimit) public {
         vm.expectEmit(false, false, false, true);
-        emit SetDebtLimit(_debtLimit);
+        emit IRiskConfigs.SetDebtLimit(_debtLimit);
         riskConfigs.setDebtLimit(_debtLimit);
         assertEq(riskConfigs.loadDebtLimit(), _debtLimit);
     }

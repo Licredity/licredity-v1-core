@@ -105,10 +105,10 @@ contract Deployers is Test {
     }
 
     function getDebtERC20(address receiver, uint128 amount) public {
-        uint256 positionId = licredityRouter.open();
+        uint256 positionId = licredityRouter.openPosition();
 
         (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 2 * amount}(positionId, Fungible.wrap(ChainInfo.NATIVE), 2 * amount);
+        licredityRouter.depositFungible{value: 2 * amount}(positionId, ChainInfo.NATIVE_FUNGIBLE, 2 * amount);
 
         uint256 debtDelta = amount.toShares(totalAssets, totalShares);
         licredityRouterHelper.addDebt(positionId, debtDelta, receiver);

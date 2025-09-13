@@ -56,7 +56,13 @@ abstract contract BaseERC20 is IERC20 {
 
     /// @inheritdoc IERC20
     function transfer(address to, uint256 amount) public returns (bool) {
-        require(to != address(0));
+        assembly ("memory-safe") {
+            //  require(to != address(0), ZeroAddressNotAllowed());
+            if iszero(to) {
+                mstore(0x00, 0x8579befe) // 'ZeroAddressNotAllowed()'
+                revert(0x1c, 0x04)
+            }
+        }
 
         _transfer(msg.sender, to, amount);
 
@@ -65,9 +71,13 @@ abstract contract BaseERC20 is IERC20 {
 
     /// @inheritdoc IERC20
     function transferFrom(address from, address to, uint256 amount) public returns (bool) {
-        require(to != address(0));
-
         assembly ("memory-safe") {
+            //  require(to != address(0), ZeroAddressNotAllowed());
+            if iszero(to) {
+                mstore(0x00, 0x8579befe) // 'ZeroAddressNotAllowed()'
+                revert(0x1c, 0x04)
+            }
+
             from := and(from, 0xffffffffffffffffffffffffffffffffffffffff)
 
             // check and update allowance if from is not the caller
@@ -83,15 +93,15 @@ abstract contract BaseERC20 is IERC20 {
                 let allowanceSlot := keccak256(0x00, 0x40)
                 let _allowance := sload(allowanceSlot)
 
-                // require(_allowance >= amount, InsufficientAllowance());
+                // require(_allowance >= amount, ERC20AllowanceExceeded());
                 if lt(_allowance, amount) {
-                    mstore(0x00, 0x13be252b) // 'InsufficientAllowance()'
+                    mstore(0x00, 0xaf707c1d) // 'ERC20AllowanceExceeded()'
                     revert(0x1c, 0x04)
                 }
 
                 // update allowance if not infinite
-                if iszero(eq(_allowance, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)) {
-                    sstore(allowanceSlot, sub(_allowance, amount))
+                if lt(_allowance, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff) {
+                    sstore(allowanceSlot, sub(_allowance, amount)) // underflow not possible
                 }
             }
         }
@@ -126,7 +136,6 @@ abstract contract BaseERC20 is IERC20 {
 
             mstore(0x00, spender)
             mstore(0x20, add(ownerDataSlot, ALLOWANCES_OFFSET))
-
             _allowance := sload(keccak256(0x00, 0x40))
         }
     }
@@ -154,18 +163,18 @@ abstract contract BaseERC20 is IERC20 {
 
             // burn
             if iszero(to) {
-                // totalSupply -= amount; // underflow not possible
-                sstore(totalSupply.slot, sub(sload(totalSupply.slot), amount))
+                // totalSupply -= amount;
+                sstore(totalSupply.slot, sub(sload(totalSupply.slot), amount)) // underflow not possible
             }
 
             // transfer
             if iszero(iszero(to)) {
-                // ownerData[to].balance += amount; // overflow not possible
+                // ownerData[to].balance += amount;
                 mstore(0x00, to)
                 mstore(0x20, ownerData.slot)
                 let balanceSlot := add(keccak256(0x00, 0x40), BALANCE_OFFSET)
 
-                sstore(balanceSlot, add(sload(balanceSlot), amount))
+                sstore(balanceSlot, add(sload(balanceSlot), amount)) // overflow not possible
             }
 
             // emit Transfer(from, to, amount);
