@@ -12,14 +12,18 @@ using {equals as ==} for NonFungible global;
 using NonFungibleLibrary for NonFungible global;
 
 function equals(NonFungible self, NonFungible other) pure returns (bool _equals) {
+    bytes32 mask = NonFungibleLibrary.NON_FUNGIBLE_MASK;
+
     assembly ("memory-safe") {
-        _equals := iszero(and(xor(self, other), 0xffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff))
+        _equals := iszero(and(xor(self, other), mask))
     }
 }
 
 /// @title NonFungibleLibrary
 /// @notice Library for managing non-fungibles
 library NonFungibleLibrary {
+    bytes32 internal constant NON_FUNGIBLE_MASK = 0xffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff;
+
     /// @notice Transfers a non-fungible to recipient
     /// @param self The non-fungible to transfer
     /// @param recipient The recipient of the transfer

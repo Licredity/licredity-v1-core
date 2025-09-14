@@ -5,7 +5,7 @@ pragma solidity =0.8.30;
 /// @notice Library for managing locker operations
 library Locker {
     // bytes32(uint256(keccak256("Locker")) - 1)
-    // 32 bits count | 223 bits empty | 1 bit unlocked
+    // 1 bit unlocked | 223 bits empty | 32 bits count
     bytes32 private constant LOCKER_SLOT = 0x0e87e1788ebd9ed6a7e63c70a374cd3283e41cad601d21fbe27863899ed4a708;
 
     /// @notice Unlocks the locker and clears registered items
@@ -14,13 +14,13 @@ library Locker {
             let locker := tload(LOCKER_SLOT)
 
             // requires locker to be locked
-            if iszero(iszero(and(locker, 0x01))) {
-                mstore(0x00, 0x5090d6c6) // 'AlreadyUnlocked()'
+            if iszero(iszero(shr(255, locker))) {
+                mstore(0x00, 0xe6a9f77d) // 'LockerAlreadyUnlocked()'
                 revert(0x1c, 0x04)
             }
 
             // clear each registered item
-            let count := shr(224, locker)
+            let count := and(locker, 0xffffffff)
             mstore(0x20, LOCKER_SLOT)
             for { let i := 1 } iszero(gt(i, count)) { i := add(i, 1) } {
                 let itemSlot := add(LOCKER_SLOT, mul(0x20, i))
@@ -32,7 +32,7 @@ library Locker {
             }
 
             // clear count and unlock the locker
-            tstore(LOCKER_SLOT, 0x01)
+            tstore(LOCKER_SLOT, shl(255, 1))
         }
     }
 
@@ -42,13 +42,13 @@ library Locker {
             let locker := tload(LOCKER_SLOT)
 
             // requires locker to be unlocked
-            if iszero(and(locker, 0x01)) {
-                mstore(0x00, 0x5f0ccd7c) // 'AlreadyLocked()'
+            if iszero(shr(255, locker)) {
+                mstore(0x00, 0x75ad9ebe) // 'LockerAlreadyLocked()'
                 revert(0x1c, 0x04)
             }
 
             // set the locker to locked
-            tstore(LOCKER_SLOT, and(locker, 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe))
+            tstore(LOCKER_SLOT, xor(locker, shl(255, 1)))
         }
     }
 
@@ -59,8 +59,8 @@ library Locker {
             let locker := tload(LOCKER_SLOT)
 
             // requires locker to be unlocked
-            if iszero(and(locker, 0x01)) {
-                mstore(0x00, 0xfa680065) // 'NotUnlocked()'
+            if iszero(shr(255, locker)) {
+                mstore(0x00, 0x796facfe) // 'LockerNotUnlocked()'
                 revert(0x1c, 0x04)
             }
 
@@ -75,9 +75,9 @@ library Locker {
                 tstore(registeredSlot, true)
 
                 // add item to the registered items array and increment count
-                let count := add(shr(224, locker), 1)
+                let count := add(and(locker, 0xffffffff), 1)
                 tstore(add(LOCKER_SLOT, mul(count, 0x20)), item)
-                tstore(LOCKER_SLOT, or(shl(224, count), 0x01))
+                tstore(LOCKER_SLOT, or(shl(255, 1), count))
             }
         }
     }
@@ -85,7 +85,7 @@ library Locker {
     /// @notice Gets the registered items in the locker
     function registeredItems() internal view returns (bytes32[] memory items) {
         assembly ("memory-safe") {
-            let count := shr(224, tload(LOCKER_SLOT))
+            let count := and(tload(LOCKER_SLOT), 0xffffffff)
             items := mload(0x40)
             mstore(items, count)
 

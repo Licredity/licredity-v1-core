@@ -32,9 +32,11 @@ contract LicredityInterestTest is Deployers {
         skip(elapsed);
         oracleMock.setQuotePrice(price);
 
-        uint256 positionId = licredityRouter.open();
-        licredityRouter.depositFungible{value: 0.5 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 0.5 ether);
-        licredityRouterHelper.withdrawFungible(positionId, address(1), ChainInfo.NATIVE, 0.1 ether);
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 0.5 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 0.5 ether);
+        licredityRouterHelper.withdrawFungible(
+            positionId, address(1), Fungible.unwrap(ChainInfo.NATIVE_FUNGIBLE), 0.1 ether
+        );
 
         (, uint256 afterTotalAssets) = licredity.getTotalDebt();
 
@@ -75,9 +77,11 @@ contract LicredityInterestTest is Deployers {
         skip(elapsed);
         oracleMock.setQuotePrice(price);
 
-        uint256 positionId = licredityRouter.open();
-        licredityRouter.depositFungible{value: 0.5 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 0.5 ether);
-        licredityRouterHelper.withdrawFungible(positionId, address(1), ChainInfo.NATIVE, 0.1 ether);
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 0.5 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 0.5 ether);
+        licredityRouterHelper.withdrawFungible(
+            positionId, address(1), Fungible.unwrap(ChainInfo.NATIVE_FUNGIBLE), 0.1 ether
+        );
 
         (, uint256 afterTotalAssets) = licredity.getTotalDebt();
 
@@ -103,9 +107,11 @@ contract LicredityInterestTest is Deployers {
         skip(elapsed);
         oracleMock.setQuotePrice(price);
 
-        uint256 positionId = licredityRouter.open();
-        licredityRouter.depositFungible{value: 0.5 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 0.5 ether);
-        licredityRouterHelper.withdrawFungible(positionId, address(1), ChainInfo.NATIVE, 0.1 ether);
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 0.5 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 0.5 ether);
+        licredityRouterHelper.withdrawFungible(
+            positionId, address(1), Fungible.unwrap(ChainInfo.NATIVE_FUNGIBLE), 0.1 ether
+        );
 
         (, uint256 afterTotalAssets) = licredity.getTotalDebt();
 
@@ -124,8 +130,8 @@ contract LicredityInterestTest is Deployers {
         price = bound(price, 1 ether, 5 ether);
         elapsed = bound(elapsed, 1, 30 days);
 
-        uint256 positionId = licredityRouter.open();
-        licredityRouter.depositFungible{value: 10.2 ether}(positionId, Fungible.wrap(ChainInfo.NATIVE), 10.2 ether);
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 10.2 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 10.2 ether);
 
         uint256 delta = 10 ether * 1e6;
 

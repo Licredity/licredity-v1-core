@@ -1,41 +1,124 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {IERC20} from "@forge-std/interfaces/IERC20.sol";
+import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
+import {IHooks} from "@uniswap-v4-core/interfaces/IHooks.sol";
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
 import {IExtsload} from "./IExtsload.sol";
 import {IRiskConfigs} from "./IRiskConfigs.sol";
 
 /// @title ILicredity
-/// @notice Interface for the Licredity contract
-interface ILicredity is IExtsload, IRiskConfigs {
-    //////////////////////////////
-    //        Errors            //
-    //////////////////////////////
+/// @notice Interface for the core functionalities of the protocol
+interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenReceiver {
+    /// @notice Thrown when the Licredity contract address is not valid
+    error LicredityAddressNotValid();
 
-    error PositionDoesNotExist();
-    error NotPositionOwner();
-    error PositionIsUnhealthy();
-    error PositionIsHealthy();
-    error PositionNotEmpty();
-    error NonFungibleAlreadyOwned();
-    error NonFungibleNotOwned();
-    error NonFungibleNotInPosition();
-    error MaxFungiblesExceeded();
-    error MaxNonFungiblesExceeded();
-    error NotBaseFungible();
-    error NotDebtFungible();
-    error ExchangeableAmountExceeded();
-    error NonZeroNativeValue();
-    error DebtLimitExceeded();
-    error CannotSeizeRegisteredPosition();
-    error PriceTooLow();
-    error MinLiquidityLifespanNotMet();
+    /// @notice Thrown when a zero address is used
     error ZeroAddressNotAllowed();
 
-    //////////////////////////////
-    //        Events            //
-    //////////////////////////////
+    /// @notice Thrown when a delegate call is attempted
+    error DelegateCallNotAllowed();
+
+    /// @notice Thrown when the locker is already unlocked
+    error LockerAlreadyUnlocked();
+
+    /// @notice Thrown when the locker is already locked
+    error LockerAlreadyLocked();
+
+    /// @notice Thrown when the locker is not unlocked
+    error LockerNotUnlocked();
+
+    /// @notice Thrown when full precision mul div fails
+    error FullMulDivFailed();
+
+    /// @notice Thrown when full precision mul div with rounding up fails
+    error FullMulDivUpFailed();
+
+    /// @notice Thrown when pips multiplication with rounding up fails
+    error PipsMulUpFailed();
+
+    /// @notice Thrown when interest rate multiplication fails
+    error InterestRateMulFailed();
+
+    /// @notice Thrown when the caller is not the pool manager
+    error NotPoolManager();
+
+    /// @notice Thrown when an unimplemented hook is called
+    error HookNotImplemented();
+
+    /// @notice Thrown when a native transfer fails
+    error NativeTransferFailed();
+
+    /// @notice Thrown when an ERC20 transfer fails
+    error ERC20TransferFailed();
+
+    /// @notice Thrown when an ERC20 allowance is exceeded
+    error ERC20AllowanceExceeded();
+
+    /// @notice Thrown when max index is exceeded
+    error MaxFungibleIndexExceeded();
+
+    /// @notice Thrown when max balance is exceeded
+    error MaxFungibleBalanceExceeded();
+
+    /// @notice Thrown when a non-fungible token is not found
+    error NonFungibleNotFound();
+
+    /// @notice Thrown when the caller is not the position owner
+    error NotPositionOwner();
+
+    /// @notice Thrown when a position does not exist
+    error PositionDoesNotExist();
+
+    /// @notice Thrown when a position is not healthy
+    error PositionNotHealthy();
+
+    /// @notice Thrown when a position is not empty
+    error PositionNotEmpty();
+
+    /// @notice Thrown when a fungible is not the base fungible
+    error NotBaseFungible();
+
+    /// @notice Thrown when a fungible is not the debt fungible
+    error NotDebtFungible();
+
+    /// @notice Thrown when the exchangeable amount is exceeded
+    error ExchangeableAmountExceeded();
+
+    /// @notice Thrown when the native value sent is not zero
+    error NativeValueNotZero();
+
+    /// @notice Thrown when max fungibles per position is exceeded
+    error MaxFungiblesExceeded();
+
+    /// @notice Thrown when a non-fungible is already owned
+    error NonFungibleAlreadyOwned();
+
+    /// @notice Thrown when a non-fungible is not owned
+    error NonFungibleNotOwned();
+
+    /// @notice Thrown when max non-fungibles per position is exceeded
+    error MaxNonFungiblesExceeded();
+
+    /// @notice Thrown when the debt limit is exceeded
+    error DebtLimitExceeded();
+
+    /// @notice Thrown when seizing a registered position is attempted
+    error RegisteredPositionCannotBeSeized();
+
+    /// @notice Thrown when a position is healthy
+    error PositionIsHealthy();
+
+    /// @notice Thrown when the sender is not the Licredity contract
+    error NotLicredity();
+
+    /// @notice Thrown when the minimum liquidity lifespan is not met
+    error MinLiquidityLifespanNotMet();
+
+    /// @notice Thrown when the price is too low
+    error PriceTooLow();
 
     /// @notice Emitted when a position has been opened
     /// @param positionId The ID of the position
@@ -46,11 +129,11 @@ interface ILicredity is IExtsload, IRiskConfigs {
     /// @param positionId The ID of the position
     event ClosePosition(uint256 indexed positionId);
 
-    /// @notice Emitted when a debt-for-base exchange has occurred
+    /// @notice Emitted when exchange between base fungible and debt fungible has occurred
     /// @param recipient The recipient of the base fungible
     /// @param baseForDebt Whether the exchange is base fungible for debt fungible
     /// @param amount The amount of fungible exchanged
-    event Exchange(address indexed recipient, bool indexed baseForDebt, uint256 amount);
+    event ExchangeFungible(address indexed recipient, bool indexed baseForDebt, uint256 amount);
 
     /// @notice Emitted when a fungible has been deposited into a positiont
     /// @param positionId The ID of the position
@@ -108,10 +191,6 @@ interface ILicredity is IExtsload, IRiskConfigs {
         uint256 topup
     );
 
-    //////////////////////////////
-    //        Functions         //
-    //////////////////////////////
-
     /// @notice Unlocks the Licredity contract
     /// @param data The data to be passed to the unlock callback
     /// @return result The result returned from the unlock callback
@@ -119,20 +198,20 @@ interface ILicredity is IExtsload, IRiskConfigs {
 
     /// @notice Opens a new position
     /// @return positionId The ID of the newly opened position
-    function open() external returns (uint256 positionId);
+    function openPosition() external returns (uint256 positionId);
 
     /// @notice Closes an existing position
     /// @param positionId The ID of the position to be closed
-    function close(uint256 positionId) external;
+    function closePosition(uint256 positionId) external;
 
     /// @notice Stages a fungible for exchange or deposit
     /// @param fungible The fungible to be staged
     function stageFungible(Fungible fungible) external;
 
-    /// @notice Exchanges staged debt fungible for base fungible
+    /// @notice Exchanges staged debt/base fungible for base/debt fungible
     /// @param recipient The recipient of the exchange
     /// @param baseForDebt Whether the exchange is base fungible for debt fungible
-    function exchange(address recipient, bool baseForDebt) external payable;
+    function exchangeFungible(address recipient, bool baseForDebt) external payable;
 
     /// @notice Deposits staged fungible received into a position
     /// @param positionId The ID of the position to deposit into
@@ -178,5 +257,5 @@ interface ILicredity is IExtsload, IRiskConfigs {
     /// @param positionId The ID of the position to seize
     /// @param recipient The recipient of the seized position
     /// @return shortfall The amount of debt fungible needed to bring the position back to health
-    function seize(uint256 positionId, address recipient) external returns (uint256 shortfall);
+    function seizePosition(uint256 positionId, address recipient) external returns (uint256 shortfall);
 }

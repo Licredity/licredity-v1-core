@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
+import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Position} from "src/types/Position.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
@@ -9,9 +10,6 @@ import {PositionDB} from "test/utils/PositionFuzzDB.sol";
 
 contract PositionTest is Test {
     Position public position;
-
-    error FungibleLimitReached();
-    error NonFungibleLimitReached();
 
     function test_setOwner(address[] calldata owners) public {
         vm.assume(owners.length > 0);
@@ -125,17 +123,13 @@ contract PositionTest is Test {
     }
 
     function test_removeNullFungible() public {
-        bool isRemoved = position.removeFungible(Fungible.wrap(address(0)), 0);
-
-        assertFalse(isRemoved);
+        position.removeFungible(Fungible.wrap(address(0)), 0);
     }
 
     function test_removeFungible_notExist(Fungible fungible, Fungible removeFungible) public {
         vm.assume(Fungible.unwrap(fungible) != Fungible.unwrap(removeFungible));
         position.addFungible(fungible, 1 ether);
-        bool isRemoved = position.removeFungible(removeFungible, 0);
-
-        assertFalse(isRemoved);
+        position.removeFungible(removeFungible, 0);
     }
 
     function test_removeFungible(
@@ -190,12 +184,6 @@ contract PositionTest is Test {
         }
     }
 
-    function test_removeNullNonFungible() public {
-        bool isRemoved = position.removeNonFungible(NonFungible.wrap(0));
-        assertFalse(isRemoved);
-        assertEq(position.nonFungibles.length, 0);
-    }
-
     function test_removeNonFungible(NonFungible[] memory nonFungibles, uint16 index) public {
         vm.assume(nonFungibles.length > 0);
         PositionDB db = new PositionDB();
@@ -217,8 +205,7 @@ contract PositionTest is Test {
         uint256 deleteIndex = bound(index, 0, nonFungibleLength - 1);
         NonFungible selectNonFungible = position.nonFungibles[deleteIndex];
 
-        bool isRemoved = position.removeNonFungible(selectNonFungible);
-        assertTrue(isRemoved);
+        position.removeNonFungible(selectNonFungible);
         assertEq(position.nonFungibles.length, nonFungibleLength - 1);
 
         if (deleteIndex != nonFungibleLength - 1) {

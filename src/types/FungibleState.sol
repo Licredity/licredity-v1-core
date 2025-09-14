@@ -8,22 +8,6 @@ type FungibleState is bytes32;
 
 using FungibleStateLibrary for FungibleState global;
 
-/// @notice Converts the index and balance of a fungible into a fungible state
-/// @param index The index of the fungible, must fit within 64 bits
-/// @param _balance The balance of the fungible, must fit within 128 bits
-/// @return state The fungible state representing the index and balance
-function toFungibleState(uint256 index, uint256 _balance) pure returns (FungibleState state) {
-    assembly ("memory-safe") {
-        // requires(index <= 0xffffffffffffffff && _balance <= 0xffffffffffffffffffffffffffffffff, Overflow());
-        if or(gt(index, 0xffffffffffffffff), gt(_balance, 0xffffffffffffffffffffffffffffffff)) {
-            mstore(0x00, 0x35278d12) // 'Overflow()'
-            revert(0x1c, 0x04)
-        }
-
-        state := or(shl(192, index), _balance)
-    }
-}
-
 /// @title FungibleStateLibrary
 /// @notice Library for managing fungible states
 library FungibleStateLibrary {
@@ -42,6 +26,28 @@ library FungibleStateLibrary {
     function balance(FungibleState self) internal pure returns (uint256 _balance) {
         assembly ("memory-safe") {
             _balance := and(self, 0xffffffffffffffffffffffffffffffff)
+        }
+    }
+
+    /// @notice Constructs a fungible state from index and a balance
+    /// @param _index The index of the fungible, must fit within 64 bits
+    /// @param _balance The balance of the fungible, must fit within 128 bits
+    /// @return state The fungible state representing the index and balance
+    function from(uint256 _index, uint256 _balance) internal pure returns (FungibleState state) {
+        assembly ("memory-safe") {
+            // require(_index <= 0xffffffffffffffff, MaxFungibleIndexExceeded());
+            if gt(_index, 0xffffffffffffffff) {
+                mstore(0x00, 0x336267e5) // 'MaxFungibleIndexExceeded()'
+                revert(0x1c, 0x04)
+            }
+
+            // require(_balance <= 0xffffffffffffffffffffffffffffffff, MaxFungibleBalanceExceeded());
+            if gt(_balance, 0xffffffffffffffffffffffffffffffff) {
+                mstore(0x00, 0x452d7c3a) // 'MaxFungibleBalanceExceeded()'
+                revert(0x1c, 0x04)
+            }
+
+            state := or(shl(192, _index), _balance)
         }
     }
 }
