@@ -191,6 +191,18 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
         uint256 topup
     );
 
+    /// @notice Returns the base fungible of the Licredity contract
+    /// @return baseFungible the base fungible
+    function baseFungible() external view returns (Fungible baseFungible);
+
+    /// @notice Returns the total debt share in the Licredity contract
+    /// @return totalShare total debt share
+    function totalDebtShare() external view returns (uint256 totalShare);
+
+    /// @notice Returns the total debt balance in the Licredity contract
+    /// @return totalBalance total debt balance
+    function totalDebtBalance() external view returns (uint256 totalBalance);
+
     /// @notice Unlocks the Licredity contract
     /// @param data The data to be passed to the unlock callback
     /// @return result The result returned from the unlock callback
