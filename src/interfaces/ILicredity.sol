@@ -4,9 +4,13 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 import {IERC721TokenReceiver} from "@forge-std/interfaces/IERC721.sol";
 import {IHooks} from "@uniswap-v4-core/interfaces/IHooks.sol";
+import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
+import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
 import {IExtsload} from "./IExtsload.sol";
+import {IOracle} from "./IOracle.sol";
 import {IRiskConfigs} from "./IRiskConfigs.sol";
 
 /// @title ILicredity
@@ -258,4 +262,60 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @param recipient The recipient of the seized position
     /// @return shortfall The amount of debt fungible needed to bring the position back to health
     function seizePosition(uint256 positionId, address recipient) external returns (uint256 shortfall);
+
+    /// @notice Gets the Uniswap v4 pool manager
+    /// @return poolManager The pool manager
+    function poolManager() external view returns (IPoolManager poolManager);
+
+    /// @notice Gets the price and quote oracle
+    /// @return oracle The price and quote oracle
+    function oracle() external view returns (IOracle oracle);
+
+    /// @notice Gets the global debt limit in debt fungible
+    /// @return debtLimit The global debt limit
+    function debtLimit() external view returns (uint256 debtLimit);
+
+    /// @notice Gets the minimum margin for an indebted position in debt fungible
+    /// @return minMargin The minimum margin
+    function minMargin() external view returns (uint256 minMargin);
+
+    /// @notice Gets the minimum liquidity lifespan in seconds
+    /// @return minLiquidityLifespan The minimum liquidity lifespan
+    function minLiquidityLifespan() external view returns (uint256 minLiquidityLifespan);
+
+    /// @notice Gets the protocol fee in pips
+    /// @return protocolFeePips The protocol fee
+    function protocolFeePips() external view returns (uint24 protocolFeePips);
+
+    /// @notice Gets the base fungible
+    /// @return baseFungible The base fungible
+    function baseFungible() external view returns (Fungible baseFungible);
+
+    /// @notice Gets the Uniswap v4 anchor pool ID
+    /// @return poolId The pool ID
+    function poolId() external view returns (PoolId poolId);
+
+    /// @notice Gets the Uniswap v4 anchor pool key
+    /// @return poolKey The pool key
+    function poolKey() external view returns (PoolKey memory poolKey);
+
+    /// @notice Gets the accrued donation in debt fungible
+    /// @return accruedDonation The accrued donation
+    function accruedDonation() external view returns (uint256 accruedDonation);
+
+    /// @notice Gets the accrued protocol fee in debt fungible
+    /// @return accruedProtocolFee The accrued protocol fee
+    function accruedProtocolFee() external view returns (uint256 accruedProtocolFee);
+
+    /// @notice Gets the amount of base fungible that can be exchanged for
+    /// @return exchangeableAmount The exchangeable amount
+    function exchangeableAmount() external view returns (uint256 exchangeableAmount);
+
+    /// @notice Gets the total debt share
+    /// @return totalDebtShare The total debt share
+    function totalDebtShare() external view returns (uint256 totalDebtShare);
+
+    /// @notice Gets the total debt balance
+    /// @return totalDebtBalance The total debt balance
+    function totalDebtBalance() external view returns (uint256 totalDebtBalance);
 }

@@ -6,9 +6,9 @@ import {FungibleState} from "src/types/FungibleState.sol";
 
 library StateLibrary {
     uint256 public constant CURRENCY0_OFFSET = 12;
-    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 19;
-    uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 20;
-    uint256 public constant POSITIONS_OFFSET = 22;
+    uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 22;
+    uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 23;
+    uint256 public constant POSITIONS_OFFSET = 17;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
 
     uint24 private constant FEE = 100;

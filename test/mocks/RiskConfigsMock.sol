@@ -7,31 +7,31 @@ contract RiskConfigsMock is RiskConfigs {
     constructor(address _governor) RiskConfigs(_governor) {}
 
     function loadGovernor() external view returns (address) {
-        return governor;
+        return _governor;
     }
 
     function loadNextGovernor() external view returns (address) {
-        return nextGovernor;
+        return _nextGovernor;
     }
 
     function loadOracle() external view returns (address) {
-        return address(oracle);
+        return address(_oracle);
     }
 
     function loadProtocolFeeRecipient() external view returns (address) {
-        return protocolFeeRecipient;
+        return _protocolFeeRecipient;
     }
 
     function loadProtocolFeePips() external view returns (uint256) {
-        return protocolFeePips;
+        return _protocolFeePips;
     }
 
     function loadDebtLimit() external view returns (uint256) {
-        return debtLimit;
+        return _debtLimit;
     }
 
     function loadMinMargin() external view returns (uint256) {
-        return minMargin;
+        return _minMargin;
     }
 
     function _collectInterest(bool) internal virtual override {}

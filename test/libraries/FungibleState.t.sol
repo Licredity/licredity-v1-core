@@ -28,7 +28,7 @@ contract FungibleStateTest is Test {
         }
     }
 
-    function from(uint256 index, uint256 balance) public returns (FungibleState) {
+    function from(uint256 index, uint256 balance) public pure returns (FungibleState) {
         return FungibleStateLibrary.from(index, balance);
     }
 }

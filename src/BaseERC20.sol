@@ -23,12 +23,12 @@ abstract contract BaseERC20 is IERC20 {
     /// @inheritdoc IERC20
     uint256 public totalSupply;
 
-    mapping(address => OwnerData) internal ownerData;
+    mapping(address => OwnerData) internal _ownerData;
 
-    constructor(string memory _name, string memory _symbol, uint8 _decimals) {
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
+        name = name_;
+        symbol = symbol_;
+        decimals = decimals_;
     }
 
     /// @inheritdoc IERC20
@@ -38,7 +38,7 @@ abstract contract BaseERC20 is IERC20 {
 
             // calculate owner data slot
             mstore(0x00, caller())
-            mstore(0x20, ownerData.slot)
+            mstore(0x20, _ownerData.slot)
             let ownerDataSlot := keccak256(0x00, 0x40)
 
             // set allowance
@@ -84,7 +84,7 @@ abstract contract BaseERC20 is IERC20 {
             if iszero(eq(from, caller())) {
                 // calculate owner data slot
                 mstore(0x00, from)
-                mstore(0x20, ownerData.slot)
+                mstore(0x20, _ownerData.slot)
                 let ownerDataSlot := keccak256(0x00, 0x40)
 
                 // get allowance
@@ -116,9 +116,9 @@ abstract contract BaseERC20 is IERC20 {
         assembly ("memory-safe") {
             owner := and(owner, 0xffffffffffffffffffffffffffffffffffffffff)
 
-            // _balance = ownerData[owner].balance;
+            // _balance = _ownerData[owner].balance;
             mstore(0x00, owner)
-            mstore(0x20, ownerData.slot)
+            mstore(0x20, _ownerData.slot)
             _balance := sload(add(keccak256(0x00, 0x40), BALANCE_OFFSET))
         }
     }
@@ -129,9 +129,9 @@ abstract contract BaseERC20 is IERC20 {
             owner := and(owner, 0xffffffffffffffffffffffffffffffffffffffff)
             spender := and(spender, 0xffffffffffffffffffffffffffffffffffffffff)
 
-            // _allowance = ownerData[owner].allowances[spender];
+            // _allowance = _ownerData[owner].allowances[spender];
             mstore(0x00, owner)
-            mstore(0x20, ownerData.slot)
+            mstore(0x20, _ownerData.slot)
             let ownerDataSlot := keccak256(0x00, 0x40)
 
             mstore(0x00, spender)
@@ -154,7 +154,7 @@ abstract contract BaseERC20 is IERC20 {
             totalSupply += amount;
         } else {
             // transfer
-            ownerData[from].balance -= amount;
+            _ownerData[from].balance -= amount;
         }
 
         assembly ("memory-safe") {
@@ -169,9 +169,9 @@ abstract contract BaseERC20 is IERC20 {
 
             // transfer
             if iszero(iszero(to)) {
-                // ownerData[to].balance += amount;
+                // _ownerData[to].balance += amount;
                 mstore(0x00, to)
-                mstore(0x20, ownerData.slot)
+                mstore(0x20, _ownerData.slot)
                 let balanceSlot := add(keccak256(0x00, 0x40), BALANCE_OFFSET)
 
                 sstore(balanceSlot, add(sload(balanceSlot), amount)) // overflow not possible

@@ -10,22 +10,26 @@ contract LicredityNoDelegateTest is Deployers {
     }
 
     function test_noDelegateCall_unlock() public {
-        vm.expectRevert(ILicredity.DelegateCallNotAllowed.selector);
-        address(licredity).delegatecall(abi.encodeCall(ILicredity.unlock, (hex"01")));
+        (bool success, bytes memory data) = address(licredity).delegatecall(abi.encodeCall(ILicredity.unlock, (hex"01")));
+        assertFalse(success);
+        assertEq(bytes4(data), ILicredity.DelegateCallNotAllowed.selector);
     }
 
     function test_noDelegateCall_increaseDebtShare() public {
-        vm.expectRevert(ILicredity.DelegateCallNotAllowed.selector);
-        address(licredity).delegatecall(abi.encodeCall(ILicredity.increaseDebtShare, (1, 1, address(0))));
+        (bool success, bytes memory data) = address(licredity).delegatecall(abi.encodeCall(ILicredity.increaseDebtShare, (1, 1, address(0))));
+        assertFalse(success);
+        assertEq(bytes4(data), ILicredity.DelegateCallNotAllowed.selector);
     }
 
     function test_noDelegateCall_decreaseDebtShare() public {
-        vm.expectRevert(ILicredity.DelegateCallNotAllowed.selector);
-        address(licredity).delegatecall(abi.encodeCall(ILicredity.decreaseDebtShare, (1, 1, true)));
+        (bool success, bytes memory data) = address(licredity).delegatecall(abi.encodeCall(ILicredity.decreaseDebtShare, (1, 1, true)));
+        assertFalse(success);
+        assertEq(bytes4(data), ILicredity.DelegateCallNotAllowed.selector);
     }
 
     function test_noDelegateCall_seize() public {
-        vm.expectRevert(ILicredity.DelegateCallNotAllowed.selector);
-        address(licredity).delegatecall(abi.encodeCall(ILicredity.seizePosition, (1, address(0))));
+        (bool success, bytes memory data) = address(licredity).delegatecall(abi.encodeCall(ILicredity.seizePosition, (1, address(0))));
+        assertFalse(success);
+        assertEq(bytes4(data), ILicredity.DelegateCallNotAllowed.selector);
     }
 }

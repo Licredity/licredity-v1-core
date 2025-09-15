@@ -10,7 +10,7 @@ import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 /// @title BaseHooks
 /// @notice Abstract implementation of Uniswap V4 hooks
 abstract contract BaseHooks is IHooks {
-    IPoolManager public immutable poolManager;
+    IPoolManager internal immutable _poolManager;
 
     modifier onlyPoolManager() {
         _onlyPoolManager();
@@ -18,19 +18,19 @@ abstract contract BaseHooks is IHooks {
     }
 
     function _onlyPoolManager() internal view {
-        IPoolManager _poolManager = poolManager;
+        IPoolManager poolManager = _poolManager;
 
         assembly ("memory-safe") {
             // require(msg.sender == address(_poolManager), NotPoolManager());
-            if iszero(eq(caller(), _poolManager)) {
+            if iszero(eq(caller(), poolManager)) {
                 mstore(0x00, 0xae18210a) // 'NotPoolManager()'
                 revert(0x1c, 0x04)
             }
         }
     }
 
-    constructor(address _poolManager) {
-        poolManager = IPoolManager(_poolManager);
+    constructor(address poolManager) {
+        _poolManager = IPoolManager(poolManager);
     }
 
     /// @inheritdoc IHooks
