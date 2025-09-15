@@ -11,6 +11,7 @@ import {Currency} from "@uniswap-v4-core/types/Currency.sol";
 import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
+import {IOracle} from "./interfaces/IOracle.sol";
 import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
 import {FullMath} from "./libraries/FullMath.sol";
 import {Locker} from "./libraries/Locker.sol";
@@ -41,23 +42,24 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     uint256 private constant ONE_D18 = 1e18;
     uint160 private constant ONE_X96 = 0x1000000000000000000000000;
 
-    Fungible internal transient stagedFungible;
-    uint256 internal transient stagedFungibleBalance;
-    NonFungible internal transient stagedNonFungible;
+    Fungible internal transient _stagedFungible;
+    uint256 internal transient _stagedFungibleBalance;
+    NonFungible internal transient _stagedNonFungible;
+
+    uint256 internal immutable _scaleFactor; // used to convert price deviation to interest rate, accounting for precision differences
+    PoolKey internal _poolKey;
+    uint256 internal _lastInterestCollectionTimestamp;
+    uint256 internal _lastPositionId;
+    mapping(uint256 => Position) internal _positions;
+    mapping(bytes32 => uint256) internal _liquidityOnsets; // maps liquidity key to its onset timestamp
 
     Fungible public immutable baseFungible;
-    uint256 public immutable scaleFactor; // used to convert price deviation to interest rate, accounting for precision differences
     PoolId public immutable poolId;
-    PoolKey public poolKey;
     uint256 public accruedDonation;
     uint256 public accruedProtocolFee;
     uint256 public exchangeableAmount;
-    uint256 public lastInterestCollectionTimestamp;
     uint256 public totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 public totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
-    uint256 public lastPositionId;
-    mapping(uint256 => Position) public positions;
-    mapping(bytes32 => uint256) public liquidityOnsets; // maps liquidity key to its onset timestamp
 
     modifier onlyNonZeroAddress(address _address) {
         _onlyNonZeroAddress(_address);
@@ -76,11 +78,11 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     constructor(
         address baseToken,
         uint256 interestSensitivity,
-        address _poolManager,
+        address poolManager_,
         address _governor,
         string memory name,
         string memory symbol
-    ) BaseHooks(_poolManager) BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals()) RiskConfigs(_governor) {
+    ) BaseHooks(poolManager_) BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals()) RiskConfigs(_governor) {
         // require(address(this) > baseToken, LicredityAddressNotValid());
         if (address(this) <= baseToken) {
             assembly ("memory-safe") {
@@ -91,13 +93,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
         // set base fungibles and scale factor
         baseFungible = Fungible.wrap(baseToken);
-        scaleFactor = interestSensitivity * 1e9;
+        _scaleFactor = interestSensitivity * 1e9;
 
         // set pool key and id, initialize the hooked pool
-        poolKey =
+        _poolKey =
             PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
-        poolId = poolKey.toId();
-        poolManager.initialize(poolKey, ONE_X96);
+        poolId = _poolKey.toId();
+        _poolManager.initialize(_poolKey, ONE_X96);
     }
 
     /// @inheritdoc ILicredity
@@ -113,7 +115,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         // ensure that every registered position is healthy
         bytes32[] memory items = Locker.registeredItems();
         for (uint256 i = 0; i < items.length; ++i) {
-            (,,, bool isHealthy) = _appraisePosition(positions[uint256(items[i])]);
+            (,,, bool isHealthy) = _appraisePosition(_positions[uint256(items[i])]);
 
             // require(isHealthy, PositionNotHealthy());
             assembly ("memory-safe") {
@@ -130,9 +132,9 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function openPosition() external returns (uint256 positionId) {
         unchecked {
-            positionId = ++lastPositionId; // overflow not plausible
+            positionId = ++_lastPositionId; // overflow not plausible
         }
-        positions[positionId].setOwner(msg.sender);
+        _positions[positionId].setOwner(msg.sender);
 
         // emit OpenPosition(positionId, msg.sender);
         assembly ("memory-safe") {
@@ -143,10 +145,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function closePosition(uint256 positionId) external {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -165,7 +167,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             }
         }
 
-        delete positions[positionId];
+        delete _positions[positionId];
 
         // emit ClosePosition(positionId);
         assembly ("memory-safe") {
@@ -176,12 +178,12 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function stageFungible(Fungible fungible) external {
         assembly ("memory-safe") {
-            // stagedFungible = fungible;
-            tstore(stagedFungible.slot, and(fungible, 0xffffffffffffffffffffffffffffffffffffffff))
+            // _stagedFungible = fungible;
+            tstore(_stagedFungible.slot, and(fungible, 0xffffffffffffffffffffffffffffffffffffffff))
         }
 
         if (!fungible.isNative()) {
-            stagedFungibleBalance = fungible.balanceOf(address(this));
+            _stagedFungibleBalance = fungible.balanceOf(address(this));
         }
     }
 
@@ -249,10 +251,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -288,10 +290,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         onlyNonZeroAddress(recipient)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -334,19 +336,19 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
 
         assembly ("memory-safe") {
-            // stagedNonFungible = nonFungible;
-            tstore(stagedNonFungible.slot, nonFungible)
+            // _stagedNonFungible = nonFungible;
+            tstore(_stagedNonFungible.slot, nonFungible)
         }
     }
 
     /// @inheritdoc ILicredity
     function depositNonFungible(uint256 positionId) external {
-        NonFungible nonFungible = stagedNonFungible; // gas saving
+        NonFungible nonFungible = _stagedNonFungible; // gas saving
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -367,7 +369,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
         assembly ("memory-safe") {
             // clear staged non-fungible
-            tstore(stagedNonFungible.slot, 0)
+            tstore(_stagedNonFungible.slot, 0)
         }
         position.addNonFungible(nonFungible);
 
@@ -393,10 +395,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         onlyNonZeroAddress(recipient)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -435,10 +437,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         returns (uint256 amount)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -459,8 +461,8 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         amount = delta.fullMulDiv(_totalDebtBalance, _totalDebtShare);
 
         assembly ("memory-safe") {
-            // require(_totalDebtBalance + amount <= debtLimit, DebtLimitExceeded());
-            if gt(add(_totalDebtBalance, amount), sload(debtLimit.slot)) {
+            // require(_totalDebtBalance + amount <= _debtLimit, DebtLimitExceeded());
+            if gt(add(_totalDebtBalance, amount), sload(_debtLimit.slot)) {
                 mstore(0x00, 0xc3212f5c) // 'DebtLimitExceeded()'
                 revert(0x1c, 0x04)
             }
@@ -510,10 +512,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         returns (uint256 amount)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -590,10 +592,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         returns (uint256 shortfall)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -690,6 +692,41 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
     }
 
+    /// @inheritdoc ILicredity
+    function poolManager() external view returns (IPoolManager) {
+        return _poolManager;
+    }
+
+    /// @inheritdoc ILicredity
+    function oracle() external view returns (IOracle) {
+        return _oracle;
+    }
+
+    /// @inheritdoc ILicredity
+    function debtLimit() external view returns (uint256) {
+        return _debtLimit;
+    }
+
+    /// @inheritdoc ILicredity
+    function minMargin() external view returns (uint256) {
+        return _minMargin;
+    }
+
+    /// @inheritdoc ILicredity
+    function minLiquidityLifespan() external view returns (uint256) {
+        return _minLiquidityLifespan;
+    }
+
+    /// @inheritdoc ILicredity
+    function protocolFeePips() external view returns (uint24) {
+        return _protocolFeePips;
+    }
+
+    /// @inheritdoc ILicredity
+    function poolKey() external view returns (PoolKey memory) {
+        return _poolKey;
+    }
+
     /// @inheritdoc IERC721TokenReceiver
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
@@ -717,14 +754,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     ) internal override returns (bytes4) {
         // add / update liquidity key onset timestamp
         bytes32 liquidityKey = _calculateLiquidityKey(sender, params.tickLower, params.tickUpper, params.salt);
-        // liquidityOnsets[liquidityKey] = block.timestamp;
+        // _liquidityOnsets[liquidityKey] = block.timestamp;
         assembly ("memory-safe") {
             mstore(0x00, liquidityKey)
-            mstore(0x20, liquidityOnsets.slot)
+            mstore(0x20, _liquidityOnsets.slot)
             sstore(keccak256(0x00, 0x40), timestamp())
         }
 
-        (, int24 tick,,) = poolManager.getSlot0(poolId);
+        (, int24 tick,,) = _poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
             // collect and donate interest before active liquidity is updated
@@ -742,20 +779,20 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         bytes calldata
     ) internal override returns (bytes4) {
         bytes32 liquidityKey = _calculateLiquidityKey(sender, params.tickLower, params.tickUpper, params.salt);
-        // liquidity must have been available for at least `minLiquidityLifespan` seconds
+        // liquidity must have been available for at least `_minLiquidityLifespan` seconds
         // prevents emphemeral liquidity from vampiring interest yield
-        // require(block.timestamp >= liquidityOnsets[liquidityKey] + minLiquidityLifespan, MinLiquidityLifespanNotMet());
+        // require(block.timestamp >= _liquidityOnsets[liquidityKey] + _minLiquidityLifespan, MinLiquidityLifespanNotMet());
         assembly ("memory-safe") {
             mstore(0x00, liquidityKey)
-            mstore(0x20, liquidityOnsets.slot)
+            mstore(0x20, _liquidityOnsets.slot)
 
-            if lt(timestamp(), add(sload(keccak256(0x00, 0x40)), sload(minLiquidityLifespan.slot))) {
+            if lt(timestamp(), add(sload(keccak256(0x00, 0x40)), sload(_minLiquidityLifespan.slot))) {
                 mstore(0x00, 0x463df77d) // 'MinLiquidityLifespanNotMet()'
                 revert(0x1c, 0x04)
             }
         }
 
-        (, int24 tick,,) = poolManager.getSlot0(poolId);
+        (, int24 tick,,) = _poolManager.getSlot0(poolId);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
             // collect and donate interest before active liquidity is updated
@@ -783,7 +820,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         override
         returns (bytes4, int128)
     {
-        (uint256 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+        (uint256 sqrtPriceX96,,,) = _poolManager.getSlot0(poolId);
 
         // price below 1 will result in negative interest, which is not allowed
         // require(sqrtPriceX96 >= ONE_X96, PriceTooLow());
@@ -795,7 +832,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
 
         // trigger the oracle for price update
-        oracle.updatePrice();
+        _oracle.updatePrice();
 
         return (this.afterSwap.selector, 0);
     }
@@ -803,9 +840,9 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc RiskConfigs
     function _collectInterest(bool donate) internal override {
         uint256 elapsed;
-        // elapsed = block.timestamp - lastInterestCollectionTimestamp;
+        // elapsed = block.timestamp - _lastInterestCollectionTimestamp;
         assembly ("memory-safe") {
-            elapsed := sub(timestamp(), sload(lastInterestCollectionTimestamp.slot)) // underflow not possible
+            elapsed := sub(timestamp(), sload(_lastInterestCollectionTimestamp.slot)) // underflow not possible
         }
 
         // short circuit if no time has elapsed and donation is not requested
@@ -815,19 +852,19 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         uint256 donation;
         uint256 protocolFee;
         if (elapsed > 0) {
-            uint256 _protocolFeePips;
+            uint256 protocolFeePips_;
             uint256 _totalDebtBalance;
             assembly ("memory-safe") {
-                _protocolFeePips := sload(protocolFeePips.slot) // gas saving
+                protocolFeePips_ := sload(_protocolFeePips.slot) // gas saving
                 _totalDebtBalance := sload(totalDebtBalance.slot) // gas saving
             }
 
-            InterestRate interestRate = _priceToInterestRate(oracle.quotePrice());
+            InterestRate interestRate = _priceToInterestRate(_oracle.quotePrice());
             uint256 interest = interestRate.calculateInterest(_totalDebtBalance, elapsed);
 
             // split interest into protocol fee (if any) and donation
-            if (_protocolFeePips > 0) {
-                protocolFee = interest.pipsMulUp(_protocolFeePips);
+            if (protocolFeePips_ > 0) {
+                protocolFee = interest.pipsMulUp(protocolFeePips_);
             }
             unchecked {
                 donation = interest - protocolFee; // underflow not possible
@@ -835,35 +872,35 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
             // increase total debt balance and update last interest collection timestamp
             totalDebtBalance = _totalDebtBalance + interest;
-            lastInterestCollectionTimestamp = block.timestamp;
+            _lastInterestCollectionTimestamp = block.timestamp;
         }
 
         // only donate if requested and there is active liquidity in the pool
-        if (donate && poolManager.getLiquidity(poolId) > 0) {
+        if (donate && _poolManager.getLiquidity(poolId) > 0) {
             // include any accrued donation and set it to 0
             donation += accruedDonation;
             accruedDonation = 0;
 
             if (donation > 0) {
                 // donate to active liquidity
-                poolManager.donate(poolKey, 0, donation, "");
-                poolManager.sync(Currency.wrap(address(this)));
-                _mint(address(poolManager), donation);
-                poolManager.settle();
+                _poolManager.donate(_poolKey, 0, donation, "");
+                _poolManager.sync(Currency.wrap(address(this)));
+                _mint(address(_poolManager), donation);
+                _poolManager.settle();
             }
         } else if (donation > 0) {
             // accrue donation for later distribution
             accruedDonation += donation;
         }
 
-        if (protocolFeeRecipient != address(0)) {
+        if (_protocolFeeRecipient != address(0)) {
             // include any accrued protocol fee and set it to 0
             protocolFee += accruedProtocolFee;
             accruedProtocolFee = 0;
 
             if (protocolFee > 0) {
                 // collect protocol fee
-                _mint(protocolFeeRecipient, protocolFee);
+                _mint(_protocolFeeRecipient, protocolFee);
             }
         } else if (protocolFee > 0) {
             // accrue protocol fee for later distribution
@@ -890,12 +927,12 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
 
         // accumulate value and margin requirement from fungibles
-        (_value, _marginRequirement) = oracle.quoteFungibles(fungibles, amounts);
+        (_value, _marginRequirement) = _oracle.quoteFungibles(fungibles, amounts);
         value += _value;
         marginRequirement += _marginRequirement;
 
         // accumulate value and margin requirement from non-fungibles
-        (_value, _marginRequirement) = oracle.quoteNonFungibles(position.nonFungibles);
+        (_value, _marginRequirement) = _oracle.quoteNonFungibles(position.nonFungibles);
         value += _value;
         marginRequirement += _marginRequirement;
 
@@ -904,16 +941,16 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         // 2. exceeds the minimum margin when carrying debt (to prevent dust positions)
         // 3. exceeds (as percent of value) the margin requirement ratio (to prevent using debt fungible,
         //    which has 0% margin requirement, to take on enormous debt that causes the position to go underwater)
-        isHealthy = value >= debt + marginRequirement && marginRequirement >= minMargin
+        isHealthy = value >= debt + marginRequirement && marginRequirement >= _minMargin
             && debt <= value - value.pipsMulUp(POSITION_MRR_PIPS);
     }
 
     function _popStagedFungibleAndAmount() internal returns (Fungible fungible, uint256 amount) {
         assembly ("memory-safe") {
-            fungible := tload(stagedFungible.slot)
+            fungible := tload(_stagedFungible.slot)
 
             // clear staged fungible
-            tstore(stagedFungible.slot, 0)
+            tstore(_stagedFungible.slot, 0)
         }
 
         if (fungible.isNative()) {
@@ -927,7 +964,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
                 }
             }
 
-            amount = fungible.balanceOf(address(this)) - stagedFungibleBalance;
+            amount = fungible.balanceOf(address(this)) - _stagedFungibleBalance;
         }
     }
 
@@ -959,7 +996,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     function _priceToInterestRate(uint256 price) internal view returns (InterestRate interestRate) {
         uint256 oneD18 = ONE_D18;
-        uint256 _scaleFactor = scaleFactor;
+        uint256 scaleFactor = _scaleFactor;
 
         assembly ("memory-safe") {
             if lt(price, oneD18) {
@@ -971,7 +1008,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             if gt(price, oneD18) {
                 // price has 18 decimals, and interest has 27 decimals
                 // interestRate = InterestRate.wrap((price - 1e18) * _scaleFactor);
-                interestRate := mul(sub(price, oneD18), _scaleFactor)
+                interestRate := mul(sub(price, oneD18), scaleFactor)
 
                 if gt(interestRate, MAX_INTEREST_RATE) { interestRate := MAX_INTEREST_RATE }
             }
