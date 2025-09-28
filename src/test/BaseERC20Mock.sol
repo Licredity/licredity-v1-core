@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.30;
 
-import {BaseERC20} from "src/BaseERC20.sol";
+import {BaseERC20} from "../BaseERC20.sol";
 
 contract BaseERC20Mock is BaseERC20 {
     constructor(string memory name, string memory symbol, uint8 decimals) BaseERC20(name, symbol, decimals) {}

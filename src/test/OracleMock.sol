@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.30;
 
-import {IOracle} from "src/interfaces/IOracle.sol";
-import {Fungible} from "src/types/Fungible.sol";
-import {NonFungible} from "src/types/NonFungible.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
+import {Fungible} from "../types/Fungible.sol";
+import {NonFungible} from "../types/NonFungible.sol";
 
 contract OracleMock is IOracle {
     uint24 internal constant UNIT_PIPS = 1_000_000;

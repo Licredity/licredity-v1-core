@@ -5,7 +5,7 @@ import {Test} from "@forge-std/Test.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {ChainInfo} from "src/libraries/ChainInfo.sol";
-import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
+import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
 
 contract FungibleTest is Test {
     BaseERC20Mock public token;

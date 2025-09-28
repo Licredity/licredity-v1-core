@@ -5,7 +5,7 @@ import {Deployers} from "./utils/Deployer.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
-import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
+import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
 
 contract LicredityPositionTest is Deployers {
     Fungible public fungible;
