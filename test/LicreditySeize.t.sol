@@ -8,7 +8,7 @@ import {Deployers} from "./utils/Deployer.sol";
 import {StateLibrary} from "./utils/StateLibrary.sol";
 import {ShareMath} from "./utils/ShareMath.sol";
 import {Actions} from "./utils/LicredityRouter.sol";
-import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
+import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
 
 contract LicreditySeizeTest is Deployers {
     using StateLibrary for Licredity;

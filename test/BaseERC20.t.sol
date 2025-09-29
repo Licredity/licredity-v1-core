@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {Test} from "@forge-std/Test.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
-import {BaseERC20Mock} from "test/mocks/BaseERC20Mock.sol";
+import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
 
 contract BaseERC20MockTest is Test {
     BaseERC20Mock public token;
