@@ -55,6 +55,9 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @notice Thrown when a native transfer fails
     error NativeTransferFailed();
 
+    /// @notice Thrown when transferFrom on the naitve fungible is attempted
+    error NativeTransferFromNotAllowed();
+
     /// @notice Thrown when an ERC20 transfer fails
     error ERC20TransferFailed();
 
@@ -123,6 +126,9 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
 
     /// @notice Thrown when the price is too low
     error PriceTooLow();
+
+    /// @notice Thrown when token ID is out of bound
+    error TokenIdOutOfBound();
 
     /// @notice Emitted when a position has been opened
     /// @param positionId The ID of the position

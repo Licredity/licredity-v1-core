@@ -32,7 +32,7 @@ library FungibleStateLibrary {
     /// @notice Constructs a fungible state from index and a balance
     /// @param _index The index of the fungible, must fit within 64 bits
     /// @param _balance The balance of the fungible, must fit within 128 bits
-    /// @return state The fungible state representing the index and balance
+    /// @return state The constructed fungible state
     function from(uint256 _index, uint256 _balance) internal pure returns (FungibleState state) {
         assembly ("memory-safe") {
             // require(_index <= 0xffffffffffffffff, MaxFungibleIndexExceeded());
