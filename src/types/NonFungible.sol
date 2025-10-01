@@ -28,7 +28,15 @@ library NonFungibleLibrary {
     /// @param self The non-fungible to transfer
     /// @param recipient The recipient of the transfer
     function transfer(NonFungible self, address recipient) internal {
-        IERC721(self.tokenAddress()).safeTransferFrom(address(this), recipient, self.tokenId());
+        self.transferFrom(address(this), recipient);
+    }
+
+    /// @notice Transfers a non-fungible from sender to recipient
+    /// @param self The non-fungible to transfer
+    /// @param sender The sender of the transfer
+    /// @param recipient The recipient of the transfer
+    function transferFrom(NonFungible self, address sender, address recipient) internal {
+        IERC721(self.tokenAddress()).safeTransferFrom(sender, recipient, self.tokenId());
     }
 
     /// @notice Gets the owner of a non-fungible
@@ -53,6 +61,21 @@ library NonFungibleLibrary {
     function tokenId(NonFungible self) internal pure returns (uint256 _tokenId) {
         assembly ("memory-safe") {
             _tokenId := and(self, 0xffffffffffffffff)
+        }
+    }
+
+    /// @notice Constructs a non-fungible from token address and token ID
+    /// @param _tokenAddress The token address of the non-fungible
+    /// @param _tokenId The token ID of the non-fungible
+    /// @return nonFungible The constructed non-fungible
+    function from(address _tokenAddress, uint256 _tokenId) internal pure returns (NonFungible nonFungible) {
+        assembly ("memory-safe") {
+            if gt(_tokenId, 0xffffffffffffffff) {
+                mstore(0x00, 0x1493c569) // 'TokenIdOutOfBound()'
+                revert(0x1c, 0x04)
+            }
+
+            nonFungible := or(shl(96, _tokenAddress), _tokenId)
         }
     }
 }
