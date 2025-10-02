@@ -76,4 +76,65 @@ contract FungibleTest is Test {
             assertEq(token.balanceOf(address(this)), amount);
         }
     }
+
+    function test_Native_transferFromThis(uint256 amount) public {
+        address user = address(0xE585379156909287F8aA034B2F4b1Cb88aa3d29D);
+        vm.deal(address(this), amount);
+        NATIVE.transferFrom(address(this), user, amount);
+        assertEq(address(this).balance, 0);
+        assertEq(user.balance, amount);
+    }
+
+    /// forge-config: default.allow_internal_expect_revert = true
+    function test_Native_transferFrom_error(address from, uint256 amount) public {
+        vm.assume(from != address(this));
+        vm.deal(from, amount);
+        vm.expectRevert();
+        NATIVE.transferFrom(from, address(this), amount);
+    }
+
+    function test_Fungible_transferFromThis(address to, uint256 amount) public {
+        vm.assume(to != address(0));
+        token.mint(address(this), amount);
+
+        vm.expectCall(address(token), abi.encodeCall(IERC20.transfer, (to, amount)));
+        fungible.transferFrom(address(this), to, amount);
+
+        if (to != address(this)) {
+            assertEq(token.balanceOf(address(this)), 0);
+            assertEq(token.balanceOf(to), amount);
+        } else {
+            assertEq(token.balanceOf(address(this)), amount);
+        }
+    }
+
+    function test_Fungible_transferFrom_error(address from, address to, uint256 amount) public {
+        vm.assume(from != address(this));
+        vm.assume(to != address(0));
+        vm.assume(amount > 0);
+        token.mint(from, amount);
+        vm.expectRevert();
+        token.transferFrom(from, to, amount);
+    }
+
+    function test_Fungible_transferFrom(address from, address to, uint256 amount) public {
+        vm.assume(from != address(this));
+        vm.assume(to != address(0));
+        uint256 fromBalance = token.balanceOf(from);
+        uint256 toBalance = token.balanceOf(to);
+        token.mint(from, amount);
+
+        vm.prank(from);
+        token.approve(address(this), amount);
+
+        vm.expectCall(address(token), abi.encodeCall(IERC20.transferFrom, (from, to, amount)));
+        fungible.transferFrom(from, to, amount);
+
+        if (from == to) {
+            assertEq(token.balanceOf(to), toBalance + amount);
+        } else {
+            assertEq(token.balanceOf(from), fromBalance);
+            assertEq(token.balanceOf(to), toBalance + amount);
+        }
+    }
 }
