@@ -69,17 +69,19 @@ library FungibleLibrary {
     /// @param recipient The recipient of the transfer
     /// @param amount The amount to transfer
     function transferFrom(Fungible self, address sender, address recipient, uint256 amount) internal {
-        if (sender == address(this)) self.transfer(recipient, amount);
-
-        // require(!self.isNative(), NativeTransferFromNotAllowed());
-        if (self.isNative()) {
-            assembly ("memory-safe") {
-                mstore(0x00, 0x59d4edfe) // 'NativeTransferFromNotAllowed()'
-                revert(0x1c, 0x04)
+        if (sender == address(this)) {
+            self.transfer(recipient, amount);
+        } else {
+            // require(!self.isNative(), NativeTransferFromNotAllowed());
+            if (self.isNative()) {
+                assembly ("memory-safe") {
+                    mstore(0x00, 0x59d4edfe) // 'NativeTransferFromNotAllowed()'
+                    revert(0x1c, 0x04)
+                }
             }
-        }
 
-        IERC20(Fungible.unwrap(self)).transferFrom(sender, recipient, amount);
+            IERC20(Fungible.unwrap(self)).transferFrom(sender, recipient, amount);
+        }
     }
 
     /// @notice Gets the balance of a fungible for a owner
