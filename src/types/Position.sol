@@ -20,11 +20,11 @@ using PositionLibrary for Position global;
 /// @title PositionLibrary
 /// @notice Library for managing positions
 library PositionLibrary {
-    uint256 private constant OWNER_OFFSET = 0;
-    uint256 private constant DEBT_SHARE_OFFSET = 1;
-    uint256 private constant FUNGIBLES_OFFSET = 2;
-    uint256 private constant NON_FUNGIBLES_OFFSET = 3;
-    uint256 private constant FUNGIBLE_STATES_OFFSET = 4;
+    uint256 internal constant OWNER_OFFSET = 0;
+    uint256 internal constant DEBT_SHARE_OFFSET = 1;
+    uint256 internal constant FUNGIBLES_OFFSET = 2;
+    uint256 internal constant NON_FUNGIBLES_OFFSET = 3;
+    uint256 internal constant FUNGIBLE_STATES_OFFSET = 4;
 
     /// @notice Sets the owner of a position
     /// @param self The position to set owner for

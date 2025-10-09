@@ -324,4 +324,8 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @notice Gets the total debt balance
     /// @return totalDebtBalance The total debt balance
     function totalDebtBalance() external view returns (uint256 totalDebtBalance);
+
+    /// @notice Gets the next position ID to be assigned
+    /// @return nextPositionId The next position ID
+    function nextPositionId() external view returns (uint256 nextPositionId);
 }

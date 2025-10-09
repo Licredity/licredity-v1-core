@@ -49,7 +49,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     uint256 internal immutable _scaleFactor; // used to convert price deviation to interest rate, accounting for precision differences
     PoolKey internal _poolKey;
     uint256 internal _lastInterestCollectionTimestamp;
-    uint256 internal _lastPositionId;
+    mapping(uint256 => Position) internal _positions;
     mapping(bytes32 => uint256) internal _liquidityOnsets; // maps liquidity key to its onset timestamp
 
     Fungible public immutable baseFungible;
@@ -59,7 +59,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     uint256 public exchangeableAmount;
     uint256 public totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 public totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
-    mapping(uint256 => Position) public positions;
+    uint256 public nextPositionId = 1;
 
     modifier onlyNonZeroAddress(address _address) {
         _onlyNonZeroAddress(_address);
@@ -115,7 +115,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         // ensure that every registered position is healthy
         bytes32[] memory items = Locker.registeredItems();
         for (uint256 i = 0; i < items.length; ++i) {
-            (,,, bool isHealthy) = _appraisePosition(positions[uint256(items[i])]);
+            (,,, bool isHealthy) = _appraisePosition(_positions[uint256(items[i])]);
 
             // require(isHealthy, PositionNotHealthy());
             assembly ("memory-safe") {
@@ -132,9 +132,9 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function openPosition() external returns (uint256 positionId) {
         unchecked {
-            positionId = ++_lastPositionId; // overflow not plausible
+            positionId = nextPositionId++; // overflow not plausible
         }
-        positions[positionId].setOwner(msg.sender);
+        _positions[positionId].setOwner(msg.sender);
 
         // emit OpenPosition(positionId, msg.sender);
         assembly ("memory-safe") {
@@ -145,10 +145,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function closePosition(uint256 positionId) external {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -167,7 +167,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             }
         }
 
-        delete positions[positionId];
+        delete _positions[positionId];
 
         // emit ClosePosition(positionId);
         assembly ("memory-safe") {
@@ -251,10 +251,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function depositFungible(uint256 positionId) external payable {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -290,10 +290,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         onlyNonZeroAddress(recipient)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -345,10 +345,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     function depositNonFungible(uint256 positionId) external {
         NonFungible nonFungible = _stagedNonFungible; // gas saving
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -395,10 +395,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         onlyNonZeroAddress(recipient)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -437,10 +437,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         returns (uint256 amount)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -512,10 +512,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         returns (uint256 amount)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 
@@ -592,10 +592,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         returns (uint256 shortfall)
     {
         Position storage position;
-        // position = positions[positionId];
+        // position = _positions[positionId];
         assembly ("memory-safe") {
             mstore(0x00, positionId)
-            mstore(0x20, positions.slot)
+            mstore(0x20, _positions.slot)
             position.slot := keccak256(0x00, 0x40)
         }
 

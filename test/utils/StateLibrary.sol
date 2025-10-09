@@ -8,7 +8,7 @@ library StateLibrary {
     uint256 public constant CURRENCY0_OFFSET = 12;
     uint256 public constant TOTAL_DEBT_SHARE_OFFSET = 21;
     uint256 public constant TOTAL_DEBT_BALANCE_OFFSET = 22;
-    uint256 public constant POSITIONS_OFFSET = 23;
+    uint256 public constant POSITIONS_OFFSET = 16;
     uint256 public constant FUNGIBLES_STATE_OFFSET = 4;
 
     uint24 private constant FEE = 100;
