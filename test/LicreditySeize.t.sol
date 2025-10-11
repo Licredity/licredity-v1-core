@@ -2,16 +2,13 @@
 pragma solidity ^0.8.20;
 
 import {ILicredity} from "src/interfaces/ILicredity.sol";
-import {Licredity} from "src/Licredity.sol";
+import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {Deployers} from "./utils/Deployer.sol";
-import {StateLibrary} from "./utils/StateLibrary.sol";
-import {ShareMath} from "./utils/ShareMath.sol";
 import {Actions} from "./utils/LicredityRouter.sol";
-import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
+import {ShareMath} from "./utils/ShareMath.sol";
 
 contract LicreditySeizeTest is Deployers {
-    using StateLibrary for Licredity;
     using ShareMath for uint128;
 
     BaseERC20Mock public token;
@@ -68,7 +65,9 @@ contract LicreditySeizeTest is Deployers {
 
         /// borrow 0.9 ether debt token
         uint128 borrowAmount = 0.9 ether;
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
+
         uint256 delta = borrowAmount.toShares(totalAssets, totalShares);
 
         licredityRouterHelper.addDebt(positionId, delta, address(1));
@@ -104,7 +103,9 @@ contract LicreditySeizeTest is Deployers {
 
         /// borrow 0.9 ether debt token
         uint128 borrowAmount = 0.9 ether;
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
+
         uint256 delta = borrowAmount.toShares(totalAssets, totalShares);
 
         licredityRouterHelper.addDebt(positionId, delta, address(1));
@@ -113,7 +114,7 @@ contract LicreditySeizeTest is Deployers {
         /// Set token price to 0.5 ether, value = 0.5 ether, debt = 0.9 ether
         oracleMock.setFungibleConfig(Fungible.wrap(address(token)), 0.5 ether, 100_000);
 
-        (, uint256 totalDebtBefore) = licredity.getTotalDebt();
+        uint256 totalDebtBefore = licredity.totalDebtBalance();
 
         Actions[] memory actions = new Actions[](2);
         bytes[] memory params = new bytes[](2);
@@ -129,7 +130,7 @@ contract LicreditySeizeTest is Deployers {
 
         seizerRouter.executeActions{value: 0.451 ether}(actions, params);
 
-        (, uint256 totalDebtAfter) = licredity.getTotalDebt();
+        uint256 totalDebtAfter = licredity.totalDebtBalance();
 
         assertEq(totalDebtAfter - totalDebtBefore, 0.8 ether); // deficit = 0.4 ether * 2 = 0.8 ether
     }

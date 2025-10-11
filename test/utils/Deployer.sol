@@ -2,24 +2,22 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
-import {Licredity} from "src/Licredity.sol";
-import {Fungible} from "src/types/Fungible.sol";
-import {NonFungible} from "src/types/NonFungible.sol";
-import {ChainInfo} from "src/libraries/ChainInfo.sol";
+import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
 import {NonFungibleMock} from "src/test/NonFungibleMock.sol";
 import {OracleMock} from "src/test/OracleMock.sol";
-import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
-import {StateLibrary} from "./StateLibrary.sol";
-import {ShareMath} from "./ShareMath.sol";
+import {Fungible} from "src/types/Fungible.sol";
+import {NonFungible} from "src/types/NonFungible.sol";
+import {Licredity} from "src/Licredity.sol";
+import {LicredityConstants} from "src/LicredityConstants.sol";
 import {LicredityRouter} from "./LicredityRouter.sol";
 import {LicredityRouterHelper} from "./LicredityRouterHelper.sol";
+import {ShareMath} from "./ShareMath.sol";
 import {V4MiniRouter} from "./UniswapV4MiniRouter.sol";
 import {V4RouterHelper} from "./UniswapV4MiniRouterHelper.sol";
-import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 
 contract Deployers is Test {
     using ShareMath for uint128;
-    using StateLibrary for Licredity;
 
     IPoolManager public poolManager;
     address public constant USER = address(0xE585379156909287F8aA034B2F4b1Cb88aa3d29D);
@@ -66,7 +64,7 @@ contract Deployers is Test {
         vm.label(mockLicredity, "Licredity");
         deployCodeTo(
             "Licredity.sol",
-            abi.encode(address(0), 365, address(poolManager), address(this), "Debt ETH", "DETH"),
+            abi.encode(address(0), address(poolManager), "Debt ETH", "DETH", address(this)),
             mockLicredity
         );
 
@@ -108,9 +106,12 @@ contract Deployers is Test {
     // forge-lint: disable-next-line(mixed-case-function)
     function getDebtERC20(address receiver, uint128 amount) public {
         uint256 positionId = licredityRouter.openPosition();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 2 * amount}(positionId, ChainInfo.NATIVE_FUNGIBLE, 2 * amount);
+        licredityRouter.depositFungible{value: 2 * amount}(
+            positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 2 * amount
+        );
 
         uint256 debtDelta = amount.toShares(totalAssets, totalShares);
         licredityRouterHelper.addDebt(positionId, debtDelta, receiver);

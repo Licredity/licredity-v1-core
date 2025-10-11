@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Deployers} from "./utils/Deployer.sol";
-import {StateLibrary} from "./utils/StateLibrary.sol";
 
 contract LicredityInitalizeTest is Deployers {
     function test_initalize_BaseERC20LtBaseToken() public {
@@ -13,9 +13,7 @@ contract LicredityInitalizeTest is Deployers {
         address deployAddress = address(uint160(uint160(baseToken) - 1));
 
         vm.expectRevert(ILicredity.InvalidLicredityAddress.selector);
-        deployCodeTo(
-            "Licredity.sol", abi.encode(baseToken, 1, poolManager, address(this), "Debt T", "DT"), deployAddress
-        );
+        deployCodeTo("Licredity.sol", abi.encode(baseToken, poolManager, "Debt T", "DT", address(this)), deployAddress);
     }
 
     function test_initalize_poolManager() public {
@@ -27,7 +25,7 @@ contract LicredityInitalizeTest is Deployers {
     function test_initalize_poolId() public {
         deployETHLicredityWithUniswapV4();
 
-        bytes32 poolId = StateLibrary.getPoolId(licredity);
+        bytes32 poolId = PoolId.unwrap(licredity.poolId());
         assertEq(poolId, hex"86f15e7ec533935883c86e206d779a79b78e0e9e9d2166b62ad60a99a0c5e276");
     }
 

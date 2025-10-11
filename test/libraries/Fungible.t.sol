@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import {Test} from "@forge-std/Test.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
-import {Fungible} from "src/types/Fungible.sol";
-import {ChainInfo} from "src/libraries/ChainInfo.sol";
+import {Test} from "@forge-std/Test.sol";
 import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
+import {Fungible} from "src/types/Fungible.sol";
+import {LicredityConstants} from "src/LicredityConstants.sol";
 
 contract FungibleTest is Test {
     BaseERC20Mock public token;
@@ -28,7 +28,7 @@ contract FungibleTest is Test {
     }
 
     function test_Native_decimals() public view {
-        assertEq(NATIVE.decimals(), ChainInfo.NATIVE_FUNGIBLE_DECIMALS);
+        assertEq(NATIVE.decimals(), LicredityConstants.CHAIN_NATIVE_FUNGIBLE_DECIMALS);
     }
 
     function test_isNative() public {

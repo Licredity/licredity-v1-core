@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import {IUnlockExecutor} from "src/interfaces/IUnlockExecutor.sol";
+import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {IUnlockExecutor} from "src/interfaces/IUnlockExecutor.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
-import {IERC20} from "@forge-std/interfaces/IERC20.sol";
 
 enum Actions {
     ADD_DEBT,
