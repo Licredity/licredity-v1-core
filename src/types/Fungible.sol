@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
-import {ChainInfo} from "../libraries/ChainInfo.sol";
+import {LicredityConstants} from "../LicredityConstants.sol";
 
 /// @title Fungible
 /// @notice Represents a fungible
@@ -126,13 +126,15 @@ library FungibleLibrary {
     /// @param self The fungible to get decimals of
     /// @return _decimals The number of decimals of the fungible
     function decimals(Fungible self) internal view returns (uint8 _decimals) {
-        _decimals = self.isNative() ? ChainInfo.NATIVE_FUNGIBLE_DECIMALS : IERC20(Fungible.unwrap(self)).decimals();
+        _decimals = self.isNative()
+            ? LicredityConstants.CHAIN_NATIVE_FUNGIBLE_DECIMALS
+            : IERC20(Fungible.unwrap(self)).decimals();
     }
 
     /// @notice Checks whether a fungible is the chain native fungible
     /// @param self The fungible to check
     /// @return _isNative True if the fungible is the chain native fungible, false otherwise
     function isNative(Fungible self) internal pure returns (bool _isNative) {
-        _isNative = self == ChainInfo.NATIVE_FUNGIBLE;
+        _isNative = self == LicredityConstants.CHAIN_NATIVE_FUNGIBLE;
     }
 }

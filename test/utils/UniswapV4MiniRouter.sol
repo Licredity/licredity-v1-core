@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC20Minimal} from "@uniswap-v4-core/interfaces/external/IERC20Minimal.sol";
 import {IUnlockCallback} from "@uniswap-v4-core/interfaces/callback/IUnlockCallback.sol";
+import {IERC20Minimal} from "@uniswap-v4-core/interfaces/external/IERC20Minimal.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
-import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
-import {Currency} from "@uniswap-v4-core/types/Currency.sol";
 import {TransientStateLibrary} from "@uniswap-v4-core/libraries/TransientStateLibrary.sol";
+import {Currency} from "@uniswap-v4-core/types/Currency.sol";
+import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 
 enum V4Actions {
     MODIFY_LIQUIDITY,

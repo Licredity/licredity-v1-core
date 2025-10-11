@@ -25,6 +25,7 @@ import {Fungible} from "./types/Fungible.sol";
 import {InterestRate} from "./types/InterestRate.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 import {Position} from "./types/Position.sol";
+import {LicredityConstants} from "./LicredityConstants.sol";
 
 /// @title Licredity
 /// @notice Provides the core functionalities of the protocol
@@ -33,12 +34,6 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     using PipsMath for uint256;
     using StateLibrary for IPoolManager;
 
-    uint24 private constant FEE = 100;
-    int24 private constant TICK_SPACING = 1;
-    uint256 private constant MAX_FUNGIBLES = 128; // maximum number of fungibles per position
-    uint256 private constant MAX_NON_FUNGIBLES = 128; // maximum number of non-fungibles per position
-    uint256 private constant POSITION_MRR_PIPS = 10_000; // 1% margin requirement
-    uint256 private constant MAX_INTEREST_RATE = 3.65e27; // maximum interest rate (365% per year)
     uint256 private constant ONE_D18 = 1e18;
     uint160 private constant ONE_X96 = 0x1000000000000000000000000;
 
@@ -48,14 +43,13 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     Fungible internal immutable BASE_FUNGIBLE;
     PoolId internal immutable POOL_ID;
-    uint256 internal immutable SCALE_FACTOR; // used to convert price deviation to interest rate, accounting for precision differences
     PoolKey internal _poolKey;
-    uint256 internal _lastInterestCollectionTimestamp;
     mapping(uint256 => Position) internal _positions;
     mapping(bytes32 => uint256) internal _liquidityOnsets; // maps liquidity key to its onset timestamp
 
     uint256 public accruedDonation;
     uint256 public accruedProtocolFee;
+    uint256 public lastInterestCollectionTimestamp;
     uint256 public exchangeableAmount;
     uint256 public totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 public totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
@@ -75,14 +69,11 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
     }
 
-    constructor(
-        address baseToken,
-        uint256 interestSensitivity,
-        address poolManager_,
-        address _governor,
-        string memory name,
-        string memory symbol
-    ) BaseHooks(poolManager_) BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals()) RiskConfigs(_governor) {
+    constructor(address baseToken, address _poolManager, string memory name, string memory symbol, address governor)
+        BaseHooks(_poolManager)
+        BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals())
+        RiskConfigs(governor)
+    {
         // require(address(this) > baseToken, InvalidLicredityAddress());
         if (address(this) <= baseToken) {
             assembly ("memory-safe") {
@@ -91,13 +82,17 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             }
         }
 
-        // set base fungibles and scale factor
+        // set base fungibles
         BASE_FUNGIBLE = Fungible.wrap(baseToken);
-        SCALE_FACTOR = interestSensitivity * 1e9;
 
         // set pool key and id, initialize the hooked pool
-        _poolKey =
-            PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
+        _poolKey = PoolKey(
+            Currency.wrap(baseToken),
+            Currency.wrap(address(this)),
+            LicredityConstants.POOL_FEE,
+            LicredityConstants.POOL_TICK_SPACING,
+            IHooks(address(this))
+        );
         POOL_ID = _poolKey.toId();
         POOL_MANAGER.initialize(_poolKey, ONE_X96);
     }
@@ -244,8 +239,8 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         (Fungible fungible, uint256 amount) = _popStagedFungibleAndAmount();
         position.addFungible(fungible, amount);
 
-        // require(position.fungibles.length <= MAX_FUNGIBLES, MaxFungiblesExceeded());
-        if (position.fungibles.length > MAX_FUNGIBLES) {
+        // require(position.fungibles.length <= LicredityConstants.POSITION_MAX_FUNGIBLES, MaxFungiblesExceeded());
+        if (position.fungibles.length > LicredityConstants.POSITION_MAX_FUNGIBLES) {
             assembly ("memory-safe") {
                 mstore(0x00, 0xe8223a36) // 'MaxFungiblesExceeded()'
                 revert(0x1c, 0x04)
@@ -294,8 +289,8 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
         position.addNonFungible(nonFungible);
 
-        // require(position.nonFungibles.length <= MAX_NON_FUNGIBLES, MaxNonFungiblesExceeded());
-        if (position.nonFungibles.length > MAX_NON_FUNGIBLES) {
+        // require(position.nonFungibles.length <= LicredityConstants.POSITION_MAX_NON_FUNGIBLES, MaxNonFungiblesExceeded());
+        if (position.nonFungibles.length > LicredityConstants.POSITION_MAX_NON_FUNGIBLES) {
             assembly ("memory-safe") {
                 mstore(0x00, 0x7d653372) // 'MaxNonFungiblesExceeded()'
                 revert(0x1c, 0x04)
@@ -750,9 +745,9 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc RiskConfigs
     function _collectInterest(bool donate) internal override {
         uint256 elapsed;
-        // elapsed = block.timestamp - _lastInterestCollectionTimestamp;
+        // elapsed = block.timestamp - lastInterestCollectionTimestamp;
         assembly ("memory-safe") {
-            elapsed := sub(timestamp(), sload(_lastInterestCollectionTimestamp.slot)) // underflow not possible
+            elapsed := sub(timestamp(), sload(lastInterestCollectionTimestamp.slot)) // underflow not possible
         }
 
         // short circuit if no time has elapsed and donation is not requested
@@ -782,7 +777,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
             // increase total debt balance and update last interest collection timestamp
             totalDebtBalance = _totalDebtBalance + interest;
-            _lastInterestCollectionTimestamp = block.timestamp;
+            lastInterestCollectionTimestamp = block.timestamp;
         }
 
         // only donate if requested and there is active liquidity in the pool
@@ -852,7 +847,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         // 3. exceeds (as percent of value) the margin requirement ratio (to prevent using debt fungible,
         //    which has 0% margin requirement, to take on enormous debt that causes the position to go underwater)
         isHealthy = value >= debt + marginRequirement && marginRequirement >= _minMargin
-            && debt <= value - value.pipsMulUp(POSITION_MRR_PIPS);
+            && debt <= value - value.pipsMulUp(LicredityConstants.POSITION_MIN_MRR_PIPS);
     }
 
     function _popStagedFungibleAndAmount() internal returns (Fungible fungible, uint256 amount) {
@@ -930,9 +925,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
     }
 
-    function _priceToInterestRate(uint256 price) internal view returns (InterestRate interestRate) {
+    function _priceToInterestRate(uint256 price) internal pure returns (InterestRate interestRate) {
         uint256 oneD18 = ONE_D18;
-        uint256 scaleFactor = SCALE_FACTOR;
+        uint256 maxInterestRate = LicredityConstants.MAX_INTEREST_RATE;
+        uint256 scaleFactor = LicredityConstants.PRICE_TO_INTEREST_RATE_SCALE_FACTOR;
 
         assembly ("memory-safe") {
             if lt(price, oneD18) {
@@ -943,10 +939,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
             if gt(price, oneD18) {
                 // price has 18 decimals, and interest has 27 decimals
-                // interestRate = InterestRate.wrap((price - 1e18) * scaleFactor);
+                // interestRate = InterestRate.wrap((price - 1e18) * _scaleFactor);
                 interestRate := mul(sub(price, oneD18), scaleFactor)
 
-                if gt(interestRate, MAX_INTEREST_RATE) { interestRate := MAX_INTEREST_RATE }
+                if gt(interestRate, maxInterestRate) { interestRate := maxInterestRate }
             }
         }
     }

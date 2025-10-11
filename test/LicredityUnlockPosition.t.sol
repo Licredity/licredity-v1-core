@@ -2,18 +2,18 @@
 pragma solidity ^0.8.20;
 
 import {stdError} from "@forge-std/StdError.sol";
-import {Deployers} from "./utils/Deployer.sol";
-import {ShareMath} from "./utils/ShareMath.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {PositionStateView} from "src/libraries/PositionStateView.sol";
 import {Fungible} from "src/types/Fungible.sol";
-import {StateLibrary} from "./utils/StateLibrary.sol";
 import {Licredity} from "src/Licredity.sol";
-import {ChainInfo} from "src/libraries/ChainInfo.sol";
+import {LicredityConstants} from "src/LicredityConstants.sol";
+import {Deployers} from "./utils/Deployer.sol";
 import {Actions} from "./utils/LicredityRouter.sol";
+import {ShareMath} from "./utils/ShareMath.sol";
 
 contract LicredityUnlockPositionTest is Deployers {
     using ShareMath for uint128;
-    using StateLibrary for Licredity;
+    using PositionStateView for Licredity;
 
     function setUp() public {
         deployETHLicredityWithUniswapV4();
@@ -37,11 +37,13 @@ contract LicredityUnlockPositionTest is Deployers {
 
     function test_increaseDebt_ltMinMargin() public {
         uint256 positionId = licredityRouter.openPosition();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
+        licredityRouter.depositFungible{value: 1 ether}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 1 ether);
 
         licredity.setMinMargin(0.0015 ether);
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
+
         uint256 delta = uint128(0.99 ether).toShares(totalAssets, totalShares);
 
         vm.expectRevert(ILicredity.PositionNotHealthy.selector);
@@ -53,9 +55,11 @@ contract LicredityUnlockPositionTest is Deployers {
 
         uint256 positionId = licredityRouter.openPosition();
 
-        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
+        licredityRouter.depositFungible{value: 1 ether}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 1 ether);
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
+
         uint256 delta = amount.toShares(totalAssets, totalShares);
 
         /// margin requirement = 1 ether * 0.1% = 0.01 ether
@@ -82,8 +86,9 @@ contract LicredityUnlockPositionTest is Deployers {
 
         uint256 positionId = licredityRouter.openPosition();
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
+        licredityRouter.depositFungible{value: 1 ether}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 1 ether);
 
         uint256 delta = amount.toShares(totalAssets, totalShares);
 
@@ -91,7 +96,7 @@ contract LicredityUnlockPositionTest is Deployers {
             vm.expectEmit(true, true, false, true);
             emit ILicredity.DepositFungible(positionId, Fungible.wrap(address(licredity)), amount);
             licredityRouterHelper.addDebt(positionId, delta, address(licredity));
-            assertEq(licredity.getPositionFungiblesBalance(positionId, address(licredity)), amount);
+            assertEq(licredity.getPositionFungibleBalance(positionId, Fungible.wrap(address(licredity))), amount);
         } else if (amount > 100 ether) {
             if (amount < 10000 ether) {
                 vm.expectRevert(ILicredity.PositionNotHealthy.selector);
@@ -113,7 +118,8 @@ contract LicredityUnlockPositionTest is Deployers {
         nonFungibleMock.mint(address(licredityRouter), 1);
         licredityRouter.depositNonFungible(positionId, getMockFungible(1));
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
         uint256 delta = amount.toShares(totalAssets, totalShares);
 
         /// margin requirement = 1 ether * 0.1% = 0.001 ether
@@ -129,7 +135,7 @@ contract LicredityUnlockPositionTest is Deployers {
 
     function test_increaseDebtShare_notEmpty() public {
         uint256 positionId = licredityRouter.openPosition();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
+        licredityRouter.depositFungible{value: 1 ether}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 1 ether);
 
         licredityRouterHelper.addDebt(positionId, 1, address(this));
 
@@ -152,13 +158,14 @@ contract LicredityUnlockPositionTest is Deployers {
     }
 
     function test_decreaseDebtShare_useBalance_share(uint256 delta) public {
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
         uint256 maxDelta = uint128(10000 ether - 1).toShares(totalAssets, totalShares);
 
         delta = bound(delta, 1e6, maxDelta);
 
         uint256 positionId = licredityRouter.openPosition();
-        licredityRouter.depositFungible{value: 1 gwei}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 gwei);
+        licredityRouter.depositFungible{value: 1 gwei}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 1 gwei);
 
         Actions[] memory actions = new Actions[](2);
         bytes[] memory params = new bytes[](2);
@@ -176,14 +183,17 @@ contract LicredityUnlockPositionTest is Deployers {
         uint256 positionId = licredityRouter.openPosition();
         uint128 amount = 99 ether;
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
+        licredityRouter.depositFungible{value: 1 ether}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 1 ether);
 
         uint256 debtDelta = amount.toShares(totalAssets, totalShares);
 
         licredityRouterHelper.addDebt(positionId, debtDelta, address(licredity));
 
-        (totalShares, totalAssets) = licredity.getTotalDebt();
+        totalShares = licredity.totalDebtShare();
+        totalAssets = licredity.totalDebtBalance();
+
         decreaseAmount = uint128(bound(decreaseAmount, 0, 99 ether));
 
         uint256 decreaseDelta = decreaseAmount.toShares(totalAssets, totalShares);
@@ -200,8 +210,9 @@ contract LicredityUnlockPositionTest is Deployers {
         uint256 positionId = licredityRouter.openPosition();
         uint128 amount = 99 ether;
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
-        licredityRouter.depositFungible{value: 1 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 1 ether);
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
+        licredityRouter.depositFungible{value: 1 ether}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 1 ether);
 
         uint256 debtDelta = amount.toShares(totalAssets, totalShares);
         licredityRouterHelper.addDebt(positionId, debtDelta, address(licredity));
@@ -234,9 +245,10 @@ contract LicredityUnlockPositionTest is Deployers {
         uint256 positionId = licredityRouter.openPosition();
 
         uint128 amount = 0.99 ether;
-        licredityRouter.depositFungible{value: 2 ether}(positionId, ChainInfo.NATIVE_FUNGIBLE, 2 ether);
+        licredityRouter.depositFungible{value: 2 ether}(positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 2 ether);
 
-        (uint256 totalShares, uint256 totalAssets) = licredity.getTotalDebt();
+        uint256 totalShares = licredity.totalDebtShare();
+        uint256 totalAssets = licredity.totalDebtBalance();
         uint256 delta = amount.toShares(totalAssets, totalShares);
         licredityRouterHelper.addDebt(positionId, delta, address(this));
 
