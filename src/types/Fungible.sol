@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
-import {ChainInfo} from "../libraries/ChainInfo.sol";
+import {LicredityConstants} from "../LicredityConstants.sol";
 
 /// @title Fungible
 /// @notice Represents a fungible
@@ -18,6 +18,11 @@ function equals(Fungible self, Fungible other) pure returns (bool) {
 /// @title FungibleLibrary
 /// @notice Library for managing fungibles
 library FungibleLibrary {
+    error ERC20TransferFailed();
+    error ERC20TransferFromFailed();
+    error NativeTransferFailed();
+    error NativeTransferFromNotAllowed();
+
     /// @notice Transfers amount of fungible to recipient
     /// @param self The fungible to transfer
     /// @param recipient The recipient of the transfer
@@ -70,6 +75,7 @@ library FungibleLibrary {
     /// @param amount The amount to transfer
     function transferFrom(Fungible self, address sender, address recipient, uint256 amount) internal {
         if (sender == address(this)) {
+            // forge-lint: disable-next-line(erc20-unchecked-transfer)
             self.transfer(recipient, amount);
         } else {
             // require(!self.isNative(), NativeTransferFromNotAllowed());
@@ -80,7 +86,32 @@ library FungibleLibrary {
                 }
             }
 
-            IERC20(Fungible.unwrap(self)).transferFrom(sender, recipient, amount);
+            assembly ("memory-safe") {
+                let fmp := mload(0x40)
+                mstore(fmp, 0x23b872dd00000000000000000000000000000000000000000000000000000000) // 'transferFrom(address,address,uint256)'
+                mstore(add(fmp, 0x04), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(fmp, 0x24), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(fmp, 0x44), amount)
+
+                // success if the call returns true or no data
+                let success :=
+                    and(
+                        or(and(eq(mload(0), true), gt(returndatasize(), 31)), iszero(returndatasize())),
+                        call(gas(), self, 0, fmp, 100, 0, 32)
+                    )
+
+                // clear memory
+                mstore(fmp, 0)
+                mstore(add(fmp, 0x04), 0)
+                mstore(add(fmp, 0x24), 0)
+                mstore(add(fmp, 0x44), 0)
+
+                // revert if the transfer from failed
+                if iszero(success) {
+                    mstore(0x00, 0xa512d51e) // 'ERC20TransferFromFailed()'
+                    revert(0x1c, 0x04)
+                }
+            }
         }
     }
 
@@ -96,13 +127,15 @@ library FungibleLibrary {
     /// @param self The fungible to get decimals of
     /// @return _decimals The number of decimals of the fungible
     function decimals(Fungible self) internal view returns (uint8 _decimals) {
-        _decimals = self.isNative() ? ChainInfo.NATIVE_FUNGIBLE_DECIMALS : IERC20(Fungible.unwrap(self)).decimals();
+        _decimals = self.isNative()
+            ? LicredityConstants.CHAIN_NATIVE_FUNGIBLE_DECIMALS
+            : IERC20(Fungible.unwrap(self)).decimals();
     }
 
     /// @notice Checks whether a fungible is the chain native fungible
     /// @param self The fungible to check
     /// @return _isNative True if the fungible is the chain native fungible, false otherwise
     function isNative(Fungible self) internal pure returns (bool _isNative) {
-        _isNative = self == ChainInfo.NATIVE_FUNGIBLE;
+        _isNative = self == LicredityConstants.CHAIN_NATIVE_FUNGIBLE;
     }
 }

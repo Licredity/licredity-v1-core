@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "../interfaces/ILicredity.sol";
 import {FullMath} from "../libraries/FullMath.sol";
 import {Fungible} from "../types/Fungible.sol";
@@ -9,29 +8,12 @@ import {FungibleState} from "../types/FungibleState.sol";
 import {NonFungible} from "../types/NonFungible.sol";
 import {PositionLibrary} from "../types/Position.sol";
 
-/// @title StateLibrary
-/// @notice Library for reading state from a Licredity market
-library StateLibrary {
+/// @title PositionStateView
+/// @notice Library for reading position states in a Licredity market
+library PositionStateView {
     using FullMath for uint256;
 
-    uint256 internal constant POOL_KEY_OFFSET = 12;
-    uint256 internal constant POSITIONS_OFFSET = 16;
-
-    function getPoolKey(ILicredity market) internal view returns (PoolKey memory poolKey) {
-        bytes32[] memory data = market.extsload(bytes32(POOL_KEY_OFFSET), 3);
-
-        assembly ("memory-safe") {
-            poolKey := mload(0x40)
-            mstore(0x40, add(poolKey, 0xa0))
-
-            mstore(poolKey, mload(add(data, 0x20)))
-            let packed := mload(add(data, 0x40))
-            mstore(add(poolKey, 0x20), and(packed, 0xffffffffffffffffffffffffffffffffffffffff))
-            mstore(add(poolKey, 0x40), and(shr(160, packed), 0xffffff))
-            mstore(add(poolKey, 0x60), shr(184, packed))
-            mstore(add(poolKey, 0x80), mload(add(data, 0x60)))
-        }
-    }
+    uint256 internal constant POSITIONS_OFFSET = 15;
 
     function getPositionOwner(ILicredity market, uint256 positionId) internal view returns (address owner) {
         uint256 ownerOffset = PositionLibrary.OWNER_OFFSET;
@@ -71,8 +53,8 @@ library StateLibrary {
 
     function getPositionFungibleCount(ILicredity market, uint256 positionId) internal view returns (uint256 count) {
         uint256 fungiblesOffset = PositionLibrary.FUNGIBLES_OFFSET;
-        bytes32 fungiblesSlot;
 
+        bytes32 fungiblesSlot;
         assembly ("memory-safe") {
             mstore(0x00, positionId)
             mstore(0x20, POSITIONS_OFFSET)
@@ -82,14 +64,40 @@ library StateLibrary {
         count = uint256(market.extsload(fungiblesSlot));
     }
 
+    function getPositionFungibles(ILicredity market, uint256 positionId)
+        internal
+        view
+        returns (Fungible[] memory fungibles)
+    {
+        uint256 fungiblesOffset = PositionLibrary.FUNGIBLES_OFFSET;
+
+        bytes32 fungiblesSlot;
+        bytes32 fungiblesDataSlot;
+        assembly ("memory-safe") {
+            mstore(0x00, positionId)
+            mstore(0x20, POSITIONS_OFFSET)
+            fungiblesSlot := add(keccak256(0x00, 0x40), fungiblesOffset)
+            mstore(0x00, fungiblesSlot)
+            fungiblesDataSlot := keccak256(0x00, 0x20)
+        }
+
+        uint256 count = uint256(market.extsload(fungiblesSlot));
+        bytes32[] memory fungiblesData = market.extsload(fungiblesDataSlot, count);
+
+        fungibles = new Fungible[](count);
+        for (uint256 i = 0; i < count; i++) {
+            fungibles[i] = Fungible.wrap(address(uint160(uint256(fungiblesData[i]))));
+        }
+    }
+
     function getPositionFungibleBalance(ILicredity market, uint256 positionId, Fungible fungible)
         internal
         view
         returns (uint256 balance)
     {
         uint256 fungibleStatesOffset = PositionLibrary.FUNGIBLE_STATES_OFFSET;
-        bytes32 fungibleStateSlot;
 
+        bytes32 fungibleStateSlot;
         assembly ("memory-safe") {
             mstore(0x00, positionId)
             mstore(0x20, POSITIONS_OFFSET)
@@ -114,21 +122,29 @@ library StateLibrary {
         count = uint256(market.extsload(nonFungiblesSlot));
     }
 
-    function getPositionNonFungibleByIndex(ILicredity market, uint256 positionId, uint256 index)
+    function getPositionNonFungibles(ILicredity market, uint256 positionId)
         internal
         view
-        returns (NonFungible nonFungible)
+        returns (NonFungible[] memory nonFungibles)
     {
         uint256 nonFungiblesOffset = PositionLibrary.NON_FUNGIBLES_OFFSET;
-        bytes32 nonFungibleSlot;
 
+        bytes32 nonFungiblesSlot;
+        bytes32 nonFungiblesDataSlot;
         assembly ("memory-safe") {
             mstore(0x00, positionId)
             mstore(0x20, POSITIONS_OFFSET)
-            mstore(0x00, add(keccak256(0x00, 0x40), nonFungiblesOffset))
-            nonFungibleSlot := add(keccak256(0x00, 0x20), mul(index, 0x20))
+            nonFungiblesSlot := add(keccak256(0x00, 0x40), nonFungiblesOffset)
+            mstore(0x00, nonFungiblesSlot)
+            nonFungiblesDataSlot := keccak256(0x00, 0x20)
         }
 
-        nonFungible = NonFungible.wrap(market.extsload(nonFungibleSlot));
+        uint256 count = uint256(market.extsload(nonFungiblesSlot));
+        bytes32[] memory nonFungiblesData = market.extsload(nonFungiblesDataSlot, count);
+
+        nonFungibles = new NonFungible[](count);
+        for (uint256 i = 0; i < count; i++) {
+            nonFungibles[i] = NonFungible.wrap(nonFungiblesData[i]);
+        }
     }
 }

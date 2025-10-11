@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IOracle} from "./interfaces/IOracle.sol";
-import {IRiskConfigs} from "./interfaces/IRiskConfigs.sol";
-import {PipsMath} from "./libraries/PipsMath.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
+import {IRiskConfigs} from "../interfaces/IRiskConfigs.sol";
+import {LicredityConstants} from "../LicredityConstants.sol";
 
 /// @title RiskConfigs
 /// @notice Abstract implementation of risk configurations
 abstract contract RiskConfigs is IRiskConfigs {
-    uint256 private constant MAX_MIN_LIQUIDITY_LIFESPAN = 7 days;
-    uint256 private constant MAX_PROTOCOL_FEE_PIPS = PipsMath.ONE_PIPS / 2 ** 4; // 6.25%
-
     address internal _governor;
     address internal _nextGovernor;
     IOracle internal _oracle;
@@ -114,10 +111,10 @@ abstract contract RiskConfigs is IRiskConfigs {
 
     /// @inheritdoc IRiskConfigs
     function setMinLiquidityLifespan(uint256 minLiquidityLifespan) external onlyGovernor {
-        uint256 maxMinLiquidityLifespan = MAX_MIN_LIQUIDITY_LIFESPAN;
+        uint256 maxMinLiquidityLifespan = LicredityConstants.MAX_MIN_LIQUIDITY_LIFESPAN;
 
         assembly ("memory-safe") {
-            // require(minLiquidityLifespan <= MAX_MIN_LIQUIDITY_LIFESPAN, MaxMinLiquidityLifespanExceeded());
+            // require(minLiquidityLifespan <= maxMinLiquidityLifespan, MaxMinLiquidityLifespanExceeded());
             if gt(minLiquidityLifespan, maxMinLiquidityLifespan) {
                 mstore(0x00, 0x673c8224) // 'MaxMinLiquidityLifespanExceeded()'
                 revert(0x1c, 0x04)
@@ -134,13 +131,13 @@ abstract contract RiskConfigs is IRiskConfigs {
 
     /// @inheritdoc IRiskConfigs
     function setProtocolFeePips(uint256 protocolFeePips) external onlyGovernor {
-        uint256 maxProtocolFeePips = MAX_PROTOCOL_FEE_PIPS;
+        uint256 maxProtocolFeePips = LicredityConstants.MAX_PROTOCOL_FEE_PIPS;
 
         // collect interest first so that the new protocol fee is not applied retroactively
         _collectInterest(false);
 
         assembly ("memory-safe") {
-            // require(protocolFeePips <= MAX_PROTOCOL_FEE_PIPS, MaxProtocolFeePipsExceeded());
+            // require(protocolFeePips <= maxProtocolFeePips, MaxProtocolFeePipsExceeded());
             if gt(protocolFeePips, maxProtocolFeePips) {
                 mstore(0x00, 0xf91fc24f) // 'MaxProtocolFeePipsExceeded()'
                 revert(0x1c, 0x04)

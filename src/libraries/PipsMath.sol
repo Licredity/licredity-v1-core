@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 /// @title PipsMath
 /// @notice Library for performing math operations in pips (1 / 1_000_000)
 library PipsMath {
+    error PipsMulUpFailed();
+
     uint256 internal constant ONE_PIPS = 1_000_000;
 
     /// @notice Multiplies `x` by `y` in pips, rounding up
