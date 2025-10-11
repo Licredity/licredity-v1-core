@@ -5,7 +5,7 @@ uint256 constant SECONDS_PER_YEAR = 365 days;
 uint256 constant RAY = 1e27;
 uint256 constant HALF_RAY = 0.5e27;
 
-library AAVEIntertestMath {
+library AaveIntertestMath {
     function rayMul(uint256 a, uint256 b) internal pure returns (uint256 c) {
         // to avoid overflow, a <= (type(uint256).max - HALF_RAY) / b
         assembly {

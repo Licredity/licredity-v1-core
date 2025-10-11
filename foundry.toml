@@ -17,4 +17,7 @@ uniswap-v4-core = "4"
 [fuzz]
 runs = 10000
 
+[lint]
+exclude_lints = ["erc20-unchecked-transfer"]
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 /// @title NoDelegateCall
 /// @notice Abstract contract that prevents delegate calls
 abstract contract NoDelegateCall {
-    address private immutable _self;
+    address private immutable SELF;
 
     modifier noDelegateCall() {
         _noDelegateCall();
@@ -12,9 +12,9 @@ abstract contract NoDelegateCall {
     }
 
     function _noDelegateCall() internal view {
-        address self = _self;
+        address self = SELF;
 
-        // require(address(this) == _self, DelegateCallNotAllowed());
+        // require(address(this) == self, DelegateCallNotAllowed());
         assembly ("memory-safe") {
             if iszero(eq(address(), self)) {
                 mstore(0x00, 0x0d89438e) // 'DelegateCallNotAllowed()'
@@ -24,6 +24,6 @@ abstract contract NoDelegateCall {
     }
 
     constructor() {
-        _self = address(this);
+        SELF = address(this);
     }
 }

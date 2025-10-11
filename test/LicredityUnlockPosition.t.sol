@@ -5,7 +5,6 @@ import {Deployers} from "./utils/Deployer.sol";
 import {ShareMath} from "./utils/ShareMath.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
-import {NonFungible} from "src/types/NonFungible.sol";
 import {StateLibrary} from "./utils/StateLibrary.sol";
 import {Licredity} from "src/Licredity.sol";
 import {ChainInfo} from "src/libraries/ChainInfo.sol";
@@ -241,13 +240,13 @@ contract LicredityUnlockPositionTest is Deployers {
 
         if (withdrawAmount <= 1 ether) {
             vm.expectEmit(true, true, true, true);
-            emit ILicredity.WithdrawFungible(positionId, user, Fungible.wrap(address(0)), withdrawAmount);
-            licredityRouterHelper.withdrawFungible(positionId, user, address(0), withdrawAmount);
+            emit ILicredity.WithdrawFungible(positionId, USER, Fungible.wrap(address(0)), withdrawAmount);
+            licredityRouterHelper.withdrawFungible(positionId, USER, address(0), withdrawAmount);
 
-            assertEq(user.balance, withdrawAmount);
+            assertEq(USER.balance, withdrawAmount);
         } else {
             vm.expectRevert(ILicredity.PositionNotHealthy.selector);
-            licredityRouterHelper.withdrawFungible(positionId, user, address(0), withdrawAmount);
+            licredityRouterHelper.withdrawFungible(positionId, USER, address(0), withdrawAmount);
         }
     }
 
@@ -281,8 +280,8 @@ contract LicredityUnlockPositionTest is Deployers {
         licredityRouter.depositNonFungible(positionId, getMockFungible(1));
 
         vm.expectEmit(true, true, true, false);
-        emit ILicredity.WithdrawNonFungible(positionId, user, getMockFungible(1));
+        emit ILicredity.WithdrawNonFungible(positionId, USER, getMockFungible(1));
 
-        licredityRouterHelper.withdrawNonFungible(1, user, getMockFungible(1));
+        licredityRouterHelper.withdrawNonFungible(1, USER, getMockFungible(1));
     }
 }

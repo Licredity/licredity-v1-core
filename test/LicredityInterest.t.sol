@@ -8,7 +8,7 @@ import {FullMath} from "src/libraries/FullMath.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {StateLibrary} from "./utils/StateLibrary.sol";
 import {ChainInfo} from "src/libraries/ChainInfo.sol";
-import {AAVEIntertestMath, RAY} from "./utils/AAVEMathInterest.sol";
+import {AaveIntertestMath, RAY} from "./utils/AaveMathInterest.sol";
 import {LicredityRouter} from "./utils/LicredityRouter.sol";
 import {LicredityRouterHelper} from "./utils/LicredityRouterHelper.sol";
 
@@ -45,7 +45,7 @@ contract LicredityInterestTest is Deployers {
             yearRate = 365e25;
         }
 
-        uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
+        uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
 
         uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, RAY);
         assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
@@ -90,7 +90,7 @@ contract LicredityInterestTest is Deployers {
             yearRate = 365e25;
         }
 
-        uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
+        uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
         uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, RAY);
 
         assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
@@ -120,7 +120,7 @@ contract LicredityInterestTest is Deployers {
             yearRate = 365e25;
         }
 
-        uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
+        uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
         uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, RAY);
 
         assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
@@ -147,7 +147,7 @@ contract LicredityInterestTest is Deployers {
             yearRate = 365e25;
         }
 
-        uint256 rayRate = AAVEIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
+        uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
         uint256 borrowWithInterest = FullMath.fullMulDiv(1 ether, rayRate, RAY);
         assertApproxEqAbs(amountRepaid, borrowWithInterest, 2);
     }

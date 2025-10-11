@@ -80,7 +80,32 @@ library FungibleLibrary {
                 }
             }
 
-            IERC20(Fungible.unwrap(self)).transferFrom(sender, recipient, amount);
+            assembly ("memory-safe") {
+                let fmp := mload(0x40)
+                mstore(fmp, 0x23b872dd00000000000000000000000000000000000000000000000000000000) // 'transferFrom(address,address,uint256)'
+                mstore(add(fmp, 0x04), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(fmp, 0x24), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff))
+                mstore(add(fmp, 0x44), amount)
+
+                // success if the call returns true or no data
+                let success :=
+                    and(
+                        or(and(eq(mload(0), true), gt(returndatasize(), 31)), iszero(returndatasize())),
+                        call(gas(), self, 0, fmp, 100, 0, 32)
+                    )
+
+                // clear memory
+                mstore(fmp, 0)
+                mstore(add(fmp, 0x04), 0)
+                mstore(add(fmp, 0x24), 0)
+                mstore(add(fmp, 0x44), 0)
+
+                // revert if the transfer from failed
+                if iszero(success) {
+                    mstore(0x00, 0xa512d51e) // 'ERC20TransferFromFailed()'
+                    revert(0x1c, 0x04)
+                }
+            }
         }
     }
 
