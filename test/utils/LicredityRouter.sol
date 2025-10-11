@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import {IUnlockCallback} from "src/interfaces/IUnlockCallback.sol";
+import {IUnlockExecutor} from "src/interfaces/IUnlockExecutor.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Fungible} from "src/types/Fungible.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
@@ -16,7 +16,7 @@ enum Actions {
     SEIZE
 }
 
-contract LicredityRouter is IUnlockCallback {
+contract LicredityRouter is IUnlockExecutor {
     address transient owner;
 
     ILicredity public licredity;
@@ -60,11 +60,10 @@ contract LicredityRouter is IUnlockCallback {
     }
 
     function executeActions(Actions[] memory actions, bytes[] memory params) external payable {
-        licredity.unlock(abi.encode(actions, params));
+        licredity.unlock(address(this), abi.encode(actions, params));
     }
 
-    function unlockCallback(bytes calldata data) external returns (bytes memory) {
-        owner = msg.sender;
+    function execute(address sender, bytes calldata data) external returns (bytes memory) {
         (Actions[] memory actions, bytes[] memory params) = abi.decode(data, (Actions[], bytes[]));
         for (uint256 i = 0; i < actions.length; i++) {
             Actions action = actions[i];
@@ -80,7 +79,7 @@ contract LicredityRouter is IUnlockCallback {
                 _withdrawNonFungible(param);
             } else if (action == Actions.DEPOSIT_FUNGIBLE) {
                 (uint256 positionId, address fungible, uint256 amount) = abi.decode(param, (uint256, address, uint256));
-                _depositFungible(owner, positionId, Fungible.wrap(fungible), amount);
+                _depositFungible(sender, positionId, Fungible.wrap(fungible), amount);
             } else if (action == Actions.SEIZE) {
                 _seizePosition(param);
             }

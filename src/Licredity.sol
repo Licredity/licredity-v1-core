@@ -12,7 +12,7 @@ import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IOracle} from "./interfaces/IOracle.sol";
-import {IUnlockCallback} from "./interfaces/IUnlockCallback.sol";
+import {IUnlockExecutor} from "./interfaces/IUnlockExecutor.sol";
 import {FullMath} from "./libraries/FullMath.sol";
 import {Locker} from "./libraries/Locker.sol";
 import {PipsMath} from "./libraries/PipsMath.sol";
@@ -103,14 +103,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function unlock(bytes calldata data) external noDelegateCall returns (bytes memory result) {
+    function unlock(address executor, bytes calldata data) external noDelegateCall returns (bytes memory result) {
         Locker.unlock();
 
         // accrue interest and update total debt balance
         _collectInterest(false);
 
-        // callback to message sender, which must implement IUnlockCallback
-        result = IUnlockCallback(msg.sender).unlockCallback(data);
+        // call the executor, which implements IUnlockExecutor
+        result = IUnlockExecutor(executor).execute(msg.sender, data);
 
         // ensure that every registered position is healthy
         bytes32[] memory items = Locker.registeredItems();
