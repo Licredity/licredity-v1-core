@@ -12,15 +12,15 @@ contract LockerTest is Test {
     bytes32[] private registeredItems;
 
     function test_unlock() public {
-        bool unlocked;
+        address unlockedBy;
         uint256 count;
 
         Locker.unlock();
         assembly {
-            unlocked := shr(255, tload(LOCKER_SLOT))
+            unlockedBy := shr(96, tload(LOCKER_SLOT))
             count := and(tload(LOCKER_SLOT), 0xffffffff)
         }
-        assertTrue(unlocked);
+        assertEq(unlockedBy, msg.sender);
         assertEq(count, 0);
     }
 

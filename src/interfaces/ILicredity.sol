@@ -76,9 +76,6 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @notice Thrown when the caller is not the position owner
     error NotPositionOwner();
 
-    /// @notice Thrown when a position does not exist
-    error PositionDoesNotExist();
-
     /// @notice Thrown when a position is not healthy
     error PositionNotHealthy();
 
