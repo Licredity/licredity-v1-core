@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
-import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Locker} from "src/libraries/Locker.sol";
 
 contract LockerTest is Test {
@@ -27,7 +26,7 @@ contract LockerTest is Test {
     /// forge-config: default.allow_internal_expect_revert = true
     function test_duplicate_unlock() public {
         Locker.unlock();
-        vm.expectRevert(ILicredity.LockerAlreadyUnlocked.selector);
+        vm.expectRevert(Locker.LockerAlreadyUnlocked.selector);
         Locker.unlock();
     }
 
@@ -43,13 +42,13 @@ contract LockerTest is Test {
 
     /// forge-config: default.allow_internal_expect_revert = true
     function test_lock_AlreadyLocked() public {
-        vm.expectRevert(ILicredity.LockerAlreadyLocked.selector);
+        vm.expectRevert(Locker.LockerAlreadyLocked.selector);
         Locker.lock();
     }
 
     /// forge-config: default.allow_internal_expect_revert = true
     function test_register_NotUnlocked() public {
-        vm.expectRevert(ILicredity.LockerNotUnlocked.selector);
+        vm.expectRevert(Locker.LockerNotUnlocked.selector);
         Locker.register(bytes32(0));
     }
 

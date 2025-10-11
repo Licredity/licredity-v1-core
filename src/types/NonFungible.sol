@@ -22,6 +22,8 @@ function equals(NonFungible self, NonFungible other) pure returns (bool _equals)
 /// @title NonFungibleLibrary
 /// @notice Library for managing non-fungibles
 library NonFungibleLibrary {
+    error TokenIdOutOfBound();
+
     bytes32 internal constant NON_FUNGIBLE_MASK = 0xffffffffffffffffffffffffffffffffffffffff00000000ffffffffffffffff;
 
     /// @notice Transfers a non-fungible to recipient

@@ -10,6 +10,11 @@ import {BeforeSwapDelta, toBeforeSwapDelta} from "@uniswap-v4-core/types/BeforeS
 import {Currency} from "@uniswap-v4-core/types/Currency.sol";
 import {PoolId} from "@uniswap-v4-core/types/PoolId.sol";
 import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
+import {BaseERC20} from "./base/BaseERC20.sol";
+import {BaseHooks} from "./base/BaseHooks.sol";
+import {Extsload} from "./base/Extsload.sol";
+import {NoDelegateCall} from "./base/NoDelegateCall.sol";
+import {RiskConfigs} from "./base/RiskConfigs.sol";
 import {ILicredity} from "./interfaces/ILicredity.sol";
 import {IOracle} from "./interfaces/IOracle.sol";
 import {IUnlockExecutor} from "./interfaces/IUnlockExecutor.sol";
@@ -20,11 +25,6 @@ import {Fungible} from "./types/Fungible.sol";
 import {InterestRate} from "./types/InterestRate.sol";
 import {NonFungible} from "./types/NonFungible.sol";
 import {Position} from "./types/Position.sol";
-import {BaseERC20} from "./BaseERC20.sol";
-import {BaseHooks} from "./BaseHooks.sol";
-import {Extsload} from "./Extsload.sol";
-import {NoDelegateCall} from "./NoDelegateCall.sol";
-import {RiskConfigs} from "./RiskConfigs.sol";
 
 /// @title Licredity
 /// @notice Provides the core functionalities of the protocol
@@ -83,10 +83,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         string memory name,
         string memory symbol
     ) BaseHooks(poolManager_) BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals()) RiskConfigs(_governor) {
-        // require(address(this) > baseToken, LicredityAddressNotValid());
+        // require(address(this) > baseToken, InvalidLicredityAddress());
         if (address(this) <= baseToken) {
             assembly ("memory-safe") {
-                mstore(0x00, 0xb05fc81d) // 'LicredityAddressNotValid()'
+                mstore(0x00, 0x2bf969e9) // 'InvalidLicredityAddress()'
                 revert(0x1c, 0x04)
             }
         }
@@ -347,7 +347,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         // ensure position health post withdrawal
         Locker.register(bytes32(positionId));
 
-        position.removeNonFungible(nonFungible);
+        bool isRemoved = position.removeNonFungible(nonFungible);
+        // require(isRemoved, NonFungibleNotFound());
+        assembly ("memory-safe") {
+            if iszero(isRemoved) {
+                mstore(0x00, 0x92135bed) // 'NonFungibleNotFound()'
+                revert(0x1c, 0x04)
+            }
+        }
         nonFungible.transfer(recipient);
 
         // emit WithdrawNonFungible(positionId, recipient, nonFungible);

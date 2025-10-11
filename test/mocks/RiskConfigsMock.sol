@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity =0.8.30;
 
-import {RiskConfigs} from "src/RiskConfigs.sol";
+import {RiskConfigs} from "src/base/RiskConfigs.sol";
 
 contract RiskConfigsMock is RiskConfigs {
     constructor(address _governor) RiskConfigs(_governor) {}

@@ -16,116 +16,26 @@ import {IRiskConfigs} from "./IRiskConfigs.sol";
 /// @title ILicredity
 /// @notice Interface for the core functionalities of the protocol
 interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenReceiver {
-    /// @notice Thrown when the Licredity contract address is not valid
-    error LicredityAddressNotValid();
-
-    /// @notice Thrown when a zero address is used
-    error ZeroAddressNotAllowed();
-
-    /// @notice Thrown when a delegate call is attempted
-    error DelegateCallNotAllowed();
-
-    /// @notice Thrown when the locker is already unlocked
-    error LockerAlreadyUnlocked();
-
-    /// @notice Thrown when the locker is already locked
-    error LockerAlreadyLocked();
-
-    /// @notice Thrown when the locker is not unlocked
-    error LockerNotUnlocked();
-
-    /// @notice Thrown when full precision mul div fails
-    error FullMulDivFailed();
-
-    /// @notice Thrown when full precision mul div with rounding up fails
-    error FullMulDivUpFailed();
-
-    /// @notice Thrown when pips multiplication with rounding up fails
-    error PipsMulUpFailed();
-
-    /// @notice Thrown when interest rate multiplication fails
-    error InterestRateMulFailed();
-
-    /// @notice Thrown when the caller is not the pool manager
-    error NotPoolManager();
-
-    /// @notice Thrown when an unimplemented hook is called
-    error HookNotImplemented();
-
-    /// @notice Thrown when a native transfer fails
-    error NativeTransferFailed();
-
-    /// @notice Thrown when transferFrom on the naitve fungible is attempted
-    error NativeTransferFromNotAllowed();
-
-    /// @notice Thrown when an ERC20 transfer fails
-    error ERC20TransferFailed();
-
-    /// @notice Thrown when an ERC20 allowance is exceeded
-    error ERC20AllowanceExceeded();
-
-    /// @notice Thrown when max index is exceeded
-    error MaxFungibleIndexExceeded();
-
-    /// @notice Thrown when max balance is exceeded
-    error MaxFungibleBalanceExceeded();
-
-    /// @notice Thrown when a non-fungible token is not found
-    error NonFungibleNotFound();
-
-    /// @notice Thrown when the caller is not the position owner
-    error NotPositionOwner();
-
-    /// @notice Thrown when a position is not healthy
-    error PositionNotHealthy();
-
-    /// @notice Thrown when a position is not empty
-    error PositionNotEmpty();
-
-    /// @notice Thrown when a fungible is not the base fungible
-    error NotBaseFungible();
-
-    /// @notice Thrown when a fungible is not the debt fungible
-    error NotDebtFungible();
-
-    /// @notice Thrown when the exchangeable amount is exceeded
-    error ExchangeableAmountExceeded();
-
-    /// @notice Thrown when the native value sent is not zero
-    error NativeValueNotZero();
-
-    /// @notice Thrown when max fungibles per position is exceeded
-    error MaxFungiblesExceeded();
-
-    /// @notice Thrown when a non-fungible is already owned
-    error NonFungibleAlreadyOwned();
-
-    /// @notice Thrown when a non-fungible is not owned
-    error NonFungibleNotOwned();
-
-    /// @notice Thrown when max non-fungibles per position is exceeded
-    error MaxNonFungiblesExceeded();
-
-    /// @notice Thrown when the debt limit is exceeded
     error DebtLimitExceeded();
-
-    /// @notice Thrown when seizing a registered position is attempted
-    error RegisteredPositionCannotBeSeized();
-
-    /// @notice Thrown when a position is healthy
-    error PositionIsHealthy();
-
-    /// @notice Thrown when the sender is not the Licredity contract
-    error NotLicredity();
-
-    /// @notice Thrown when the minimum liquidity lifespan is not met
+    error ExchangeableAmountExceeded();
+    error InvalidLicredityAddress();
+    error MaxFungiblesExceeded();
+    error MaxNonFungiblesExceeded();
     error MinLiquidityLifespanNotMet();
-
-    /// @notice Thrown when the price is too low
+    error NativeValueNotZero();
+    error NonFungibleAlreadyOwned();
+    error NonFungibleNotFound();
+    error NonFungibleNotOwned();
+    error NotBaseFungible();
+    error NotDebtFungible();
+    error NotLicredity();
+    error NotPositionOwner();
+    error PositionIsHealthy();
+    error PositionNotEmpty();
+    error PositionNotHealthy();
     error PriceTooLow();
-
-    /// @notice Thrown when token ID is out of bound
-    error TokenIdOutOfBound();
+    error RegisteredPositionCannotBeSeized();
+    error ZeroAddressNotAllowed();
 
     /// @notice Emitted when a position has been opened
     /// @param positionId The ID of the position
@@ -148,6 +58,11 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @param amount The amount of fungible deposited
     event DepositFungible(uint256 indexed positionId, Fungible indexed fungible, uint256 amount);
 
+    /// @notice Emitted when a non-fungible has been deposited into a position
+    /// @param positionId The ID of the position
+    /// @param nonFungible The non-fungible deposited
+    event DepositNonFungible(uint256 indexed positionId, NonFungible indexed nonFungible);
+
     /// @notice Emitted when a fungible has been withdrawn from a position
     /// @param positionId The ID of the position
     /// @param recipient The recipient of the withdrawal
@@ -156,11 +71,6 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     event WithdrawFungible(
         uint256 indexed positionId, address indexed recipient, Fungible indexed fungible, uint256 amount
     );
-
-    /// @notice Emitted when a non-fungible has been deposited into a position
-    /// @param positionId The ID of the position
-    /// @param nonFungible The non-fungible deposited
-    event DepositNonFungible(uint256 indexed positionId, NonFungible indexed nonFungible);
 
     /// @notice Emitted when a non-fungible has been withdrawn from a position
     /// @param positionId The ID of the position
@@ -225,13 +135,6 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @param positionId The ID of the position to deposit into
     function depositFungible(uint256 positionId) external payable;
 
-    /// @notice Withdraws amount of fungible from a position to a recipient
-    /// @param positionId The ID of the position to withdraw from
-    /// @param recipient The recipient of the withdrawal
-    /// @param fungible The fungible to withdraw
-    /// @param amount The amount of fungible to withdraw
-    function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount) external;
-
     /// @notice Stages a non-fungible for deposit
     /// @param nonFungible The non-fungible to be staged
     function stageNonFungible(NonFungible nonFungible) external;
@@ -239,6 +142,13 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @notice Deposits staged non-fungible received into a position
     /// @param positionId The ID of the position to deposit into
     function depositNonFungible(uint256 positionId) external;
+
+    /// @notice Withdraws amount of fungible from a position to a recipient
+    /// @param positionId The ID of the position to withdraw from
+    /// @param recipient The recipient of the withdrawal
+    /// @param fungible The fungible to withdraw
+    /// @param amount The amount of fungible to withdraw
+    function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount) external;
 
     /// @notice Withdraws a non-fungible from a position to a recipient
     /// @param positionId The ID of the position to withdraw from

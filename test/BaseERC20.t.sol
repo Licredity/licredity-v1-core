@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
-import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {BaseERC20} from "src/base/BaseERC20.sol";
 import {BaseERC20Mock} from "src/test/BaseERC20Mock.sol";
 
 contract BaseERC20MockTest is Test {
@@ -140,7 +140,7 @@ contract BaseERC20MockTest is Test {
         token.approve(spender, amount);
 
         vm.prank(spender);
-        vm.expectRevert(ILicredity.ERC20AllowanceExceeded.selector);
+        vm.expectRevert(BaseERC20.ERC20InsufficientAllowance.selector);
         token.transferFrom(from, to, transferAmount);
     }
 }

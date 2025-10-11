@@ -4,6 +4,9 @@ pragma solidity ^0.8.0;
 /// @title FullMath
 /// @notice Library for performing math operations in full precision
 library FullMath {
+    error FullMulDivFailed();
+    error FullMulDivUpFailed();
+
     /// @notice Calculates `floor(x * y / d)` with full precision, throws if result overflows a uint256 or when `d` is zero.
     /// @param x The first multiplicand
     /// @param y The second multiplicand

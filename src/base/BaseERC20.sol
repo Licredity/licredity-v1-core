@@ -11,6 +11,9 @@ abstract contract BaseERC20 is IERC20 {
         mapping(address => uint256) allowances;
     }
 
+    error ERC20InsufficientAllowance();
+    error ERC20InvalidReceiver();
+
     uint256 private constant BALANCE_OFFSET = 0;
     uint256 private constant ALLOWANCES_OFFSET = 1;
 
@@ -25,10 +28,10 @@ abstract contract BaseERC20 is IERC20 {
 
     mapping(address => OwnerData) internal _ownerData;
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
-        name = name_;
-        symbol = symbol_;
-        decimals = decimals_;
+    constructor(string memory _name, string memory _symbol, uint8 _decimals) {
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
     }
 
     /// @inheritdoc IERC20
@@ -57,9 +60,9 @@ abstract contract BaseERC20 is IERC20 {
     /// @inheritdoc IERC20
     function transfer(address to, uint256 amount) public returns (bool) {
         assembly ("memory-safe") {
-            //  require(to != address(0), ZeroAddressNotAllowed());
+            //  require(to != address(0), ERC20InvalidReceiver());
             if iszero(to) {
-                mstore(0x00, 0x8579befe) // 'ZeroAddressNotAllowed()'
+                mstore(0x00, 0x04786ad1) // 'ERC20InvalidReceiver()'
                 revert(0x1c, 0x04)
             }
         }
@@ -72,9 +75,9 @@ abstract contract BaseERC20 is IERC20 {
     /// @inheritdoc IERC20
     function transferFrom(address from, address to, uint256 amount) public returns (bool) {
         assembly ("memory-safe") {
-            //  require(to != address(0), ZeroAddressNotAllowed());
+            //  require(to != address(0), ERC20InvalidReceiver());
             if iszero(to) {
-                mstore(0x00, 0x8579befe) // 'ZeroAddressNotAllowed()'
+                mstore(0x00, 0x04786ad1) // 'ERC20InvalidReceiver()'
                 revert(0x1c, 0x04)
             }
 
@@ -93,9 +96,9 @@ abstract contract BaseERC20 is IERC20 {
                 let allowanceSlot := keccak256(0x00, 0x40)
                 let _allowance := sload(allowanceSlot)
 
-                // require(_allowance >= amount, ERC20AllowanceExceeded());
+                // require(_allowance >= amount, ERC20InsufficientAllowance());
                 if lt(_allowance, amount) {
-                    mstore(0x00, 0xaf707c1d) // 'ERC20AllowanceExceeded()'
+                    mstore(0x00, 0x2fc50d60) // 'ERC20InsufficientAllowance()'
                     revert(0x1c, 0x04)
                 }
 

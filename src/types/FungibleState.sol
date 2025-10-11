@@ -11,6 +11,9 @@ using FungibleStateLibrary for FungibleState global;
 /// @title FungibleStateLibrary
 /// @notice Library for managing fungible states
 library FungibleStateLibrary {
+    error MaxFungibleBalanceExceeded();
+    error MaxFungibleIndexExceeded();
+
     /// @notice Gets the index of a fungible from its state
     /// @param self The fungible state to get the index from
     /// @return _index The index of the fungible
