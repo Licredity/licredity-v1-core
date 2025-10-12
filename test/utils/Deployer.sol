@@ -22,7 +22,7 @@ contract Deployers is Test {
     using StateLibrary for Licredity;
 
     IPoolManager public poolManager;
-    address public constant user = address(0xE585379156909287F8aA034B2F4b1Cb88aa3d29D);
+    address public constant USER = address(0xE585379156909287F8aA034B2F4b1Cb88aa3d29D);
 
     Licredity public licredity;
     NonFungibleMock public nonFungibleMock;
@@ -56,6 +56,7 @@ contract Deployers is Test {
         vm.deal(v4PoolManagerAddr, 10000 ether);
     }
 
+    // forge-lint: disable-next-line(mixed-case-function)
     function deployETHLicredityWithUniswapV4() public {
         deployPoolManager(address(this), hex"01");
 
@@ -104,6 +105,7 @@ contract Deployers is Test {
         }
     }
 
+    // forge-lint: disable-next-line(mixed-case-function)
     function getDebtERC20(address receiver, uint128 amount) public {
         uint256 positionId = licredityRouter.openPosition();
 

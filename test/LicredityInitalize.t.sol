@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {Deployers} from "./utils/Deployer.sol";
 import {StateLibrary} from "./utils/StateLibrary.sol";
-import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
 
 contract LicredityInitalizeTest is Deployers {
     function test_initalize_BaseERC20LtBaseToken() public {

@@ -3,11 +3,11 @@ pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
 import {InterestRate, InterestRateLibrary} from "src/types/InterestRate.sol";
-import {AAVEIntertestMath} from "../utils/AAVEMathInterest.sol";
+import {AaveIntertestMath} from "../utils/AaveMathInterest.sol";
 
 contract InterestRateLibraryTest is Test {
-    function AAVERayMul(uint256 a, uint256 b) public pure returns (uint256) {
-        return AAVEIntertestMath.rayMul(a, b);
+    function aaveRayMul(uint256 a, uint256 b) public pure returns (uint256) {
+        return AaveIntertestMath.rayMul(a, b);
     }
 
     function mul(InterestRate a, InterestRate b) public pure returns (InterestRate) {
@@ -16,7 +16,7 @@ contract InterestRateLibraryTest is Test {
 
     function test_mul(uint256 x, uint256 y) public view {
         (bool success0, bytes memory result0) =
-            address(this).staticcall(abi.encodeWithSignature("AAVERayMul(uint256,uint256)", x, y));
+            address(this).staticcall(abi.encodeWithSignature("aaveRayMul(uint256,uint256)", x, y));
         (bool success1, bytes memory result1) =
             address(this).staticcall(abi.encodeWithSignature("mul(uint256,uint256)", x, y));
 
@@ -26,8 +26,8 @@ contract InterestRateLibraryTest is Test {
         }
     }
 
-    function AAVECalculateCompoundedInterest(uint256 rate, uint256 elapsed) public pure returns (uint256) {
-        return AAVEIntertestMath.calculateCompoundedInterest(rate, elapsed);
+    function aaveCalculateCompoundedInterest(uint256 rate, uint256 elapsed) public pure returns (uint256) {
+        return AaveIntertestMath.calculateCompoundedInterest(rate, elapsed);
     }
 
     function calculateInterest(InterestRate rate, uint256 principal, uint256 elapsed) public pure returns (uint256) {
@@ -39,7 +39,7 @@ contract InterestRateLibraryTest is Test {
         elapsed = bound(elapsed, 0, 100 * 365 days);
 
         (bool success0, bytes memory result0) = address(this).staticcall(
-            abi.encodeWithSignature("AAVECalculateCompoundedInterest(uint256,uint256)", yearRate, elapsed)
+            abi.encodeWithSignature("aaveCalculateCompoundedInterest(uint256,uint256)", yearRate, elapsed)
         );
         (bool success1, bytes memory result1) = address(this).staticcall(
             abi.encodeWithSignature("calculateInterest(uint256,uint256,uint256)", yearRate, 1e27, elapsed)

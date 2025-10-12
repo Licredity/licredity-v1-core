@@ -46,14 +46,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     uint256 internal transient _stagedFungibleBalance;
     NonFungible internal transient _stagedNonFungible;
 
-    uint256 internal immutable _scaleFactor; // used to convert price deviation to interest rate, accounting for precision differences
+    Fungible internal immutable BASE_FUNGIBLE;
+    PoolId internal immutable POOL_ID;
+    uint256 internal immutable SCALE_FACTOR; // used to convert price deviation to interest rate, accounting for precision differences
     PoolKey internal _poolKey;
     uint256 internal _lastInterestCollectionTimestamp;
     mapping(uint256 => Position) internal _positions;
     mapping(bytes32 => uint256) internal _liquidityOnsets; // maps liquidity key to its onset timestamp
 
-    Fungible public immutable baseFungible;
-    PoolId public immutable poolId;
     uint256 public accruedDonation;
     uint256 public accruedProtocolFee;
     uint256 public exchangeableAmount;
@@ -92,14 +92,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
 
         // set base fungibles and scale factor
-        baseFungible = Fungible.wrap(baseToken);
-        _scaleFactor = interestSensitivity * 1e9;
+        BASE_FUNGIBLE = Fungible.wrap(baseToken);
+        SCALE_FACTOR = interestSensitivity * 1e9;
 
         // set pool key and id, initialize the hooked pool
         _poolKey =
             PoolKey(Currency.wrap(baseToken), Currency.wrap(address(this)), FEE, TICK_SPACING, IHooks(address(this)));
-        poolId = _poolKey.toId();
-        _poolManager.initialize(_poolKey, ONE_X96);
+        POOL_ID = _poolKey.toId();
+        POOL_MANAGER.initialize(_poolKey, ONE_X96);
     }
 
     /// @inheritdoc ILicredity
@@ -194,10 +194,10 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         if (baseForDebt) {
             // allow unlimited exchange of base fungible for debt fungible at 1:1 ratio
             // prevents insufficient liquidity when repaying debt fungible
-            Fungible _baseFungible = baseFungible;
+            Fungible _baseFungible = BASE_FUNGIBLE;
 
             assembly ("memory-safe") {
-                // require(fungible == baseFungible, NotBaseFungible());
+                // require(fungible == _baseFungible, NotBaseFungible());
                 if iszero(eq(fungible, _baseFungible)) {
                     mstore(0x00, 0x74db12cd) // 'NotBaseFungible()'
                     revert(0x1c, 0x04)
@@ -232,7 +232,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
             // complete the exchange
             _burn(address(this), amount);
-            baseFungible.transfer(recipient, amount);
+            BASE_FUNGIBLE.transfer(recipient, amount);
         }
 
         assembly ("memory-safe") {
@@ -694,7 +694,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     /// @inheritdoc ILicredity
     function poolManager() external view returns (IPoolManager) {
-        return _poolManager;
+        return POOL_MANAGER;
     }
 
     /// @inheritdoc ILicredity
@@ -723,11 +723,22 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
+    function baseFungible() external view returns (Fungible) {
+        return BASE_FUNGIBLE;
+    }
+
+    /// @inheritdoc ILicredity
+    function poolId() external view returns (PoolId) {
+        return POOL_ID;
+    }
+
+    /// @inheritdoc ILicredity
     function poolKey() external view returns (PoolKey memory) {
         return _poolKey;
     }
 
     /// @inheritdoc IERC721TokenReceiver
+    // forge-lint: disable-next-line(mixed-case-function)
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
     }
@@ -761,7 +772,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             sstore(keccak256(0x00, 0x40), timestamp())
         }
 
-        (, int24 tick,,) = _poolManager.getSlot0(poolId);
+        (, int24 tick,,) = POOL_MANAGER.getSlot0(POOL_ID);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
             // collect and donate interest before active liquidity is updated
@@ -792,7 +803,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             }
         }
 
-        (, int24 tick,,) = _poolManager.getSlot0(poolId);
+        (, int24 tick,,) = POOL_MANAGER.getSlot0(POOL_ID);
 
         if (tick >= params.tickLower && tick <= params.tickUpper) {
             // collect and donate interest before active liquidity is updated
@@ -820,7 +831,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         override
         returns (bytes4, int128)
     {
-        (uint256 sqrtPriceX96,,,) = _poolManager.getSlot0(poolId);
+        (uint256 sqrtPriceX96,,,) = POOL_MANAGER.getSlot0(POOL_ID);
 
         // price below 1 will result in negative interest, which is not allowed
         // require(sqrtPriceX96 >= ONE_X96, PriceTooLow());
@@ -876,17 +887,17 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
 
         // only donate if requested and there is active liquidity in the pool
-        if (donate && _poolManager.getLiquidity(poolId) > 0) {
+        if (donate && POOL_MANAGER.getLiquidity(POOL_ID) > 0) {
             // include any accrued donation and set it to 0
             donation += accruedDonation;
             accruedDonation = 0;
 
             if (donation > 0) {
                 // donate to active liquidity
-                _poolManager.donate(_poolKey, 0, donation, "");
-                _poolManager.sync(Currency.wrap(address(this)));
-                _mint(address(_poolManager), donation);
-                _poolManager.settle();
+                POOL_MANAGER.donate(_poolKey, 0, donation, "");
+                POOL_MANAGER.sync(Currency.wrap(address(this)));
+                _mint(address(POOL_MANAGER), donation);
+                POOL_MANAGER.settle();
             }
         } else if (donation > 0) {
             // accrue donation for later distribution
@@ -996,7 +1007,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     function _priceToInterestRate(uint256 price) internal view returns (InterestRate interestRate) {
         uint256 oneD18 = ONE_D18;
-        uint256 scaleFactor = _scaleFactor;
+        uint256 scaleFactor = SCALE_FACTOR;
 
         assembly ("memory-safe") {
             if lt(price, oneD18) {
@@ -1007,7 +1018,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
             if gt(price, oneD18) {
                 // price has 18 decimals, and interest has 27 decimals
-                // interestRate = InterestRate.wrap((price - 1e18) * _scaleFactor);
+                // interestRate = InterestRate.wrap((price - 1e18) * scaleFactor);
                 interestRate := mul(sub(price, oneD18), scaleFactor)
 
                 if gt(interestRate, MAX_INTEREST_RATE) { interestRate := MAX_INTEREST_RATE }

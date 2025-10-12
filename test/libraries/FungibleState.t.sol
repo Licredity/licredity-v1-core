@@ -19,6 +19,7 @@ contract FungibleStateTest is Test {
             vm.expectRevert(ILicredity.MaxFungibleBalanceExceeded.selector);
         }
 
+        // forge-lint: disable-next-line(unchecked-call)
         (, bytes memory data) = address(this).call{value: 0}(abi.encodeCall(this.from, (index, balance)));
         FungibleState state = abi.decode(data, (FungibleState));
 
