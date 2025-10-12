@@ -36,29 +36,21 @@ library FungibleLibrary {
             }
         } else {
             // ERC20 transfer
+            // modified from: https://github.com/Vectorized/solady/blob/main/src/utils/SafeTransferLib.sol
             assembly ("memory-safe") {
-                let fmp := mload(0x40)
-                mstore(fmp, 0xa9059cbb00000000000000000000000000000000000000000000000000000000) // 'transfer(address,uint256)'
-                mstore(add(fmp, 0x04), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff))
-                mstore(add(fmp, 0x24), amount)
-
-                // success if the call returns true or no data
-                let success :=
-                    and(
-                        or(and(eq(mload(0), true), gt(returndatasize(), 31)), iszero(returndatasize())),
-                        call(gas(), self, 0, fmp, 68, 0, 32)
-                    )
-
-                // clear memory
-                mstore(fmp, 0)
-                mstore(add(fmp, 0x04), 0)
-                mstore(add(fmp, 0x24), 0)
-
-                // revert if the transfer failed
-                if iszero(success) {
-                    mstore(0x00, 0xf27f64e4) // 'ERC20TransferFailed()'
-                    revert(0x1c, 0x04)
+                let m := mload(0x40) // Cache the free memory pointer.
+                mstore(0x14, recipient) // Store the `recipient` argument.
+                mstore(0x34, amount) // Store the `amount` argument.
+                mstore(0x00, 0xa9059cbb000000000000000000000000) // `transfer(address,uint256)`.
+                // Perform the transfer, reverting upon failure.
+                let success := call(gas(), self, 0, 0x10, 0x44, 0x00, 0x20)
+                if iszero(and(eq(mload(0x00), 1), success)) {
+                    if iszero(lt(or(iszero(extcodesize(self)), returndatasize()), success)) {
+                        mstore(0x00, 0xf27f64e4) // `ERC20TransferFailed()`.
+                        revert(0x1c, 0x04)
+                    }
                 }
+                mstore(0x40, m) // Restore the free memory pointer.
             }
         }
     }
@@ -80,31 +72,24 @@ library FungibleLibrary {
                 }
             }
 
+            // ERC20 transferFrom
+            // modified from: https://github.com/Vectorized/solady/blob/main/src/utils/SafeTransferLib.sol
             assembly ("memory-safe") {
-                let fmp := mload(0x40)
-                mstore(fmp, 0x23b872dd00000000000000000000000000000000000000000000000000000000) // 'transferFrom(address,address,uint256)'
-                mstore(add(fmp, 0x04), and(sender, 0xffffffffffffffffffffffffffffffffffffffff))
-                mstore(add(fmp, 0x24), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff))
-                mstore(add(fmp, 0x44), amount)
-
-                // success if the call returns true or no data
-                let success :=
-                    and(
-                        or(and(eq(mload(0), true), gt(returndatasize(), 31)), iszero(returndatasize())),
-                        call(gas(), self, 0, fmp, 100, 0, 32)
-                    )
-
-                // clear memory
-                mstore(fmp, 0)
-                mstore(add(fmp, 0x04), 0)
-                mstore(add(fmp, 0x24), 0)
-                mstore(add(fmp, 0x44), 0)
-
-                // revert if the transfer from failed
-                if iszero(success) {
-                    mstore(0x00, 0xa512d51e) // 'ERC20TransferFromFailed()'
-                    revert(0x1c, 0x04)
+                let m := mload(0x40) // Cache the free memory pointer.
+                mstore(0x60, amount) // Store the `amount` argument.
+                mstore(0x40, recipient) // Store the `recipient` argument.
+                mstore(0x2c, shl(96, sender)) // Store the `sender` argument.
+                mstore(0x0c, 0x23b872dd000000000000000000000000) // `transferFrom(address,address,uint256)`.
+                // Perform the transfer from, reverting upon failure.
+                let success := call(gas(), self, 0, 0x1c, 0x64, 0x00, 0x20)
+                if iszero(and(eq(mload(0x00), 1), success)) {
+                    if iszero(lt(or(iszero(extcodesize(self)), returndatasize()), success)) {
+                        mstore(0x00, 0xa512d51e) // `ERC20TransferFromFailed()`.
+                        revert(0x1c, 0x04)
+                    }
                 }
+                mstore(0x60, 0) // Restore the zero slot to zero.
+                mstore(0x40, m) // Restore the free memory pointer.
             }
         }
     }
