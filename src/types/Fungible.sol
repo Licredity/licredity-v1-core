@@ -18,6 +18,11 @@ function equals(Fungible self, Fungible other) pure returns (bool) {
 /// @title FungibleLibrary
 /// @notice Library for managing fungibles
 library FungibleLibrary {
+    error ERC20TransferFailed();
+    error ERC20TransferFromFailed();
+    error NativeTransferFailed();
+    error NativeTransferFromNotAllowed();
+
     /// @notice Transfers amount of fungible to recipient
     /// @param self The fungible to transfer
     /// @param recipient The recipient of the transfer

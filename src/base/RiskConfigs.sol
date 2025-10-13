@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IOracle} from "./interfaces/IOracle.sol";
-import {IRiskConfigs} from "./interfaces/IRiskConfigs.sol";
-import {PipsMath} from "./libraries/PipsMath.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
+import {IRiskConfigs} from "../interfaces/IRiskConfigs.sol";
+import {PipsMath} from "../libraries/PipsMath.sol";
 
 /// @title RiskConfigs
 /// @notice Abstract implementation of risk configurations

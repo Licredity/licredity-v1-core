@@ -13,6 +13,8 @@ using InterestRateLibrary for InterestRate global;
 /// @title InterestRateLibrary
 /// @notice Library for managing interest rates
 library InterestRateLibrary {
+    error InterestRateMulFailed();
+
     using FullMath for uint256;
 
     uint256 private constant SECONDS_PER_YEAR = 365 days;

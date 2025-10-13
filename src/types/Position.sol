@@ -167,7 +167,8 @@ library PositionLibrary {
     /// @notice Removes a non-fungible from a position
     /// @param self The position to remove non-fungible from
     /// @param nonFungible The non-fungible to remove
-    function removeNonFungible(Position storage self, NonFungible nonFungible) internal {
+    /// @return isRemoved True if the non-fungible was removed, false otherwise
+    function removeNonFungible(Position storage self, NonFungible nonFungible) internal returns (bool isRemoved) {
         bytes32 mask = NonFungibleLibrary.NON_FUNGIBLE_MASK;
 
         // remove a non-fungible from the non-fungibles array
@@ -176,7 +177,6 @@ library PositionLibrary {
             let len := sload(slot)
             mstore(0x00, slot)
             let dataSlot := keccak256(0x00, 0x20)
-            let isRemoved := false
 
             for { let i := 0 } lt(i, len) { i := add(i, 1) } {
                 let elementSlot := add(dataSlot, i)
@@ -196,11 +196,6 @@ library PositionLibrary {
                     isRemoved := true
                     break
                 }
-            }
-
-            if iszero(isRemoved) {
-                mstore(0x00, 0x92135bed) // 'NonFungibleNotFound()'
-                revert(0x1c, 0x04)
             }
         }
     }

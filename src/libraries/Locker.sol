@@ -4,6 +4,10 @@ pragma solidity =0.8.30;
 /// @title Locker
 /// @notice Library for managing locker operations
 library Locker {
+    error LockerAlreadyLocked();
+    error LockerAlreadyUnlocked();
+    error LockerNotUnlocked();
+
     // bytes32(uint256(keccak256("Locker")) - 1)
     // 160 bit unlocked by | 64 bits empty | 32 bits count
     bytes32 private constant LOCKER_SLOT = 0x0e87e1788ebd9ed6a7e63c70a374cd3283e41cad601d21fbe27863899ed4a708;

@@ -2,12 +2,11 @@
 pragma solidity =0.8.30;
 
 import {IOracle} from "../interfaces/IOracle.sol";
+import {PipsMath} from "../libraries/PipsMath.sol";
 import {Fungible} from "../types/Fungible.sol";
 import {NonFungible} from "../types/NonFungible.sol";
 
 contract OracleMock is IOracle {
-    uint24 internal constant UNIT_PIPS = 1_000_000;
-
     uint256 public quotePrice;
     mapping(Fungible fungible => uint256 price) fungiblePrices;
     mapping(Fungible fungible => uint24 mrrBps) fungibleMrrBps;
@@ -29,7 +28,7 @@ contract OracleMock is IOracle {
         returns (uint256 value, uint256 marginRequirement)
     {
         value = fullMulDiv(amount, fungiblePrices[fungible], 1 ether);
-        marginRequirement = value * fungibleMrrBps[fungible] / UNIT_PIPS;
+        marginRequirement = value * fungibleMrrBps[fungible] / PipsMath.ONE_PIPS;
     }
 
     function quoteFungibles(Fungible[] memory fungibles, uint256[] memory amounts)
@@ -60,7 +59,7 @@ contract OracleMock is IOracle {
             NonFungible nonFungible = nonFungibles[i];
 
             value += nonFungibleValue[nonFungible];
-            marginRequirement += value * nonFungibleMrrBps[nonFungible] / UNIT_PIPS;
+            marginRequirement += value * nonFungibleMrrBps[nonFungible] / PipsMath.ONE_PIPS;
         }
     }
 

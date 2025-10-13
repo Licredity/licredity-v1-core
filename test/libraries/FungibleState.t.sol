@@ -2,7 +2,6 @@
 pragma solidity ^0.8.20;
 
 import {Test} from "@forge-std/Test.sol";
-import {ILicredity} from "src/interfaces/ILicredity.sol";
 import {FungibleState, FungibleStateLibrary} from "src/types/FungibleState.sol";
 
 contract FungibleStateTest is Test {
@@ -14,9 +13,9 @@ contract FungibleStateTest is Test {
 
     function test_fuzz_from(uint256 index, uint256 balance) public {
         if (index > type(uint64).max) {
-            vm.expectRevert(ILicredity.MaxFungibleIndexExceeded.selector);
+            vm.expectRevert(FungibleStateLibrary.MaxFungibleIndexExceeded.selector);
         } else if (balance > type(uint128).max) {
-            vm.expectRevert(ILicredity.MaxFungibleBalanceExceeded.selector);
+            vm.expectRevert(FungibleStateLibrary.MaxFungibleBalanceExceeded.selector);
         }
 
         // forge-lint: disable-next-line(unchecked-call)

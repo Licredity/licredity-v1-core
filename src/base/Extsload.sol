@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IExtsload} from "./interfaces/IExtsload.sol";
+import {IExtsload} from "../interfaces/IExtsload.sol";
 
 /// @title Extsload
 /// @notice Abstract implementation of external storage load

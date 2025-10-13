@@ -4,17 +4,10 @@ pragma solidity >=0.8.0;
 /// @title IRiskConfigs
 /// @notice Interface for the risk configurations contract
 interface IRiskConfigs {
-    /// @notice Thrown when the caller is not the governor
-    error NotGovernor();
-
-    /// @notice Thrown when the caller is not the next governor
-    error NotNextGovernor();
-
-    /// @notice Thrown when the maximum minimum-liquidity-lifespan is exceeded
     error MaxMinLiquidityLifespanExceeded();
-
-    /// @notice Thrown when the maximum protocol fee in pips is exceeded
     error MaxProtocolFeePipsExceeded();
+    error NotGovernor();
+    error NotNextGovernor();
 
     /// @notice Emitted when the next governor is appointed
     /// @param nextGovernor The next governor

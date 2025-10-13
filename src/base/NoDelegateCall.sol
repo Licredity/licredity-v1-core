@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 /// @title NoDelegateCall
 /// @notice Abstract contract that prevents delegate calls
 abstract contract NoDelegateCall {
+    error DelegateCallNotAllowed();
+
     address private immutable SELF;
 
     modifier noDelegateCall() {
