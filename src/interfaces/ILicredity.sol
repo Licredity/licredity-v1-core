@@ -76,9 +76,6 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @notice Thrown when the caller is not the position owner
     error NotPositionOwner();
 
-    /// @notice Thrown when a position does not exist
-    error PositionDoesNotExist();
-
     /// @notice Thrown when a position is not healthy
     error PositionNotHealthy();
 
@@ -201,10 +198,11 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
         uint256 topup
     );
 
-    /// @notice Unlocks the Licredity contract
-    /// @param data The data to be passed to the unlock callback
-    /// @return result The result returned from the unlock callback
-    function unlock(bytes calldata data) external returns (bytes memory result);
+    /// @notice Unlocks the contract and calls executor with data
+    /// @param executor The executor to call after unlocking
+    /// @param data The data to be passed to the executor
+    /// @return result The result returned from the executor
+    function unlock(address executor, bytes calldata data) external returns (bytes memory result);
 
     /// @notice Opens a new position
     /// @return positionId The ID of the newly opened position

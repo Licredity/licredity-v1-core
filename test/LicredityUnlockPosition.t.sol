@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import {stdError} from "@forge-std/StdError.sol";
 import {Deployers} from "./utils/Deployer.sol";
 import {ShareMath} from "./utils/ShareMath.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
@@ -139,8 +140,9 @@ contract LicredityUnlockPositionTest is Deployers {
     /// decreaseDebtShare ///
 
     function test_decreaseDebtShare_notExistPosition() public {
-        vm.expectRevert(ILicredity.PositionDoesNotExist.selector);
         licredity.decreaseDebtShare(1, 0, false);
+        vm.expectRevert(stdError.arithmeticError);
+        licredity.decreaseDebtShare(1, 1, false);
     }
 
     function test_decreaseDebtShare_useBalance_NotPositionOwner() public {

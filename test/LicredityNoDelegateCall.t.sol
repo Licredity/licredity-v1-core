@@ -11,7 +11,7 @@ contract LicredityNoDelegateTest is Deployers {
 
     function test_noDelegateCall_unlock() public {
         (bool success, bytes memory data) =
-            address(licredity).delegatecall(abi.encodeCall(ILicredity.unlock, (hex"01")));
+            address(licredity).delegatecall(abi.encodeCall(ILicredity.unlock, (address(this), hex"01")));
         assertFalse(success);
         assertEq(bytes4(data), ILicredity.DelegateCallNotAllowed.selector);
     }
