@@ -221,6 +221,10 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @return accruedProtocolFee The accrued protocol fee
     function accruedProtocolFee() external view returns (uint256 accruedProtocolFee);
 
+    /// @notice Gets the last interest collection timestamp
+    /// @return lastInterestCollectionTimestamp The last interest collection timestamp
+    function lastInterestCollectionTimestamp() external view returns (uint256 lastInterestCollectionTimestamp);
+
     /// @notice Gets the amount of base fungible that can be exchanged for
     /// @return exchangeableAmount The exchangeable amount
     function exchangeableAmount() external view returns (uint256 exchangeableAmount);

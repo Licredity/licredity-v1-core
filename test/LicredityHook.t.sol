@@ -1,24 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import {Deployers} from "./utils/Deployer.sol";
-import {StateLibrary as LicredityStateLibrary} from "./utils/StateLibrary.sol";
-import {ILicredity} from "src/interfaces/ILicredity.sol";
-import {Licredity} from "src/Licredity.sol";
-import {Fungible} from "src/types/Fungible.sol";
 import {IERC20} from "@forge-std/interfaces/IERC20.sol";
-import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
-import {Currency} from "@uniswap-v4-core/types/Currency.sol";
-import {CustomRevert} from "@uniswap-v4-core/libraries/CustomRevert.sol";
-import {Hooks} from "@uniswap-v4-core/libraries/Hooks.sol";
-import {TickMath} from "@uniswap-v4-core/libraries/TickMath.sol";
 import {IHooks} from "@uniswap-v4-core/interfaces/IHooks.sol";
 import {IPoolManager} from "@uniswap-v4-core/interfaces/IPoolManager.sol";
+import {CustomRevert} from "@uniswap-v4-core/libraries/CustomRevert.sol";
+import {Hooks} from "@uniswap-v4-core/libraries/Hooks.sol";
 import {StateLibrary} from "@uniswap-v4-core/libraries/StateLibrary.sol";
+import {TickMath} from "@uniswap-v4-core/libraries/TickMath.sol";
+import {Currency} from "@uniswap-v4-core/types/Currency.sol";
+import {PoolKey} from "@uniswap-v4-core/types/PoolKey.sol";
+import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {Fungible} from "src/types/Fungible.sol";
+import {Deployers} from "./utils/Deployer.sol";
 
 contract LicredityHookTest is Deployers {
     using StateLibrary for IPoolManager;
-    using LicredityStateLibrary for Licredity;
 
     uint24 private constant FEE = 100;
     int24 private constant TICK_SPACING = 1;

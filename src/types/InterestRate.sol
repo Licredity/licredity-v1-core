@@ -17,9 +17,9 @@ library InterestRateLibrary {
 
     using FullMath for uint256;
 
-    uint256 private constant SECONDS_PER_YEAR = 365 days;
-    uint256 private constant RAY = 1e27;
-    uint256 private constant HALF_RAY = 0.5e27;
+    uint256 internal constant SECONDS_PER_YEAR = 365 days;
+    uint256 internal constant RAY = 1e27;
+    uint256 internal constant HALF_RAY = 0.5e27;
 
     /// @notice Multiplies two interest rates, "normal" rouding (half up)
     /// @param x The first interest rate

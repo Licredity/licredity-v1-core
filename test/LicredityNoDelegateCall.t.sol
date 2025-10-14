@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import {Deployers} from "./utils/Deployer.sol";
 import {NoDelegateCall} from "src/base/NoDelegateCall.sol";
 import {ILicredity} from "src/interfaces/ILicredity.sol";
+import {Deployers} from "./utils/Deployer.sol";
 
 contract LicredityNoDelegateTest is Deployers {
     function setUp() public {

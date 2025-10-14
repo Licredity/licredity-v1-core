@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
-import {LicredityRouter, Actions} from "./LicredityRouter.sol";
 import {NonFungible} from "src/types/NonFungible.sol";
+import {LicredityRouter, Actions} from "./LicredityRouter.sol";
 
 contract LicredityRouterHelper {
     LicredityRouter internal router;
