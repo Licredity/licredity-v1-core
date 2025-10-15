@@ -63,7 +63,7 @@ contract LicredityRouter is IUnlockExecutor {
         licredity.unlock(address(this), abi.encode(actions, params));
     }
 
-    function execute(address sender, bytes calldata data) external returns (bytes memory) {
+    function execute(address sender, bytes calldata data) external payable returns (bytes memory) {
         (Actions[] memory actions, bytes[] memory params) = abi.decode(data, (Actions[], bytes[]));
         for (uint256 i = 0; i < actions.length; i++) {
             Actions action = actions[i];

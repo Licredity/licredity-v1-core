@@ -4,12 +4,9 @@ pragma solidity ^0.8.20;
 import {FullMath} from "src/libraries/FullMath.sol";
 import {InterestRateLibrary} from "src/types/InterestRate.sol";
 import {Fungible} from "src/types/Fungible.sol";
-import {Licredity} from "src/Licredity.sol";
 import {LicredityConstants} from "src/LicredityConstants.sol";
 import {AaveIntertestMath} from "./utils/AaveMathInterest.sol";
 import {Deployers} from "./utils/Deployer.sol";
-import {LicredityRouter} from "./utils/LicredityRouter.sol";
-import {LicredityRouterHelper} from "./utils/LicredityRouterHelper.sol";
 
 contract LicredityInterestTest is Deployers {
     function setUp() public {

@@ -8,5 +8,5 @@ interface IUnlockExecutor {
     /// @param sender The address initiating the unlock
     /// @param data The data passed from the unlock operation
     /// @return result The result to be returned to the unlock operation
-    function execute(address sender, bytes calldata data) external returns (bytes memory result);
+    function execute(address sender, bytes calldata data) external payable returns (bytes memory result);
 }
