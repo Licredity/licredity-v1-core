@@ -98,14 +98,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function unlock(address executor, bytes calldata data) external noDelegateCall returns (bytes memory result) {
+    function unlock(address executor, bytes calldata data) external payable noDelegateCall returns (bytes memory result) {
         Locker.unlock();
 
         // accrue interest and update total debt balance
         _collectInterest(false);
 
         // call the executor, which implements IUnlockExecutor
-        result = IUnlockExecutor(executor).execute(msg.sender, data);
+        result = IUnlockExecutor(executor).execute{value: msg.value}(msg.sender, data);
 
         // ensure that every registered position is healthy
         bytes32[] memory items = Locker.registeredItems();
