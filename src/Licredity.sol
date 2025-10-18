@@ -34,6 +34,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     using PipsMath for uint256;
     using StateLibrary for IPoolManager;
 
+    uint256 private constant ONE_D9 = 1e9;
     uint256 private constant ONE_D18 = 1e18;
     uint160 private constant ONE_X96 = 0x1000000000000000000000000;
 
@@ -43,6 +44,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
 
     Fungible internal immutable BASE_FUNGIBLE;
     PoolId internal immutable POOL_ID;
+    uint256 internal immutable SCALE_FACTOR; // scale factor for 18 decimal price to 27 decimal interest rate
     PoolKey internal _poolKey;
     mapping(uint256 => Position) internal _positions;
     mapping(bytes32 => uint256) internal _liquidityOnsets; // maps liquidity key to its onset timestamp
@@ -69,11 +71,14 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
     }
 
-    constructor(address baseToken, address _poolManager, string memory name, string memory symbol, address governor)
-        BaseHooks(_poolManager)
-        BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals())
-        RiskConfigs(governor)
-    {
+    constructor(
+        address _poolManager,
+        address baseToken,
+        string memory name,
+        string memory symbol,
+        uint256 sensitivity,
+        address governor
+    ) BaseHooks(_poolManager) BaseERC20(name, symbol, Fungible.wrap(baseToken).decimals()) RiskConfigs(governor) {
         // require(address(this) > baseToken, InvalidLicredityAddress());
         if (address(this) <= baseToken) {
             assembly ("memory-safe") {
@@ -82,8 +87,9 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             }
         }
 
-        // set base fungibles
+        // set base fungibles and scale factor
         BASE_FUNGIBLE = Fungible.wrap(baseToken);
+        SCALE_FACTOR = sensitivity * ONE_D9;
 
         // set pool key and id, initialize the hooked pool
         _poolKey = PoolKey(
@@ -98,7 +104,12 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function unlock(address executor, bytes calldata data) external payable noDelegateCall returns (bytes memory result) {
+    function unlock(address executor, bytes calldata data)
+        external
+        payable
+        noDelegateCall
+        returns (bytes memory result)
+    {
         Locker.unlock();
 
         // accrue interest and update total debt balance
@@ -627,6 +638,11 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
+    function scaleFactor() external view returns (uint256) {
+        return SCALE_FACTOR;
+    }
+
+    /// @inheritdoc ILicredity
     function poolKey() external view returns (PoolKey memory) {
         return _poolKey;
     }
@@ -899,6 +915,28 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         }
     }
 
+    function _priceToInterestRate(uint256 price) internal view returns (InterestRate interestRate) {
+        uint256 oneD18 = ONE_D18;
+        uint256 maxInterestRate = LicredityConstants.MAX_INTEREST_RATE;
+        uint256 _scaleFactor = SCALE_FACTOR;
+
+        assembly ("memory-safe") {
+            if lt(price, oneD18) {
+                // if price falls below 1, force 0% interest rate until it recovers
+                // defensive programming, should never happen
+                interestRate := 0
+            }
+
+            if gt(price, oneD18) {
+                // price has 18 decimals, and interest has 27 decimals
+                // interestRate = InterestRate.wrap((price - 1e18) * _scaleFactor);
+                interestRate := mul(sub(price, oneD18), _scaleFactor)
+
+                if gt(interestRate, maxInterestRate) { interestRate := maxInterestRate }
+            }
+        }
+    }
+
     function _calculateLiquidityKey(address provider, int24 tickLower, int24 tickUpper, bytes32 salt)
         internal
         pure
@@ -922,28 +960,6 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         assembly ("memory-safe") {
             // topup = deficit * 2;
             topup := mul(deficit, 2)
-        }
-    }
-
-    function _priceToInterestRate(uint256 price) internal pure returns (InterestRate interestRate) {
-        uint256 oneD18 = ONE_D18;
-        uint256 maxInterestRate = LicredityConstants.MAX_INTEREST_RATE;
-        uint256 scaleFactor = LicredityConstants.PRICE_TO_INTEREST_RATE_SCALE_FACTOR;
-
-        assembly ("memory-safe") {
-            if lt(price, oneD18) {
-                // if price falls below 1, force 0% interest rate until it recovers
-                // defensive programming, should never happen
-                interestRate := 0
-            }
-
-            if gt(price, oneD18) {
-                // price has 18 decimals, and interest has 27 decimals
-                // interestRate = InterestRate.wrap((price - 1e18) * _scaleFactor);
-                interestRate := mul(sub(price, oneD18), scaleFactor)
-
-                if gt(interestRate, maxInterestRate) { interestRate := maxInterestRate }
-            }
         }
     }
 

@@ -209,6 +209,10 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     /// @return poolId The pool ID
     function poolId() external view returns (PoolId poolId);
 
+    /// @notice Gets the scale factor for price to interest rate conversion
+    /// @return scaleFactor The scale factor
+    function scaleFactor() external view returns (uint256 scaleFactor);
+
     /// @notice Gets the Uniswap v4 anchor pool key
     /// @return poolKey The pool key
     function poolKey() external view returns (PoolKey memory poolKey);

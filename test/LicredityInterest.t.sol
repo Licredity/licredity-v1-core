@@ -4,9 +4,12 @@ pragma solidity ^0.8.20;
 import {FullMath} from "src/libraries/FullMath.sol";
 import {InterestRateLibrary} from "src/types/InterestRate.sol";
 import {Fungible} from "src/types/Fungible.sol";
+import {Licredity} from "src/Licredity.sol";
 import {LicredityConstants} from "src/LicredityConstants.sol";
 import {AaveIntertestMath} from "./utils/AaveMathInterest.sol";
 import {Deployers} from "./utils/Deployer.sol";
+import {LicredityRouter} from "./utils/LicredityRouter.sol";
+import {LicredityRouterHelper} from "./utils/LicredityRouterHelper.sol";
 
 contract LicredityInterestTest is Deployers {
     function setUp() public {
@@ -36,7 +39,7 @@ contract LicredityInterestTest is Deployers {
 
         uint256 afterTotalAssets = licredity.totalDebtBalance();
 
-        uint256 yearRate = (price - 1e18) * LicredityConstants.PRICE_TO_INTEREST_RATE_SCALE_FACTOR;
+        uint256 yearRate = (price - 1e18) * licredity.scaleFactor();
         if (yearRate > 365e25) {
             yearRate = 365e25;
         }
@@ -47,84 +50,84 @@ contract LicredityInterestTest is Deployers {
         assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
     }
 
-    // function deployInterestSensitivityLicredity(uint256 interestSensitivity) public {
-    //     address payable mockLicredity = payable(address(0x15b0f23F7b8b8d267Eef0BBaCD6eAE4B00626aC0));
-    //     deployCodeTo(
-    //         "Licredity.sol",
-    //         abi.encode(address(0), interestSensitivity, address(poolManager), "Debt ETH", "DETH", address(this)),
-    //         mockLicredity
-    //     );
-    //     licredity = Licredity(mockLicredity);
-    //     licredity.setDebtLimit(10000 ether);
-    //     licredity.setOracle(address(oracleMock));
+    function deployInterestSensitivityLicredity(uint256 interestSensitivity) public {
+        address payable mockLicredity = payable(address(0x15b0f23F7b8b8d267Eef0BBaCD6eAE4B00626aC0));
+        deployCodeTo(
+            "Licredity.sol",
+            abi.encode(address(poolManager), address(0), "Debt ETH", "DETH", interestSensitivity, address(this)),
+            mockLicredity
+        );
+        licredity = Licredity(mockLicredity);
+        licredity.setDebtLimit(10000 ether);
+        licredity.setOracle(address(oracleMock));
 
-    //     licredityRouter = new LicredityRouter(licredity);
-    //     licredityRouterHelper = new LicredityRouterHelper(licredityRouter);
-    // }
+        licredityRouter = new LicredityRouter(licredity);
+        licredityRouterHelper = new LicredityRouterHelper(licredityRouter);
+    }
 
-    // /// (1 - price) = year interest rate
-    // function test_yearRate_interest(uint32 elapsed, uint256 price) public {
-    //     price = bound(price, 1 ether, 5 ether);
+    /// (1 - price) = year interest rate
+    function test_yearRate_interest(uint32 elapsed, uint256 price) public {
+        price = bound(price, 1 ether, 5 ether);
 
-    //     deployInterestSensitivityLicredity(1);
-    //     getDebtERC20(address(this), 1 ether);
-    //     uint256 beforeTotalAssets = licredity.totalDebtBalance();
+        deployInterestSensitivityLicredity(1);
+        getDebtERC20(address(this), 1 ether);
+        uint256 beforeTotalAssets = licredity.totalDebtBalance();
 
-    //     skip(elapsed);
-    //     oracleMock.setQuotePrice(price);
+        skip(elapsed);
+        oracleMock.setQuotePrice(price);
 
-    //     uint256 positionId = licredityRouter.openPosition();
-    //     licredityRouter.depositFungible{value: 0.5 ether}(
-    //         positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 0.5 ether
-    //     );
-    //     licredityRouterHelper.withdrawFungible(
-    //         positionId, address(1), Fungible.unwrap(LicredityConstants.CHAIN_NATIVE_FUNGIBLE), 0.1 ether
-    //     );
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 0.5 ether}(
+            positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 0.5 ether
+        );
+        licredityRouterHelper.withdrawFungible(
+            positionId, address(1), Fungible.unwrap(LicredityConstants.CHAIN_NATIVE_FUNGIBLE), 0.1 ether
+        );
 
-    //     uint256 afterTotalAssets = licredity.totalDebtBalance();
+        uint256 afterTotalAssets = licredity.totalDebtBalance();
 
-    //     uint256 yearRate = (price - 1e18) * 1e9;
-    //     if (yearRate > 365e25) {
-    //         yearRate = 365e25;
-    //     }
+        uint256 yearRate = (price - 1e18) * 1e9;
+        if (yearRate > 365e25) {
+            yearRate = 365e25;
+        }
 
-    //     uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
-    //     uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, InterestRateLibrary.RAY);
+        uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
+        uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, InterestRateLibrary.RAY);
 
-    //     assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
-    // }
+        assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
+    }
 
-    // function test_fuzz_SensitivityLicredity(uint32 elapsed, uint256 price, uint256 interestSensitivity) public {
-    //     price = bound(price, 1 ether, 5 ether);
-    //     interestSensitivity = bound(interestSensitivity, 1, 365);
+    function test_fuzz_SensitivityLicredity(uint32 elapsed, uint256 price, uint256 interestSensitivity) public {
+        price = bound(price, 1 ether, 5 ether);
+        interestSensitivity = bound(interestSensitivity, 1, 365);
 
-    //     deployInterestSensitivityLicredity(interestSensitivity);
-    //     getDebtERC20(address(this), 1 ether);
-    //     uint256 beforeTotalAssets = licredity.totalDebtBalance();
+        deployInterestSensitivityLicredity(interestSensitivity);
+        getDebtERC20(address(this), 1 ether);
+        uint256 beforeTotalAssets = licredity.totalDebtBalance();
 
-    //     skip(elapsed);
-    //     oracleMock.setQuotePrice(price);
+        skip(elapsed);
+        oracleMock.setQuotePrice(price);
 
-    //     uint256 positionId = licredityRouter.openPosition();
-    //     licredityRouter.depositFungible{value: 0.5 ether}(
-    //         positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 0.5 ether
-    //     );
-    //     licredityRouterHelper.withdrawFungible(
-    //         positionId, address(1), Fungible.unwrap(LicredityConstants.CHAIN_NATIVE_FUNGIBLE), 0.1 ether
-    //     );
+        uint256 positionId = licredityRouter.openPosition();
+        licredityRouter.depositFungible{value: 0.5 ether}(
+            positionId, LicredityConstants.CHAIN_NATIVE_FUNGIBLE, 0.5 ether
+        );
+        licredityRouterHelper.withdrawFungible(
+            positionId, address(1), Fungible.unwrap(LicredityConstants.CHAIN_NATIVE_FUNGIBLE), 0.1 ether
+        );
 
-    //     uint256 afterTotalAssets = licredity.totalDebtBalance();
+        uint256 afterTotalAssets = licredity.totalDebtBalance();
 
-    //     uint256 yearRate = (price - 1e18) * 1e9 * interestSensitivity;
-    //     if (yearRate > 365e25) {
-    //         yearRate = 365e25;
-    //     }
+        uint256 yearRate = (price - 1e18) * 1e9 * interestSensitivity;
+        if (yearRate > 365e25) {
+            yearRate = 365e25;
+        }
 
-    //     uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
-    //     uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, InterestRateLibrary.RAY);
+        uint256 rayRate = AaveIntertestMath.calculateCompoundedInterest(yearRate, elapsed);
+        uint256 interestAsset = FullMath.fullMulDiv(beforeTotalAssets, rayRate, InterestRateLibrary.RAY);
 
-    //     assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
-    // }
+        assertApproxEqAbs(afterTotalAssets, interestAsset, 1);
+    }
 
     function test_decreaseDebtShare_collectsInterest(uint256 elapsed, uint256 price) public {
         price = bound(price, 1 ether, 5 ether);
@@ -144,7 +147,7 @@ contract LicredityInterestTest is Deployers {
 
         uint256 amountRepaid = licredity.decreaseDebtShare(positionId, 1 ether * 1e6, false);
 
-        uint256 yearRate = (price - 1e18) * LicredityConstants.PRICE_TO_INTEREST_RATE_SCALE_FACTOR;
+        uint256 yearRate = (price - 1e18) * licredity.scaleFactor();
         if (yearRate > 365e25) {
             yearRate = 365e25;
         }

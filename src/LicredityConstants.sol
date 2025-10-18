@@ -20,6 +20,4 @@ library LicredityConstants {
     uint256 internal constant MAX_INTEREST_RATE = 3.65e27; // maximum interest rate (365% per year)
     uint256 internal constant MAX_MIN_LIQUIDITY_LIFESPAN = 7 days;
     uint256 internal constant MAX_PROTOCOL_FEE_PIPS = PipsMath.ONE_PIPS / 2 ** 4; // 6.25%
-
-    uint256 internal constant PRICE_TO_INTEREST_RATE_SCALE_FACTOR = 10 * 1e9; // price to interest rate scale factor
 }
