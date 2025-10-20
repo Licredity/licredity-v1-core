@@ -30,6 +30,7 @@ interface ILicredity is IHooks, IERC20, IRiskConfigs, IExtsload, IERC721TokenRec
     error NotDebtFungible();
     error NotLicredity();
     error NotPositionOwner();
+    error NotUnlockExecutor();
     error PositionIsHealthy();
     error PositionNotEmpty();
     error PositionNotHealthy();

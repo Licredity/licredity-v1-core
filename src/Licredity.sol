@@ -38,6 +38,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     uint256 private constant ONE_D18 = 1e18;
     uint160 private constant ONE_X96 = 0x1000000000000000000000000;
 
+    address internal transient _executor;
     Fungible internal transient _stagedFungible;
     uint256 internal transient _stagedFungibleBalance;
     NonFungible internal transient _stagedNonFungible;
@@ -56,6 +57,22 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     uint256 public totalDebtShare = 1e6; // can never be redeemed, prevents inflation attack and behaves like bad debt
     uint256 public totalDebtBalance = 1; // establishes the initial conversion rate and inflation attack difficulty
     uint256 public nextPositionId = 1;
+
+    modifier onlyExecutorIfUnlocked() {
+        _onlyExecutorIfUnlocked();
+        _;
+    }
+
+    function _onlyExecutorIfUnlocked() internal view {
+        assembly ("memory-safe") {
+            let executor := tload(_executor.slot) // save gas
+            // require(executor == address(0) || executor == msg.sender, NotUnlockExecutor());
+            if iszero(or(eq(executor, 0), eq(executor, caller()))) {
+                mstore(0x00, 0x39e897d5) // 'NotUnlockExecutor()'
+                revert(0x1c, 0x04)
+            }
+        }
+    }
 
     modifier onlyNonZeroAddress(address _address) {
         _onlyNonZeroAddress(_address);
@@ -111,6 +128,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
         returns (bytes memory result)
     {
         Locker.unlock();
+        _executor = executor;
 
         // accrue interest and update total debt balance
         _collectInterest(false);
@@ -132,11 +150,12 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
             }
         }
 
+        delete _executor;
         Locker.lock();
     }
 
     /// @inheritdoc ILicredity
-    function openPosition() external returns (uint256 positionId) {
+    function openPosition() external onlyExecutorIfUnlocked returns (uint256 positionId) {
         address owner = _originalSender();
 
         unchecked {
@@ -151,7 +170,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function closePosition(uint256 positionId) external {
+    function closePosition(uint256 positionId) external onlyExecutorIfUnlocked {
         Position storage position = _findPosition(positionId, true);
 
         // require(position.isEmpty(), PositionNotEmpty());
@@ -171,7 +190,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function stageFungible(Fungible fungible) external {
+    function stageFungible(Fungible fungible) external onlyExecutorIfUnlocked {
         assembly ("memory-safe") {
             // _stagedFungible = fungible;
             tstore(_stagedFungible.slot, and(fungible, 0xffffffffffffffffffffffffffffffffffffffff))
@@ -183,7 +202,12 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function exchangeFungible(address recipient, bool baseForDebt) external payable onlyNonZeroAddress(recipient) {
+    function exchangeFungible(address recipient, bool baseForDebt)
+        external
+        payable
+        onlyExecutorIfUnlocked
+        onlyNonZeroAddress(recipient)
+    {
         (Fungible fungible, uint256 amount) = _popStagedFungibleAndAmount();
 
         if (baseForDebt) {
@@ -244,7 +268,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function depositFungible(uint256 positionId) external payable {
+    function depositFungible(uint256 positionId) external payable onlyExecutorIfUnlocked {
         Position storage position = _findPosition(positionId, true);
 
         (Fungible fungible, uint256 amount) = _popStagedFungibleAndAmount();
@@ -266,7 +290,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function stageNonFungible(NonFungible nonFungible) external {
+    function stageNonFungible(NonFungible nonFungible) external onlyExecutorIfUnlocked {
         // require(nonFungible.owner() != address(this), NonFungibleAlreadyOwned());
         if (nonFungible.owner() == address(this)) {
             assembly ("memory-safe") {
@@ -282,7 +306,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     }
 
     /// @inheritdoc ILicredity
-    function depositNonFungible(uint256 positionId) external {
+    function depositNonFungible(uint256 positionId) external onlyExecutorIfUnlocked {
         NonFungible nonFungible = _stagedNonFungible; // gas saving
         Position storage position = _findPosition(positionId, true);
 
@@ -319,6 +343,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function withdrawFungible(uint256 positionId, address recipient, Fungible fungible, uint256 amount)
         external
+        onlyExecutorIfUnlocked
         onlyNonZeroAddress(recipient)
     {
         Position storage position = _findPosition(positionId, true);
@@ -346,6 +371,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     /// @inheritdoc ILicredity
     function withdrawNonFungible(uint256 positionId, address recipient, NonFungible nonFungible)
         external
+        onlyExecutorIfUnlocked
         onlyNonZeroAddress(recipient)
     {
         Position storage position = _findPosition(positionId, true);
@@ -380,6 +406,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     function increaseDebtShare(uint256 positionId, uint256 delta, address recipient)
         external
         noDelegateCall
+        onlyExecutorIfUnlocked
         onlyNonZeroAddress(recipient)
         returns (uint256 amount)
     {
@@ -442,6 +469,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     function decreaseDebtShare(uint256 positionId, uint256 delta, bool useBalance)
         external
         noDelegateCall
+        onlyExecutorIfUnlocked
         returns (uint256 amount)
     {
         Position storage position = _findPosition(positionId, useBalance);
@@ -499,6 +527,7 @@ contract Licredity is ILicredity, BaseHooks, BaseERC20, RiskConfigs, Extsload, N
     function seizePosition(uint256 positionId, address recipient)
         external
         noDelegateCall
+        onlyExecutorIfUnlocked
         onlyNonZeroAddress(recipient)
         returns (uint256 shortfall)
     {
